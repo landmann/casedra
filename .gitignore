@@ -6,8 +6,13 @@ out
 build
 coverage
 .DS_Store
-.env
 .env.*
 expo
 android
 ios
+
+.projects/cache
+.projects/vault
+.env
+.env.local
+.vercel

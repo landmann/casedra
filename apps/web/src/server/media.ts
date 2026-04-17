@@ -38,6 +38,8 @@ const MODEL_BY_KIND: Record<MediaGenerationRequest["kind"], string> = {
   flyer: "fal-ai/flux-pro/v1.1",
   short_form_video: "fal-ai/runway-gen3",
   property_description: "fal-ai/llama-3.1-70b-instruct",
+  email_copy: "fal-ai/llama-3.1-70b-instruct",
+  landing_page_section: "fal-ai/llama-3.1-70b-instruct",
 };
 
 type FalRunInput = {
@@ -72,6 +74,10 @@ const buildPrompt = (listing: ConvexListing, kind: MediaGenerationRequest["kind"
       return `Storyboard a 30-second real estate teaser video for: ${base}`;
     case "property_description":
       return `Write an SEO-friendly property description: ${base}`;
+    case "email_copy":
+      return `Write a short email announcement promoting this listing: ${base}`;
+    case "landing_page_section":
+      return `Write a landing page hero section for this listing: ${base}`;
     default:
       return base;
   }

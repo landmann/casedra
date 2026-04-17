@@ -21,8 +21,6 @@
       "@casablanca/ui/*": ["../../packages/ui/src/*"],
       "@casablanca/api": ["../../packages/api/src/index.ts"],
       "@casablanca/api/*": ["../../packages/api/src/*"],
-      "@casablanca/auth": ["../../packages/auth/src/index.ts"],
-      "@casablanca/auth/*": ["../../packages/auth/src/*"],
       "@casablanca/types": ["../../packages/types/src/index.ts"],
       "@casablanca/types/*": ["../../packages/types/src/*"]
     },

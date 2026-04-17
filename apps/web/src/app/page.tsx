@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   ArrowRight,
+  BookOpen,
   MonitorPlay,
   Palette,
   Sparkles,
@@ -18,6 +19,7 @@ import {
 
 const studioRoute = "/app/onboarding";
 const demoRoute = "/book-demo";
+const masterplanRoute = "/masterplan";
 
 const coreFeatures = [
   {
@@ -89,6 +91,14 @@ export default function HomePage() {
                 className="inline-flex items-center gap-2"
               >
                 Book a walkthrough
+              </Link>
+            </Button>
+            <Button asChild variant="ghost" size="lg">
+              <Link
+                href={{ pathname: masterplanRoute }}
+                className="inline-flex items-center gap-2"
+              >
+                <BookOpen className="h-4 w-4" aria-hidden="true" /> Read the masterplan
               </Link>
             </Button>
           </div>

@@ -4,11 +4,10 @@ Casablanca is a Turborepo that hosts the web studio (Next.js), the mobile compan
 
 ## Monorepo layout
 
-- `apps/web` – Next.js app (Tailwind + ShadCN UI) with TRPC, Convex, BetterAuth, Fal.ai, PostHog, Stripe integrations
+- `apps/web` – Next.js app (Tailwind + ShadCN UI) with TRPC, Convex, Clerk, Fal.ai, PostHog, Stripe integrations
 - `apps/mobile` – Expo + React Native shell for approvals and on-the-go tasks
 - `packages/ui` – shared component library built on the ShadCN patterns
 - `packages/api` – shared TRPC router, schemas, and context contract
-- `packages/auth` – BetterAuth bootstrapper (in-memory today, Convex adapter planned)
 - `packages/types` – cross-platform domain types
 - `convex` – serverless data + jobs (listings, media queue)
 
@@ -43,8 +42,9 @@ pnpm install
 | `NEXT_PUBLIC_APP_URL` | Web + auth | Base browser URL (e.g. `http://localhost:3000` in dev) |
 | `CONVEX_URL` / `NEXT_PUBLIC_CONVEX_URL` | Web + TRPC | Copy the deployment URL from Convex dashboard |
 | `CONVEX_DEPLOYMENT` | Convex CLI | Format: `<team>/<deployment>` |
-| `BETTER_AUTH_SECRET` | BetterAuth | 32+ char random string; rotate in prod |
-| `BETTER_AUTH_SESSION_MAX_AGE_DAYS` | BetterAuth | Optional, defaults to 30 |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk | From Clerk dashboard → API Keys (`pk_...`) |
+| `CLERK_SECRET_KEY` | Clerk | From Clerk dashboard → API Keys (`sk_...`); server-only |
+| `CLERK_JWT_ISSUER_DOMAIN` | Clerk + Convex | Frontend API URL from Clerk dashboard (e.g. `https://<slug>.clerk.accounts.dev`); used by `convex/auth.config.ts` |
 | `FAL_KEY` | Fal.ai | Server-side only; never expose publicly |
 | `FIRECRAWL_API_KEY` | Firecrawl | Needed for listing ingestion via crawl |
 | `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` | Stripe | Follow the Stripe section below |
@@ -65,13 +65,16 @@ pnpm install
    pnpm convex dev
    ```
 5. The current schema defines two tables (`listings`, `mediaJobs`); functions live in `convex/listings.ts` and `convex/media.ts`.
-6. TODO: we still need to implement a Convex-backed BetterAuth adapter (see roadmap below).
+6. `convex/auth.config.ts` trusts JWTs from Clerk via `CLERK_JWT_ISSUER_DOMAIN` (set this in your Convex deployment env too: `pnpm dlx convex env set CLERK_JWT_ISSUER_DOMAIN <url>`).
 
-## BetterAuth
+## Clerk
 
-- `packages/auth` exposes `createCasablancaAuth()` which currently uses the in-memory adapter for local flows. Production should swap to a Convex adapter – keep track in the roadmap.
-- Set `BETTER_AUTH_SECRET` before running the app.
-- When we add auth routes, they will live under `apps/web/src/app/api/auth/*` and reuse the exported helper.
+1. Create a Clerk application at [https://dashboard.clerk.com](https://dashboard.clerk.com).
+2. Copy the Publishable Key and Secret Key into `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY`.
+3. Under **JWT Templates → New Template**, pick the **Convex** preset and save. The template name must be `convex` — this is what `ConvexProviderWithClerk` requests.
+4. Copy your Clerk **Frontend API URL** (Dashboard → API Keys → Show JWT public key → issuer) into `CLERK_JWT_ISSUER_DOMAIN`, and also push it to Convex with `pnpm dlx convex env set CLERK_JWT_ISSUER_DOMAIN <url>`.
+5. Auth UI is provided by Clerk components (`<SignInButton>`, `<SignUpButton>`, `<UserButton>`, `<Show>`) imported from `@clerk/nextjs`. Drop them into your layout/header where you want the auth surface.
+6. Server-side auth is via `auth()` / `currentUser()` from `@clerk/nextjs/server` (see `apps/web/src/lib/auth-server.ts` and the TRPC context).
 
 ## Fal.ai
 
@@ -121,7 +124,7 @@ pnpm install
 
 ## Roadmap & TODOs
 
-- [ ] Replace BetterAuth memory adapter with Convex-backed storage + session middleware wired into TRPC context
+- [ ] Add a `users` table in Convex synced from Clerk webhooks (org/role data) once team features land
 - [ ] Finish Firecrawl ingestion flow and media asset uploader (S3/Vercel Blob)
 - [ ] Flesh out Fal.ai prompt templates per asset type and persist outputs in Convex `mediaJobs`
 - [ ] Expose TRPC queries in Expo app via react-query + mobile-specific screens

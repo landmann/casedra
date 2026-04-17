@@ -1,18 +1,22 @@
-import type { Session } from "@casablanca/auth";
 import type {
-  MediaGenerationRequest,
-  MediaGenerationResult,
+	MediaGenerationRequest,
+	MediaGenerationResult,
 } from "@casablanca/types";
 import type { ConvexHttpClient } from "convex/browser";
 
+export interface CasablancaSession {
+	userId: string;
+	sessionId: string | null;
+}
+
 export interface CasablancaContext {
-  convex: ConvexHttpClient;
-  session: Session | null;
-  fal: {
-    generateMedia: (
-      request: MediaGenerationRequest
-    ) => Promise<MediaGenerationResult>;
-  };
+	convex: ConvexHttpClient;
+	session: CasablancaSession | null;
+	fal: {
+		generateMedia: (
+			request: MediaGenerationRequest,
+		) => Promise<MediaGenerationResult>;
+	};
 }
 
 export const createContext = (context: CasablancaContext) => context;

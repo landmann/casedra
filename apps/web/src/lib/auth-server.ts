@@ -1,6 +1,4 @@
-import { createAuth } from "@casablanca/auth";
-import { getToken as getTokenNextjs } from "@convex-dev/better-auth/nextjs";
+import { auth, currentUser } from "@clerk/nextjs/server";
 
-export const getToken = () => {
-	return getTokenNextjs(createAuth);
-};
+export const getAuthSession = auth;
+export const getCurrentUser = currentUser;

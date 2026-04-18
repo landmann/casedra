@@ -1,326 +1,376 @@
 import Link from "next/link";
 import {
+  AlertCircle,
   ArrowRight,
+  Building2,
   CheckCircle2,
-  Clock,
-  FolderPlus,
-  Globe,
-  Presentation,
+  Clock3,
+  LayoutDashboard,
+  MessageSquareText,
+  ShieldCheck,
   Sparkles,
-  UploadCloud,
   Users,
+  Workflow,
 } from "lucide-react";
 
-import {
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@casablanca/ui";
+import { Button, Card, CardContent, CardHeader, CardTitle } from "@casablanca/ui";
 
 const quickActions = [
   {
-    title: "Spin up a listing workspace",
+    title: "Connect a live channel",
     description:
-      "Gather MLS data, collaborators, and required assets. We will scaffold the brief for you.",
-    cta: "Start from template",
+      "Set up WhatsApp or portal forwarding so real inbound demand lands in the workflow.",
+    icon: MessageSquareText,
+    cta: "Open channel setup",
     href: "/app/onboarding?step=brand",
-    icon: FolderPlus,
   },
   {
-    title: "Import from MLS or Firecrawl",
+    title: "Review routing rules",
     description:
-      "Paste a listing URL to ingest copy, imagery, and floor plans without manual uploads.",
-    cta: "Connect a source",
-    href: "/app/onboarding?step=listings",
-    icon: Globe,
-  },
-  {
-    title: "Upload raw media",
-    description:
-      "Drop photography, video, or 3D assets to keep the studio as the single source of truth.",
-    cta: "Open uploads",
+      "Define who owns which leads, when AI can continue, and when handoff should happen.",
+    icon: Workflow,
+    cta: "Inspect routing",
     href: "#",
-    icon: UploadCloud,
   },
   {
-    title: "Book a creative review",
+    title: "Prepare seller proof",
     description:
-      "Invite stakeholders to comment on drafts and ready final deliverables for handoff.",
-    cta: "Schedule working session",
-    href: "mailto:product@casablanca.cloud",
+      "Turn response and conversion performance into a weekly pack for owner-facing conversations.",
+    icon: LayoutDashboard,
+    cta: "Generate proof pack",
+    href: "#",
+  },
+  {
+    title: "Coordinate rollout",
+    description:
+      "Track deployment status, at-risk accounts, and who needs training before go-live.",
     icon: Users,
+    cta: "View rollout tasks",
+    href: "mailto:product@casablanca.cloud",
   },
-];
+] as const;
 
-const pipelineStages = [
+const inboxQueue = [
   {
-    title: "Discovery",
-    listings: 3,
-    summary: "Listings collecting briefs, comps, and MLS-ready data.",
-    highlight: "2 briefs due this week",
+    contact: "Ana Garcia",
+    source: "Idealista",
+    state: "Awaiting agent",
+    owner: "Marta Ruiz",
+    summary: "Viewing request for a 2-bed in Chamberi. Budget already qualified.",
   },
   {
-    title: "Creative in progress",
-    listings: 5,
-    summary: "Media generation, copywriting, and approvals happening here.",
-    highlight: "Fal jobs queued: 4",
+    contact: "Carlos Moreno",
+    source: "WhatsApp",
+    state: "Bot active",
+    owner: "AI",
+    summary: "Asking about availability and parking for a listing in Chamartin.",
   },
   {
-    title: "Launch prep",
-    listings: 2,
-    summary: "Packaging collateral, sequencing drip campaigns, and scheduling releases.",
-    highlight: "Stripe onboarding pending",
+    contact: "Lucia Vega",
+    source: "Web valuation form",
+    state: "New seller lead",
+    owner: "Owner nurture queue",
+    summary: "Requested valuation for a 3-bed flat and wants a meeting next week.",
   },
-];
+] as const;
 
-const recommendedFlows = [
+const scorecard = [
+  { label: "Median first response", value: "01:42", tone: "text-foreground" },
+  { label: "Inbox weekly active", value: "81%", tone: "text-foreground" },
+  { label: "Live channels connected", value: "14 / 16", tone: "text-foreground" },
+  { label: "Trust incidents", value: "0", tone: "text-primary" },
+] as const;
+
+const workflowCards = [
   {
-    title: "Luxury listing reveal",
-    description:
-      "Cinematic reel + agent voiceover, carousel post, email blast, and postcard template.",
-    steps: "6 assets • 3 automations",
+    title: "Response control",
+    body:
+      "Casablanca answered 92% of meaningful leads inside SLA this week and escalated only when local context was required.",
+    footer: "Updated 12 minutes ago",
   },
   {
-    title: "Open house momentum",
-    description:
-      "Weekend reminder cadence with automated follow-up tasks for captured leads.",
-    steps: "4 assets • 2 automations",
+    title: "Manager visibility",
+    body:
+      "Two accounts need routing adjustments because weekend coverage dropped below target.",
+    footer: "Needs review today",
   },
   {
-    title: "Referral nurture",
-    description:
-      "Quarterly touchpoints with referral partners, powered by AI-personalized snippets.",
-    steps: "3 assets • 1 automation",
+    title: "Seller acquisition",
+    body:
+      "Five owner opportunities were created from proof-led follow-up and valuation capture flows.",
+    footer: "Expansion wedge active",
   },
-];
+] as const;
 
 const activityFeed = [
   {
-    title: "Fal visual refinement finished",
-    description: "Casablanca Loft set delivered with 8 hero stills.",
-    timestamp: "4m ago",
+    title: "Weekly proof memo delivered",
+    description: "Atico Chamberi received their Monday review with SLA and recovery metrics.",
+    timestamp: "09:12",
+    icon: CheckCircle2,
   },
   {
-    title: "Listing brief approved",
-    description: "Prospect Heights brownstone ready for launch prep stage.",
-    timestamp: "38m ago",
+    title: "Low-confidence handoff triggered",
+    description: "Mortgage timing question escalated to Marta Ruiz with full conversation summary.",
+    timestamp: "08:47",
+    icon: AlertCircle,
   },
   {
-    title: "Stripe customer created",
-    description: "Payment profile linked for Willow Lane homeowners.",
-    timestamp: "Today, 9:12 AM",
+    title: "New seller valuation request",
+    description: "Lucia Vega entered via owner capture page and routed into nurture workflow.",
+    timestamp: "08:31",
+    icon: Sparkles,
   },
-];
+] as const;
 
 export default function StudioPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-muted/30">
-      <header className="border-b border-border bg-background/80 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-6 py-10 sm:flex-row sm:items-end sm:justify-between sm:gap-6 sm:px-12">
-          <div className="space-y-2">
-            <span className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              Studio
-            </span>
-            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-              Launch and orchestrate every listing campaign
-            </h1>
-            <p className="max-w-2xl text-base text-muted-foreground">
-              Coordinate discovery, AI-assisted asset generation, and approvals without juggling tabs.
-              The studio keeps listings, media, and automations in sync.
-            </p>
-          </div>
-          <div className="flex flex-col gap-3 sm:items-end">
-            <Button size="lg" className="inline-flex items-center gap-2">
-              Start a workspace
-              <Sparkles className="h-4 w-4" aria-hidden="true" />
-            </Button>
-            <Link
-              href="mailto:product@casablanca.cloud"
-              className="text-sm text-muted-foreground hover:text-foreground"
-            >
-              Need something bespoke? Let us know.
-            </Link>
-          </div>
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="relative isolate overflow-hidden">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-[-8rem] top-[-5rem] h-[340px] w-[340px] rounded-full bg-[radial-gradient(circle,rgba(156,97,55,0.16),transparent_62%)] blur-3xl" />
+          <div className="absolute right-[-8rem] top-0 h-[340px] w-[340px] rounded-full bg-[radial-gradient(circle,rgba(232,223,204,0.92),transparent_64%)] blur-3xl" />
         </div>
-      </header>
 
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-10 px-6 py-10 sm:px-12">
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {quickActions.map((action) => {
-            const Icon = action.icon;
-            return (
-              <Card key={action.title} className="h-full border-primary/20 bg-background">
-                <CardHeader className="flex flex-col gap-4">
-                  <span className="inline-flex w-fit rounded-md bg-primary/10 p-2 text-primary">
-                    <Icon className="h-5 w-5" aria-hidden="true" />
-                  </span>
-                  <div className="space-y-1.5">
-                    <CardTitle className="text-lg font-semibold">
-                      {action.title}
-                    </CardTitle>
-                    <CardDescription>{action.description}</CardDescription>
+        <header className="relative border-b border-border/80 bg-background/88 backdrop-blur">
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-6 py-8 sm:flex-row sm:items-end sm:justify-between sm:px-10">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background/85 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.24em] text-muted-foreground">
+                <Building2 className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                Product preview
+              </div>
+              <div>
+                <h1 className="font-serif text-4xl font-normal leading-tight text-foreground sm:text-5xl">
+                  Agency command center
+                </h1>
+                <p className="mt-3 max-w-3xl text-base leading-7 text-muted-foreground">
+                  A preview of Casablanca as the live workflow layer around inbound demand, team
+                  routing, and seller-side proof. This is the product posture the public UI now points to.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-3 sm:items-end">
+              <Button asChild className="rounded-full px-6">
+                <Link href="/book-demo" className="inline-flex items-center gap-2">
+                  Book a walkthrough
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </Button>
+              <Link
+                href="/masterplan"
+                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Read the planning stack
+              </Link>
+            </div>
+          </div>
+        </header>
+
+        <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-10 sm:px-10">
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {quickActions.map((action) => {
+              const Icon = action.icon;
+
+              return (
+                <Card
+                  key={action.title}
+                  className="rounded-[26px] border-border/80 bg-background/92 shadow-[0_18px_60px_rgba(31,26,20,0.06)]"
+                >
+                  <CardHeader className="space-y-4">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
+                      <Icon className="h-5 w-5" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg font-semibold">{action.title}</CardTitle>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        {action.description}
+                      </p>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <Button asChild variant="secondary" className="rounded-full px-5">
+                      <Link href={action.href} className="inline-flex items-center gap-2">
+                        {action.cta}
+                        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                      </Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </section>
+
+          <section className="grid gap-6 lg:grid-cols-[1.08fr_0.92fr]">
+            <Card className="rounded-[30px] border-border/80 bg-background/92 shadow-[0_24px_70px_rgba(31,26,20,0.07)]">
+              <CardHeader className="flex flex-row items-start justify-between gap-4">
+                <div>
+                  <CardTitle className="font-serif text-3xl font-normal leading-tight">
+                    Live inbox queue
+                  </CardTitle>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    A single surface for buyer leads, seller capture, and human takeover.
+                  </p>
+                </div>
+                <Button asChild variant="outline" size="sm" className="rounded-full">
+                  <Link href="#">
+                    Open inbox
+                    <ArrowRight className="ml-1 h-4 w-4" aria-hidden="true" />
+                  </Link>
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-2">
+                {inboxQueue.map((item) => (
+                  <div
+                    key={item.contact}
+                    className="rounded-[24px] border border-border/80 bg-secondary/45 p-5"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="text-lg font-semibold text-foreground">{item.contact}</p>
+                        <p className="mt-1 text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
+                          {item.source}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+                        <span className="rounded-full border border-border bg-background px-3 py-1">
+                          {item.state}
+                        </span>
+                        <span className="rounded-full border border-border bg-background px-3 py-1">
+                          Owner: {item.owner}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="mt-4 text-sm leading-6 text-foreground/90">{item.summary}</p>
                   </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-[30px] border-primary/25 bg-primary/10">
+              <CardHeader>
+                <CardTitle className="font-serif text-3xl font-normal leading-tight">
+                  Office scorecard
+                </CardTitle>
+                <p className="mt-2 text-sm leading-6 text-foreground/75">
+                  The metrics that decide whether the workflow is healthy, trusted, and worth expanding.
+                </p>
+              </CardHeader>
+              <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                {scorecard.map((item) => (
+                  <div
+                    key={item.label}
+                    className="rounded-[22px] border border-primary/15 bg-background/94 px-4 py-4"
+                  >
+                    <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
+                      {item.label}
+                    </p>
+                    <p className={`mt-3 text-3xl font-semibold tracking-tight ${item.tone}`}>
+                      {item.value}
+                    </p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </section>
+
+          <section className="grid gap-6 lg:grid-cols-[0.96fr_1.04fr]">
+            <Card className="rounded-[30px] border-border/80 bg-[linear-gradient(180deg,rgba(255,251,242,0.96),rgba(248,241,229,0.88))] shadow-[0_24px_70px_rgba(31,26,20,0.07)]">
+              <CardHeader>
+                <CardTitle className="font-serif text-3xl font-normal leading-tight">
+                  Workflow highlights
+                </CardTitle>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  The surfaces that make Casablanca feel like infrastructure rather than a novelty layer.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {workflowCards.map((card) => (
+                  <div
+                    key={card.title}
+                    className="rounded-[24px] border border-border/80 bg-background px-5 py-5"
+                  >
+                    <p className="text-lg font-semibold text-foreground">{card.title}</p>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">{card.body}</p>
+                    <div className="mt-4 inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.22em] text-primary">
+                      <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
+                      {card.footer}
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-6">
+              <Card className="rounded-[30px] border-border/80 bg-background/92 shadow-[0_24px_70px_rgba(31,26,20,0.07)]">
+                <CardHeader>
+                  <CardTitle className="font-serif text-3xl font-normal leading-tight">
+                    Recent activity
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-0">
-                  <Button asChild variant="secondary" className="inline-flex items-center gap-2">
-                    <Link href={action.href}>
-                      {action.cta}
-                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                <CardContent className="space-y-4">
+                  {activityFeed.map((item) => {
+                    const Icon = item.icon;
+
+                    return (
+                      <div
+                        key={item.title}
+                        className="flex items-start gap-4 rounded-[22px] border border-border/80 bg-secondary/45 p-4"
+                      >
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
+                          <Icon className="h-4 w-4" aria-hidden="true" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                            <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                            <span className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
+                              {item.timestamp}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                            {item.description}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+
+              <Card className="rounded-[30px] border-primary/25 bg-primary/10">
+                <CardHeader>
+                  <CardTitle className="font-serif text-3xl font-normal leading-tight">
+                    Deployment checklist
+                  </CardTitle>
+                  <p className="mt-2 text-sm leading-6 text-foreground/75">
+                    A reminder that rollout quality is part of the product, not a support afterthought.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {[
+                    "At least one live channel connected",
+                    "Clear assignment and takeover rules agreed with the office",
+                    "First proof memo scheduled for the next Monday review",
+                    "Manager knows where to monitor SLA and account health",
+                  ].map((item) => (
+                    <div
+                      key={item}
+                      className="rounded-[22px] border border-primary/15 bg-background/94 px-4 py-4 text-sm leading-6 text-foreground/90"
+                    >
+                      {item}
+                    </div>
+                  ))}
+                  <Button asChild variant="secondary" className="rounded-full px-6">
+                    <Link href="mailto:product@casablanca.cloud" className="inline-flex items-center gap-2">
+                      Talk to the deployment team
+                      <ShieldCheck className="h-4 w-4" aria-hidden="true" />
                     </Link>
                   </Button>
                 </CardContent>
               </Card>
-            );
-          })}
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-          <Card className="border-border/60">
-            <CardHeader className="flex flex-row items-start justify-between">
-              <div className="space-y-1">
-                <CardTitle className="text-xl">Active listing pipeline</CardTitle>
-                <CardDescription>
-                  Track how listings progress from discovery into launch-ready collateral.
-                </CardDescription>
-              </div>
-              <Button variant="outline" asChild size="sm">
-                <Link href="#">
-                  View all listings
-                  <ArrowRight className="ml-1 h-4 w-4" aria-hidden="true" />
-                </Link>
-              </Button>
-            </CardHeader>
-            <CardContent className="grid gap-4 pt-6 md:grid-cols-3">
-              {pipelineStages.map((stage) => (
-                <div
-                  key={stage.title}
-                  className="rounded-lg border border-border/60 bg-muted/40 p-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-base font-semibold">{stage.title}</h3>
-                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      {stage.listings} listings
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm text-muted-foreground">{stage.summary}</p>
-                  <p className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-primary">
-                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                    {stage.highlight}
-                  </p>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="border-primary/40 bg-background">
-            <CardHeader>
-              <CardTitle className="text-lg">Recommended automations</CardTitle>
-              <CardDescription>
-                Wire up repeatable flows that keep listings warm and teams coordinated.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              {recommendedFlows.map((flow) => (
-                <div
-                  key={flow.title}
-                  className="rounded-md border border-dashed border-primary/30 bg-primary/5 p-4"
-                >
-                  <h3 className="text-sm font-semibold">{flow.title}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">{flow.description}</p>
-                  <p className="mt-3 inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-primary">
-                    <Presentation className="h-4 w-4" aria-hidden="true" />
-                    {flow.steps}
-                  </p>
-                </div>
-              ))}
-              <Button variant="link" className="justify-start px-0 text-sm" asChild>
-                <Link href="#">
-                  Browse the playbook library
-                  <ArrowRight className="ml-1 h-4 w-4" aria-hidden="true" />
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-[3fr_2fr]">
-          <Card className="border-border/60">
-            <CardHeader className="flex flex-row items-start justify-between">
-              <div className="space-y-1">
-                <CardTitle className="text-xl">Recent activity</CardTitle>
-                <CardDescription>
-                  Snapshot of creative output, approvals, and billing signals.
-                </CardDescription>
-              </div>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="#">
-                  View history
-                  <ArrowRight className="ml-1 h-4 w-4" aria-hidden="true" />
-                </Link>
-              </Button>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4 pt-6">
-              {activityFeed.map((item) => (
-                <div
-                  key={item.title}
-                  className="flex flex-col gap-2 rounded-md border border-border/50 bg-background p-4 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div>
-                    <p className="text-sm font-semibold">{item.title}</p>
-                    <p className="text-sm text-muted-foreground">{item.description}</p>
-                  </div>
-                  <span className="inline-flex items-center gap-1 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                    <Clock className="h-4 w-4" aria-hidden="true" />
-                    {item.timestamp}
-                  </span>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="border-primary/30 bg-primary/5">
-            <CardHeader>
-              <CardTitle className="text-lg">Studio checklist</CardTitle>
-              <CardDescription>
-                Action items to wire Casablanca into your team&apos;s flow.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              {[
-                {
-                  title: "Link your Convex deployment",
-                  description: "Authenticate the CLI and sync schema updates.",
-                },
-                {
-                  title: "Configure Clerk",
-                  description: "Set publishable + secret keys and create the Convex JWT template.",
-                },
-                {
-                  title: "Draft your first automation",
-                  description: "Combine Fal outputs, Stripe billing, and PostHog funnels.",
-                },
-              ].map((item) => (
-                <div
-                  key={item.title}
-                  className="rounded-md border border-dashed border-primary/30 bg-background p-4"
-                >
-                  <p className="text-sm font-semibold">{item.title}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
-                </div>
-              ))}
-              <Button variant="secondary" asChild className="inline-flex items-center gap-2">
-                <Link href="mailto:product@casablanca.cloud">
-                  Partner with our team
-                  <Users className="h-4 w-4" aria-hidden="true" />
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </section>
-      </main>
+            </div>
+          </section>
+        </main>
+      </div>
     </div>
   );
 }

@@ -24,9 +24,9 @@ const fontSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-	title: "Casablanca Studio",
+	title: "Casablanca",
 	description:
-		"Casablanca helps real estate teams create high-impact listing media with AI-first workflows.",
+		"Casablanca is the independent revenue OS for real-estate agencies: response control, live workflow, and seller-side proof.",
 	icons: {
 		icon: "/favicon.svg",
 		shortcut: "/favicon.svg",

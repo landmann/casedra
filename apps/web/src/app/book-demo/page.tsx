@@ -1,6 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CalendarClock, MessageCircle, Sparkles } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarClock,
+  ClipboardList,
+  MessageCircle,
+  Network,
+  ShieldCheck,
+  TimerReset,
+  Workflow,
+} from "lucide-react";
 
 import {
   Button,
@@ -13,151 +22,248 @@ import {
   Textarea,
 } from "@casablanca/ui";
 
-const talkingPoints = [
+const agenda = [
   {
-    title: "Map your listing workflows",
+    title: "Response audit",
     description:
-      "See how Casablanca keeps brand, media, and approvals aligned with your team's daily rhythm.",
+      "Map where leads arrive, how long they wait, and where revenue is leaking today.",
+    icon: TimerReset,
   },
   {
-    title: "Wire fal.ai into your pipeline",
+    title: "Workflow design",
     description:
-      "Review prebuilt generation templates and how we tailor them to each market you serve.",
+      "Show how Casablanca handles first response, routing, takeover, and manager visibility.",
+    icon: Workflow,
   },
   {
-    title: "Plan your rollout",
+    title: "Rollout plan",
     description:
-      "Discuss crew onboarding, lead routing, and the integrations needed to go live with confidence.",
+      "Define connection steps, proof memos, and what a first live office should look like.",
+    icon: Network,
   },
-];
+] as const;
 
 const prepChecklist = [
-  "Current marketing stack & MLS requirements",
-  "Media volume and turnaround expectations",
-  "Automations or playbooks you want to standardize",
-];
+  "Channel mix: WhatsApp, portals, forwarding, website forms",
+  "Current team structure and who owns inbound demand",
+  "Approximate lead volume and speed-to-lead pain points",
+  "Whether seller acquisition is already a priority",
+] as const;
 
 export const metadata: Metadata = {
-  title: "Book a demo | Casablanca",
+  title: "Book a walkthrough | Casablanca",
   description:
-    "Schedule a walkthrough of the Casablanca media studio and CRM so your listings launch with complete collateral.",
+    "See how Casablanca handles response control, inbox workflow, and seller-side proof for agency teams.",
 };
 
 export default function BookDemoPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-muted/30">
-      <header className="border-b border-border bg-background/80 backdrop-blur">
-        <div className="mx-auto grid w-full max-w-5xl gap-10 px-6 py-16 sm:px-12 lg:grid-cols-[1.2fr_1fr]">
-          <div className="space-y-6">
-            <span className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              Book a walkthrough
-            </span>
-            <h1 className="text-balance text-4xl font-semibold tracking-tight sm:text-5xl">
-              Plan the rollout of your listing studio with the Casablanca team.
-            </h1>
-            <p className="max-w-xl text-base text-muted-foreground sm:text-lg">
-              We will unpack how your brokers, creatives, and partners collaborate today, then show the media automations and approval flows Casablanca keeps on rails.
-            </p>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Button asChild size="lg" variant="default">
-                <Link href="mailto:product@casablanca.cloud" className="inline-flex items-center gap-2">
-                  Email us directly
-                  <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="lg">
-                <Link href="https://cal.com/product@casablanca.cloud/demo" className="inline-flex items-center gap-2">
-                  View calendar slots
-                  <CalendarClock className="h-4 w-4" aria-hidden="true" />
-                </Link>
-              </Button>
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="relative isolate overflow-hidden">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-[-6rem] top-[-5rem] h-[360px] w-[360px] rounded-full bg-[radial-gradient(circle,rgba(156,97,55,0.18),transparent_62%)] blur-3xl" />
+          <div className="absolute right-[-5rem] top-0 h-[340px] w-[340px] rounded-full bg-[radial-gradient(circle,rgba(232,223,204,0.92),transparent_64%)] blur-3xl" />
+        </div>
+
+        <header className="relative mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6 sm:px-10">
+          <Link
+            href="/"
+            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Casablanca
+          </Link>
+          <Button asChild variant="outline" className="rounded-full px-5">
+            <Link href="/masterplan">Open masterplan</Link>
+          </Button>
+        </header>
+
+        <main className="relative mx-auto w-full max-w-6xl px-6 pb-20 pt-4 sm:px-10">
+          <section className="grid gap-8 lg:grid-cols-[1fr_0.82fr] lg:items-start">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background/85 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.28em] text-muted-foreground">
+                <CalendarClock className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                Live walkthrough
+              </div>
+              <h1 className="mt-6 font-serif text-5xl font-normal leading-[1.02] text-foreground sm:text-6xl">
+                See Casablanca in the context that matters:
+                <br />
+                real agency workflow.
+              </h1>
+              <p className="mt-6 max-w-2xl text-base leading-8 text-muted-foreground sm:text-lg">
+                We will walk through inbound lead handling, routing, takeover, and weekly proof.
+                The goal is not to show generic AI features. The goal is to map how Casablanca
+                becomes a trusted operating layer inside an actual office.
+              </p>
+
+              <div className="mt-10 grid gap-4 sm:grid-cols-3">
+                {agenda.map((item) => {
+                  const Icon = item.icon;
+
+                  return (
+                    <div
+                      key={item.title}
+                      className="rounded-[24px] border border-border/80 bg-background/92 p-5 shadow-[0_18px_60px_rgba(31,26,20,0.06)]"
+                    >
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
+                        <Icon className="h-5 w-5" aria-hidden="true" />
+                      </div>
+                      <p className="mt-4 text-lg font-semibold text-foreground">{item.title}</p>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        {item.description}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            <Card className="border-dashed border-primary/40 bg-primary/5">
-              <CardHeader>
-                <CardTitle className="text-base font-semibold">
-                  Arrive with your priorities
-                </CardTitle>
-                <CardDescription>
-                  Bring a quick rundown of the following so we can point Casablanca at the right problems.
-                </CardDescription>
+
+            <Card className="rounded-[30px] border-border/80 bg-[linear-gradient(180deg,rgba(255,251,242,0.96),rgba(248,241,229,0.88))] shadow-[0_30px_90px_rgba(31,26,20,0.10)]">
+              <CardHeader className="space-y-4">
+                <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.24em] text-primary">
+                  <ClipboardList className="h-3.5 w-3.5" aria-hidden="true" />
+                  Bring this
+                </div>
+                <div>
+                  <CardTitle className="font-serif text-3xl font-normal leading-tight">
+                    The best walkthrough starts with your actual operating mess.
+                  </CardTitle>
+                  <CardDescription className="mt-3 text-sm leading-6">
+                    We can tailor the session if you arrive with a clear picture of where demand
+                    comes from and where it gets lost.
+                  </CardDescription>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-2 text-sm text-muted-foreground">
+              <CardContent className="space-y-3">
                 {prepChecklist.map((item) => (
-                  <div key={item} className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
-                    <span>{item}</span>
+                  <div
+                    key={item}
+                    className="rounded-2xl border border-border/80 bg-background px-4 py-3 text-sm text-foreground/90"
+                  >
+                    {item}
                   </div>
                 ))}
+                <div className="rounded-2xl border border-border/80 bg-background px-4 py-4">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-1 flex h-9 w-9 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
+                      <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Confidence before autonomy</p>
+                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                        We will show exactly how ownership, escalation, and human takeover stay
+                        explicit inside the workflow.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
-          </div>
+          </section>
 
-          <Card className="border-border/60 bg-background">
-            <CardHeader className="space-y-2">
-              <CardTitle className="text-xl">Share your team info</CardTitle>
-              <CardDescription>
-                Drop the essentials and we will send a tailored agenda within one business day.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form className="flex flex-col gap-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="flex flex-col gap-2 text-sm font-medium">
-                    Full name
-                    <Input placeholder="Jordan Alvarez" required />
-                  </label>
-                  <label className="flex flex-col gap-2 text-sm font-medium">
-                    Work email
-                    <Input type="email" placeholder="jordan@yourteam.com" required />
-                  </label>
-                </div>
-                <label className="flex flex-col gap-2 text-sm font-medium">
-                  Brokerage or team name
-                  <Input placeholder="Atlas Collective" required />
-                </label>
-                <label className="flex flex-col gap-2 text-sm font-medium">
-                  Team size
-                  <Input placeholder="8 agents" />
-                </label>
-                <label className="flex flex-col gap-2 text-sm font-medium">
-                  What should we focus on?
-                  <Textarea
-                    rows={4}
-                    placeholder="Listing volume, current collateral workflow, tools you use today..."
-                    required
-                  />
-                </label>
-                <Button type="submit" size="lg" className="inline-flex items-center gap-2">
-                  Request a session
-                  <Sparkles className="h-4 w-4" aria-hidden="true" />
-                </Button>
-                <p className="text-xs text-muted-foreground">
-                  We will reply with available times and any prep materials within 24 hours. Prefer to skip the form? Email us at
-                  <Link href="mailto:product@casablanca.cloud" className="ml-1 underline">
-                    product@casablanca.cloud
-                  </Link>
-                  .
-                </p>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-16 sm:px-12">
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {talkingPoints.map((point) => (
-            <Card key={point.title} className="border-primary/20 bg-background">
+          <section className="mt-12 grid gap-6 lg:grid-cols-[1.04fr_0.96fr]">
+            <Card className="rounded-[30px] border-border/80 bg-background/92 shadow-[0_24px_70px_rgba(31,26,20,0.07)]">
               <CardHeader>
-                <CardTitle className="text-base font-semibold">{point.title}</CardTitle>
-                <CardDescription className="text-sm text-muted-foreground">
-                  {point.description}
+                <CardTitle className="font-serif text-3xl font-normal leading-tight">
+                  Tell us what we should focus on
+                </CardTitle>
+                <CardDescription className="mt-2 text-sm leading-6">
+                  Share the basics and we will shape the walkthrough around your workflow and lead
+                  volume, not a generic demo script.
                 </CardDescription>
               </CardHeader>
+              <CardContent>
+                <form className="flex flex-col gap-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="flex flex-col gap-2 text-sm font-medium">
+                      Full name
+                      <Input placeholder="Marta Ruiz" required />
+                    </label>
+                    <label className="flex flex-col gap-2 text-sm font-medium">
+                      Work email
+                      <Input type="email" placeholder="marta@agency.com" required />
+                    </label>
+                  </div>
+                  <label className="flex flex-col gap-2 text-sm font-medium">
+                    Agency or office name
+                    <Input placeholder="Atico Chamberi" required />
+                  </label>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="flex flex-col gap-2 text-sm font-medium">
+                      Team size
+                      <Input placeholder="8 agents" />
+                    </label>
+                    <label className="flex flex-col gap-2 text-sm font-medium">
+                      Main market
+                      <Input placeholder="Madrid" />
+                    </label>
+                  </div>
+                  <label className="flex flex-col gap-2 text-sm font-medium">
+                    What should we review?
+                    <Textarea
+                      rows={5}
+                      placeholder="Where leads arrive today, response bottlenecks, who owns inbox coverage, seller-acquisition goals..."
+                      required
+                    />
+                  </label>
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <Button type="submit" size="lg" className="rounded-full px-7">
+                      Request a session
+                    </Button>
+                    <Button asChild variant="outline" size="lg" className="rounded-full px-7">
+                      <Link
+                        href="https://cal.com/product@casablanca.cloud/demo"
+                        className="inline-flex items-center gap-2"
+                      >
+                        View calendar slots
+                        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                      </Link>
+                    </Button>
+                  </div>
+                  <p className="text-xs leading-6 text-muted-foreground">
+                    Prefer email? Reach us directly at{" "}
+                    <Link href="mailto:product@casablanca.cloud" className="underline">
+                      product@casablanca.cloud
+                    </Link>
+                    .
+                  </p>
+                </form>
+              </CardContent>
             </Card>
-          ))}
-        </div>
-      </main>
+
+            <Card className="rounded-[30px] border-primary/25 bg-primary/10">
+              <CardHeader>
+                <CardTitle className="font-serif text-3xl font-normal leading-tight">
+                  What you should expect from the session
+                </CardTitle>
+                <CardDescription className="mt-2 text-sm leading-6 text-foreground/75">
+                  A narrower, more useful walkthrough than a normal proptech demo.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {[
+                  "A concrete view of the first-response and handoff loop Casablanca is built to own.",
+                  "A manager-level picture of weekly proof, SLA visibility, and account health.",
+                  "An honest discussion of deployment friction, channel setup, and where trust can break.",
+                  "A rollout plan for a first live office rather than a vague feature tour.",
+                ].map((item) => (
+                  <div
+                    key={item}
+                    className="rounded-2xl border border-primary/20 bg-background/94 px-4 py-4 text-sm leading-6 text-foreground/90"
+                  >
+                    {item}
+                  </div>
+                ))}
+                <Button asChild variant="secondary" className="rounded-full px-6">
+                  <Link href="mailto:product@casablanca.cloud" className="inline-flex items-center gap-2">
+                    Email us directly
+                    <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </section>
+        </main>
+      </div>
     </div>
   );
 }

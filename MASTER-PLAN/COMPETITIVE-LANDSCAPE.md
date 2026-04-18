@@ -1,247 +1,321 @@
 # Casablanca — Competitive Landscape
 
-Companion to `MASTERPLAN.md`, `PRODUCT-ROADMAP.md`, `GTM-ROADMAP.md`, and `RESEARCH-FINDINGS.md`.
-
-This document is an honest, source-backed view of who we're competing with **per wedge**, where the market is already crowded, and how that reshapes our conviction in each phase of the plan.
-
-**Date:** 2026-04-17. Refresh every quarter or whenever we hear a new competitor name in the field.
+**Date:** 2026-04-18  
+**Purpose:** define the competitive map around the company we are actually building, not the one we used to describe
 
 ---
 
-## TL;DR — what changed after doing the work
+## TL;DR
 
-1. **The AI media studio category is saturated.** Pedra.ai, Idealista's own VHS + Texto Inteligente, Witei, Mobilia, Inmovilla, and a fleet of global players (Styldod, Collov, BoxBrownie, Virtual Staging AI, REimagineHome) all ship it. Price floor has collapsed to €2/photo or free.
-2. **Media Studio is no longer our primary acquisition wedge.** It remains a *bundled* feature and a viral demo, not a standalone SKU we build a company around.
-3. **AI Speed-to-Lead (Responde) is the primary wedge.** No Spanish-market incumbent ships a true WhatsApp-native 24/7 speed-to-lead bot targeting the 19:00–23:00 Spanish search surge. ROI math is quantifiable in euros lost per lead.
-4. **Unified Lead Inbox is the primary retention hook.** Inmovilla (Idealista-owned) and Witei do not have real omnichannel inboxes. This is still wide open.
-5. **Conviction levels per phase** are now explicit in the product and GTM roadmaps. They move as we learn.
+The competitive picture is simpler than it first appears:
 
----
-
-## 1. Per-wedge competitive analysis
-
-### 1.1 AI Media Studio (photo enhancement + virtual staging + listing copy)
-
-**Our original plan:** lead with media studio as the €29/mo wedge. Ship in weeks 1–2. Pay back in week 3.
-
-**What the research shows:**
-
-| Competitor | Coverage | Pricing | Spanish market? | Source/signal |
-|---|---|---|---|---|
-| **Pedra.ai** | Virtual staging, photo enhancement, videos, 360° tours, floor plans, listing copy, social reels | €29/mo Pro (100 credits), €59/mo Plus, custom Enterprise | **YES** — active. 20k+ agents globally. Case study: David González, eXp Barcelona, DOM dropped 67→34 days, cost €2,000→€24 | Pedra public site + case studies; Barcelona real-estate LinkedIn posts |
-| **Idealista Home Staging Virtual (VHS)** | Virtual staging via Idealista's platform (launched ~2020) | Bundled into Idealista portal contracts | **YES** — directly bundled with the #1 portal. Agents already paying Idealista get it inside their existing subscription | Idealista product pages; Idealista News |
-| **Idealista Texto Inteligente** | AI listing description generation | **Currently free** (Nov 2023 launch) — 20,000+ descriptions generated in first 6 months | **YES** — inside the Idealista agent dashboard, zero friction for any agent already posting | Idealista News announcement |
-| **Witei** | AI home staging + CRM bundle | Inside €49–99/mo CRM tier | **YES** — Spanish CRM, bundled | Witei product site |
-| **Inmovilla** | AI staging + description features (added 2024–2025) | Bundled into CRM (~€40–80/mo) | **YES, dominant** — ~90% of Spanish MLS/agrupaciones use Inmovilla | Inmovilla product site; industry sources |
-| **Mobilia CRM** | AI staging + CRM bundle | Bundled | **YES** | Mobilia product site |
-| **REHAVITAT** | Human-assisted virtual staging | **€2/photo** | **YES** — Spain-native | REHAVITAT.com |
-| **Virtual Staging AI** | Fully automated staging | $1 per image (~€0.90) | Global, no Spain-specific localization | virtualstagingai.app |
-| **Collov AI** | Staging + design | $0.23–$1.99 per image | Global | collov.ai |
-| **REimagineHome** | Staging, decluttering, exteriors | $49/mo for 50 images | Global, US-primary | reimaginehome.ai |
-| **Styldod** | Human-reviewed staging | $16–$23 per image | Global, US-primary | styldod.com |
-| **BoxBrownie** | Premium human-in-loop staging | $32 per image | Global, premium | boxbrownie.com |
-| **Apply Design / StageHQ** | Self-serve staging | $19 for 20 photos (StageHQ) | Global | Product sites |
-
-**The hard truth:**
-- A Spanish agent at €29/mo today can already get virtual staging + AI descriptions from Pedra (same price), Idealista (bundled), Witei/Inmovilla (bundled), or pay €2/photo at REHAVITAT. The "€29/mo for AI staging" slot is filled.
-- The category's wow-factor has worn off for sophisticated agents. The ones who haven't tried it are marginal adopters; the ones who have tried it already have a tool.
-- Pedra ships Spain-localized case studies. They are not a distant threat; they are *here*.
-
-**What we still win at:**
-- **Speed of demo.** A 90-second before/after still closes a first meeting. This is marketing, not a SKU.
-- **Ley de Vivienda compliance baked into copy generation.** Spanish-specific legal disclosure auto-populated. Idealista has it inside their portal; Pedra does not.
-- **Spanish tone tuning.** "cálido", "mediterráneo", "clásico" presets feel native. Global players use English-first prompts.
-- **Bundled into the rest of the OS.** Staging happens *inside* the listing cockpit, not in a separate tab of a separate tool. Context is the moat.
-
-**Strategic implication:** Media studio is a feature we ship, bundle, and demo — **not a wedge we lead with**. Lead pricing should not be "€29/mo for staging" (Pedra-parity) but "staging included free with Responde" or "staging included with Listing Cockpit".
-
-**Conviction on media studio as standalone product: 5/10 MEDIUM-LOW.**
-**Conviction on media studio as bundled feature / demo asset: 9/10 HIGH.**
+1. **Media is crowded.**
+2. **Response-time workflow is still under-owned.**
+3. **Seller acquisition is the best expansion wedge after the inbox.**
+4. **Broad CRM parity is a trap in year 1.**
+5. **The right benchmark is not "best feature set." It is "most important workflow layer."**
+6. **Our ambition benchmark should be AI workflow leaders in other verticals, not local proptech incumbents alone.**
 
 ---
 
-### 1.2 AI Speed-to-Lead ("Responde") — WhatsApp auto-responder + portal-lead bridge + missed-call rescue
+## 1. Competition By Layer
 
-**What the research shows:**
+## Layer A — AI Media
 
-| Competitor | What they do | Gap for Casablanca |
+### Who matters
+
+- Pedra
+- portal-bundled media features
+- AI features inside legacy CRMs
+- global staging tools
+
+### What they are good at
+
+- visual wow
+- low-friction trials
+- clear before/after value
+
+### Why we do not lead here
+
+- price pressure is severe
+- switching costs are low
+- marketplace power does not naturally emerge from media
+- customers can multi-home easily
+
+### Our position
+
+Media is a bundled proof layer, not our category.
+
+**Conviction that media alone builds the company:** low  
+**Conviction that media helps us open doors:** high
+
+---
+
+## Layer B — Response And Inbox Workflow
+
+### Who matters
+
+- Inmovilla and adjacent CRM stacks
+- Witei and similar local CRMs
+- portal-side lead tools
+- horizontal inbox and CRM systems
+- do-it-yourself agency setups built on WhatsApp, forwarding, and spreadsheets
+
+### What they are good at
+
+- existing installed base
+- known workflows
+- long customer history
+
+### Where the opening is
+
+- live response behavior is still under-served
+- real WhatsApp-first agency workflow is not deeply owned
+- most systems record leads better than they route and manage them
+- handoff, accountability, and proof-of-response are weak
+
+### Our position
+
+Casablanca must become the strongest independent workflow layer for:
+
+- first response
+- lead routing
+- inbox visibility
+- response-time reporting
+
+This is the primary wedge.
+
+**Conviction:** high
+
+---
+
+## Layer C — Seller Acquisition
+
+### Who matters
+
+- valuation providers
+- portal valuation products
+- agency website vendors
+- CRM add-ons for presentations and microsites
+- consumer platforms with valuation lead capture
+
+### What they are good at
+
+- generating owner interest
+- simple lead capture
+- visually compelling valuation flows
+
+### Where the opening is
+
+Most seller tools are not connected tightly enough to the live operational workflow of the agency.
+
+Casablanca can bridge:
+
+- owner lead capture
+- owner nurture
+- proof-of-performance pages
+- listing presentation generation
+- actual response and conversion data from the agency's workflow
+
+That combination is stronger than a standalone valuation widget.
+
+### Our position
+
+Seller acquisition is our best expansion wedge after inbox.
+
+**Conviction:** medium-high moving to high if inbox adoption is strong
+
+---
+
+## Layer D — Broad CRM/System Of Record
+
+### Who matters
+
+- Inmovilla
+- Witei
+- portal-owned software suites
+- Casafari in adjacent workflows
+- HubSpot/Pipedrive/Zoho in larger teams
+
+### What they are good at
+
+- depth
+- familiarity
+- reporting objects
+- historical data
+
+### Why this is dangerous
+
+Trying to beat them feature-for-feature in year 1 is a low-confidence plan.
+
+### Our position
+
+We do not try to win "best CRM."
+We try to win:
+
+- most important daily workflow
+- fastest deployment to live channels
+- strongest proof of revenue impact
+
+Then we selectively absorb CRM territory around the workflow.
+
+**Conviction on broad CRM parity in year 1:** low  
+**Conviction on workflow-first wedge expanding into lightweight system-of-record behavior:** medium-high
+
+---
+
+## Layer E — Marketplace And Transaction Services
+
+### Who matters
+
+- e-sign providers
+- mortgage brokers
+- document providers
+- utilities and moving partners
+- insurance providers
+
+### What they are good at
+
+- owning a specific service
+- clear monetization
+- mature process in their niche
+
+### Where the opening is
+
+Agencies do not need Casablanca to replace those services.
+They need Casablanca to route those services intelligently inside existing workflow.
+
+### Our position
+
+We should become the routing and conversion layer for a small set of partner services, not an all-things marketplace.
+
+**Conviction in a selective marketplace after workflow control:** medium-high  
+**Conviction in building heavy rails before workflow control:** low
+
+---
+
+## 2. The Real Competitive Set
+
+The company is not really competing with every proptech company.
+It is competing with whatever currently owns the agency's attention at the highest-value operational moment.
+
+That means the real competition is:
+
+1. **Doing nothing**
+2. **Using WhatsApp manually**
+3. **Using the portal's native lead experience**
+4. **Using a legacy CRM badly**
+5. **Using multiple disconnected tools**
+6. **Failing to meet the product standard set by the best AI workflow companies in other industries**
+
+This matters because the product has to beat not only software, but habit.
+It also has to avoid thinking like a local feature vendor.
+
+Casablanca should judge itself against companies that:
+
+- own a mission-critical workflow
+- deploy deeply into customer environments
+- build trust before autonomy
+- compound benchmark data and playbooks over time
+
+---
+
+## 3. The Revised Wedge Hierarchy
+
+The correct wedge order is:
+
+1. **Responde + Inbox**
+2. **Seller Acquisition**
+3. **Lightweight System Of Record Around The Workflow**
+4. **Selective Marketplace**
+5. **Media As A Bundled Aid**
+
+Not:
+
+1. Media
+2. CRM
+3. Marketplace
+
+If we get this order wrong, the company becomes easier to copy and harder to defend.
+
+---
+
+## 4. Strategic Buyer Map
+
+To maximize a year-3 outcome, Casablanca should become relevant to at least one of these buyer classes:
+
+### 1. Portal operators and their owners
+
+They care if Casablanca:
+
+- influences lead routing
+- controls agency workflow
+- expands across their core geographies
+- becomes the independent layer agencies trust
+
+### 2. Software consolidators
+
+They care if Casablanca:
+
+- has strong retention
+- has benchmark data
+- can absorb or coexist with legacy CRMs
+
+### 3. Financial or growth buyers
+
+They care if Casablanca:
+
+- reaches scale with efficient unit economics
+- has a credible partner layer
+- can expand geographically
+
+This is why strategic relevance matters so much in the plan.
+
+---
+
+## 5. Conviction Ladder
+
+| Layer | What it means | Conviction |
 |---|---|---|
-| **WhatsApp Business API** (360dialog, Twilio) | Infrastructure only | Not a product — we build on top |
-| **Inmovilla** | Has WhatsApp notifications for leads; no AI auto-response, no 24/7 bot | Wide open gap |
-| **Witei** | Has WhatsApp integration; no AI bot | Wide open gap |
-| **Idealista Tools** | Lead email forwarding; no WhatsApp, no AI response | Wide open gap |
-| **HubSpot / Pipedrive** (used by ~5% of large Spanish agencies) | Generic CRM, poor Spanish real-estate fit, no WhatsApp-native AI bot | We're vertical-specific |
-| **Zapier + custom GPT bots** | Agents duct-tape this together themselves | Our advantage: done-for-you, Spanish-tuned, Ley-de-Vivienda-aware |
-| **US players (Zillow Premier Agent, Follow Up Boss, kvCORE)** | Speed-to-lead focused, no Spain presence, not WhatsApp-native | No Spain entry, no WhatsApp, English-first |
-| **iSalesCRM, Chatdesk, Manychat**-style bots | Generic chatbot tooling | Not real-estate-specific, not Spanish-tuned, no portal lead ingestion |
+| Media as the company | standalone media wedge | low |
+| Responde + Inbox | first response and live workflow | high |
+| Seller acquisition | valuation, owner nurture, proof-of-performance | high if inbox usage and trust stay strong |
+| Broad CRM parity | full feature fight with incumbents | low |
+| Workflow-led system of record | CRM behavior growing around inbox and seller flows | high if benchmark and playbook layer deepen |
+| Selective marketplace | partner services inside workflow | medium-high moving to high only after workflow and trust are dominant |
+| Heavy rails platform | large regulated service graph early | low |
+| Spain + Portugal + Italy strategic layer | cross-market independent workflow layer | medium-high if one-company operating model holds |
 
-**The hard truth:** we could not find a single Spanish-market product that (a) auto-replies in <60s on WhatsApp, (b) ingests Idealista/Fotocasa/Habitaclia lead emails, (c) runs a Spanish-language qualification script, (d) routes to the agent. This is greenfield.
-
-**Research-backed ROI pitch:**
-- 40% of leads lost = €72–120k/year per agency (per `RESEARCH-FINDINGS.md` §2).
-- 5-min response = 100× contact probability vs. 30 min.
-- 62% of Spanish searches happen 19:00–23:00, after agent hours.
-
-**Strategic implication:** This is the sharpest wedge we have. Every agent can instantly compute "this pays for itself if it saves me one deal per year." €99/mo vs. a €150–400k commission recovered.
-
-**Conviction on Responde as primary Phase 0 wedge: 8/10 HIGH.**
-- Upside: greenfield Spanish category, quantified euro-value, 24/7 coverage addresses a real temporal gap.
-- Downside: WhatsApp Business API onboarding friction (business verification, 3–10 day approval) could slow week-1 revenue. Mitigate: agency friends can pre-apply before product launch; we use personal-WhatsApp Chrome-extension bridge as fallback for solo agents.
+The company should spend its first two years inside the high-conviction and medium-high-conviction zones.
 
 ---
 
-### 1.3 Unified Lead Inbox (omnichannel aggregation)
+## 6. What We Monitor Weekly
 
-**What the research shows:**
+We should track competitor moves against the current wedge, not against every possible future category.
 
-| Competitor | Omnichannel capability | Gap |
-|---|---|---|
-| **Inmovilla** | Fragmented per-channel widgets; no unified inbox; manual tagging | Dominant but weak here |
-| **Witei** | Email + phone log; no WhatsApp/IG DM merge | Weak |
-| **Idealista Tools** | Portal leads only; no cross-portal, no off-portal | Weak |
-| **Fotocasa Pro** | Fotocasa leads only | Weak |
-| **HubSpot / Pipedrive** | General-purpose omnichannel; not real-estate-tuned, not WhatsApp-native in Spain | Horizontal, not vertical |
-| **Dialpad, Front** | Inbox-first products, English-primary, generic | Not Spain-native, not portal-integrated |
+### Watch list
 
-**Strategic implication:** Spain's dominant agent CRM (Inmovilla) is not unified. Nobody else is Spain-native here either. The Unified Inbox is the retention hook — once 3 months of agent+seller+buyer conversations live inside Casablanca, leaving costs a divorce.
+- portal-owned agent workflow features
+- WhatsApp-first workflow improvements from CRMs
+- valuation and seller-capture launches
+- migration and import tooling from incumbents
+- pricing compression in media
+- multi-country moves by software players in Spain, Portugal, and Italy
+- major trust, evaluation, or deployment advances from AI workflow leaders outside real estate
 
-**Conviction on Unified Inbox as Phase 1 flagship: 8/10 HIGH.**
+### Trigger for strategy review
 
----
+We hold an explicit strategy review if any competitor ships a meaningful challenge to our current wedge in:
 
-### 1.4 Captación Suite (valuation widgets, FSBO converter, microsites, reel generator)
+- response and handoff
+- inbox visibility and routing
+- seller acquisition tied directly to live workflow
 
-**What the research shows:**
-
-| Competitor | What they do | Gap |
-|---|---|---|
-| **PriceHubble** (Swiss, Europe) | AVM widgets for agencies | Premium-priced, not SMB-friendly; Spain presence limited |
-| **Idealista Data** | AVM (sold to banks and institutional) | Not packaged for agents |
-| **Tinsa / Euroval** | Professional appraisals (human-led) | Slow, expensive, not a lead magnet |
-| **Housfy / Casavo** | Consumer-facing valuation tools | They're agents-killers, not agent-enablers |
-| **Real Geeks, Placester** (US) | Agent-microsite builders | US-only, no Spanish portals |
-| **FSBO (particulares) scraping** | Nobody in Spain offering this packaged | Wide open |
-| **Social reel generators** (e.g., Pedra's reels) | Pedra has basic version; nobody Spain-specific | Partial competition |
-
-**Strategic implication:** Captación (seller acquisition) is where agents feel the sharpest pain per `RESEARCH-FINDINGS.md` §5. No Spain-specific, agent-packaged AVM+FSBO+microsite combo exists. Novel wedge.
-
-**Conviction on Captación Suite as Phase 2 flagship: 7/10 MEDIUM-HIGH.**
-- Upside: novel category, addresses known pain, becomes a second acquisition wedge if Responde saturates.
-- Downside: AVM accuracy requires data partnerships (Catastro + Idealista Data or proprietary index). FSBO scraping is regulatory grey zone — must be very careful.
+If they copy media, that matters much less.
 
 ---
 
-### 1.5 Transaction Rails (mortgage, e-sign, escrow, document concierge)
+## 7. The One Line To Remember
 
-**What the research shows:**
-
-| Competitor | Coverage | Gap |
-|---|---|---|
-| **iAhorro, TrioTeca, Idealista Hipotecas** | Mortgage brokers direct-to-consumer | Partners, not competitors |
-| **Signaturit, Docusign, Adobe Sign** | E-signature infra | Partners |
-| **Ancert** | Spanish notary network software | Potential partner |
-| **CertiCalia, and energy-cert providers** | Energy cert brokers | Partners |
-| **Registro de la Propiedad API** | Nota simple fetching | Infra, not competitor |
-| **Spanish proptech (Housfy, Casavo)** | iBuyer / transaction-as-a-service | Adjacent, different model |
-
-**Strategic implication:** Transaction rails are integration work, not competitive work. Each integration is boring and slow; the graph of integrations becomes the moat. This is where the €1B math lives — SaaS alone can't get there.
-
-**Conviction on transaction rails strategy: 8/10 HIGH.**
-**Conviction on transaction rails 12-month execution: 6/10 MEDIUM.** — each partnership carries partner-dependency risk, regulatory onboarding time, and BaaS complexity.
-
----
-
-### 1.6 Agent CRM (core OS)
-
-**What the research shows:**
-
-| Competitor | Share / note |
-|---|---|
-| **Inmovilla** | ~90% of MLS/agrupaciones. Owned by Idealista. Sticky but UI-dated. |
-| **Witei** | ~10–15% of independents. Modern-ish UI, Spanish. |
-| **Mediaelx** | Legacy, smaller share |
-| **Idealista Tools** | Idealista's own agent suite, bundled with portal tier |
-| **Fotocasa Pro** | Fotocasa's agent suite |
-| **Casafari** | Market-data+CRM hybrid, multi-country |
-| **HubSpot / Pipedrive / Zoho** | <5% of Spanish agencies, generic |
-
-**Strategic implication:** Direct CRM-vs-CRM feature fight with Inmovilla is a losing frame — they have 90% share, 15 years of feature depth, and Idealista's bundled distribution. We win by being the **only independent AI-native agent OS in Spain** and using Inmovilla import as the conversion wedge. The Idealista-owns-Inmovilla positioning (per `RESEARCH-FINDINGS.md`) is our single sharpest competitive asset.
-
-**Conviction on Agent OS / CRM as Phase 2 deliverable: 7/10 MEDIUM-HIGH.**
-
----
-
-## 2. Revised wedge hierarchy
-
-Before research:
-1. ~~Media Studio~~ (primary wedge)
-2. Listing Cockpit
-3. Agent OS
-4. Transaction Rails
-
-After research:
-1. **AI Speed-to-Lead "Responde"** (primary wedge, Phase 0)
-2. **Unified Lead Inbox** (Phase 1 flagship, primary retention hook)
-3. **Captación Suite** (Phase 2 flagship, second acquisition wedge)
-4. **Transaction Rails** (Phase 3, €1B math)
-5. **Media Studio** (bundled demo asset, not a wedge)
-
----
-
-## 3. Conviction ladder — at a glance
-
-| Phase | Product focus | Conviction | Rationale |
-|---|---|---|---|
-| **0a** | AI Speed-to-Lead ("Responde") | **8/10 HIGH** | Greenfield Spanish category, quantified euro ROI, 24/7 coverage addresses 19:00–23:00 surge, no true Spanish competitor |
-| **0b** | Media Studio (bundled/demo) | **5/10 MEDIUM-LOW** as standalone · **9/10 HIGH** as bundled demo | Saturated category; still the best 90-second demo in real estate |
-| **1** | Listing Cockpit + Unified Inbox | **8/10 HIGH** | Unified Inbox is open; Listing Cockpit + Ley-de-Vivienda compliance is Spain-specific; Inmovilla migration wedge |
-| **2** | Agent OS + Captación Suite | **7/10 MEDIUM-HIGH** | Captación is novel; CRM-vs-Inmovilla is hard but Idealista-owns-Inmovilla frame is sharp |
-| **3** | Transaction Rails + Document Concierge | **8/10 strategy · 6/10 execution** | €1B math lives here, but partnership velocity is the risk |
-| **4** | European expansion (PT, IT) | **6/10 MEDIUM** | Proven SaaS playbook; localization + country-lead hiring risk |
-| **5** | Consumer layer + platform + rollup | **4/10 LOW** | Aspirational, too many unknowns; don't plan around it |
-
-**How to read this:** conviction is about *us hitting the commercial milestones for this phase*, not whether the space itself exists. A 5/10 is not "we're wrong" — it's "if we bet the company on this alone, we're at coin-flip odds." An 8/10 is "we should lean in and defend this position hard."
-
----
-
-## 4. How this changes the plan
-
-### In `PRODUCT-ROADMAP.md`
-- Phase 0 reordered: **Responde (Weeks 1–4) is primary**; Media Studio (Weeks 1–2) is secondary/bundled.
-- Phase 0 pricing rewritten so Responde is the lead SKU (€99/mo), Studio is bundled into Responde at no extra cost for Pro tier, standalone Studio Lite (€29) remains as funnel top.
-- Conviction line added to each phase header.
-
-### In `MASTERPLAN.md`
-- §3 "The wedge" reframed: primary wedge is Responde, not Media Studio.
-- §6 competitive table extended to reflect the saturated-media-studio reality.
-- §8 milestone table gets a conviction column.
-
-### In `GTM-ROADMAP.md`
-- Week 1–2 pitch rewritten: "no pierdas otro lead" (the math story) over "mira cómo queda el piso" (the wow story). The wow demo is still used, just as the *second* beat, not the first.
-- Revenue milestone table gets a conviction column.
-
-### In `FINANCIAL-MODEL.md`
-- ARPU assumptions revisited: Responde at €99 anchors Phase 0, not Studio Lite at €29. Blended ARPU Phase 0 exit target moves from ~€60 to ~€90.
-
----
-
-## 5. What we monitor (competitive early-warning)
-
-Weekly, one founder owns each of these:
-- **Pedra.ai** — new features, Spanish case studies, pricing moves. Monitor pedra.so + their LinkedIn.
-- **Idealista** — any new agent-tool shipped, any CRM-adjacent feature in Idealista Tools, VHS pricing changes. Monitor Idealista News blog + Idealista product updates.
-- **Inmovilla** — product changelog (if public), any AI-feature announcements, any mobile-app improvements.
-- **Witei** — product + pricing + any Spanish proptech press.
-- **Mobilia** — AI feature launches.
-- **Housfy / Casavo / PriceHubble** — any move toward agent-OS positioning.
-- **EU entries** — a US or UK player opening Spain is an existential signal; flag immediately.
-
-If any of these ships a direct competitor to our current wedge within 90 days of our launch, we hold an emergency strategy session and re-examine the conviction ladder.
-
----
-
-## 6. The one line to remember
-
-**Our edge is not any single feature. Our edge is that we are the only independent, AI-native, Spain-native operating system for agents — positioned against Idealista's three-way bundle (portal + Inmovilla + Tools) — and we ship weekly.**
-
-Every feature in the roadmap must defend or extend that line.
+**Casablanca does not need to be the best real-estate software suite. It needs to become the most important independent workflow layer in the agency's path to revenue.**

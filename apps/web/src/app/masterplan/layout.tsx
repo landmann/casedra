@@ -4,7 +4,7 @@ import { MasterPlanTabs } from "./tabs";
 
 export const metadata = {
   title: "Masterplan · Casablanca",
-  description: "Internal strategy, research, and build plan for Casablanca.",
+  description: "Internal strategy, AI doctrine, research, and build plan for Casablanca.",
   robots: { index: false, follow: false },
 };
 
@@ -21,6 +21,9 @@ export default function MasterPlanLayout({ children }: { children: ReactNode }) 
               <h1 className="mt-1 font-serif text-3xl font-normal leading-tight">
                 Casablanca masterplan
               </h1>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+                Strategy, AI doctrine, roadmap, execution, and operating docs for the full planning pack.
+              </p>
             </div>
           </div>
           <MasterPlanTabs />

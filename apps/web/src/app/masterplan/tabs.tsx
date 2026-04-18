@@ -14,7 +14,7 @@ export function MasterPlanTabs() {
   return (
     <nav
       aria-label="Masterplan sections"
-      className="-mx-2 mt-6 flex gap-1 overflow-x-auto pb-0"
+      className="mt-6 flex flex-wrap gap-2 pb-3"
     >
       {DOCS.map((doc) => {
         const isActive = doc.slug === activeSlug;
@@ -23,13 +23,13 @@ export function MasterPlanTabs() {
             key={doc.slug}
             href={`/masterplan/${doc.slug}`}
             className={cn(
-              "shrink-0 rounded-t-md border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+              "rounded-full border px-3 py-2 text-sm font-medium transition-colors",
               isActive
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
+                ? "border-primary bg-primary/5 text-foreground"
+                : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground",
             )}
           >
-            {doc.title}
+            {doc.label}
           </Link>
         );
       })}

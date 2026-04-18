@@ -1,268 +1,360 @@
-# Casablanca — Research Findings & Product Implications
+# Casablanca — Research Findings And Product Implications
 
-Synthesis of Spanish real estate agent pain points collected from public sources (industry blogs, forums, agency platforms, regulators, Trustpilot reviews). Each finding links to what we should do differently in product and GTM.
-
-**Date of research:** April 2026. Sources listed at the bottom.
-
----
-
-## 1. The single most important finding: **Idealista owns Inmovilla**
-
-Inmovilla — the CRM used by **~90% of Spanish MLS/agrupaciones** and by far the largest agency software provider in Spain — is owned by Idealista.
-
-Most agents don't realize this. They pay Idealista:
-1. Once for portal listings (€79–400+/month per agency depending on promos, premium slots, highlighted listings)
-2. Again for Inmovilla CRM (€40–80/month)
-3. Again for Idealista Tools (€79+/month for premium)
-
-**Implications for Casablanca:**
-
-- **Competitive map changes.** Our real competitor isn't "Idealista the portal" — it's Idealista the vertically-integrated landlord. Every feature they ship in Inmovilla or Idealista Tools directly threatens us.
-- **Positioning becomes a wedge, not a footnote.** The narrative "your CRM is owned by the portal that sells to your buyer" lets us position Casablanca as *the only truly independent* agent OS in Spain.
-- **Sales pitch line:** *"Paga Idealista una vez por tus anuncios — no dos. Nosotros somos el CRM que no pertenece a tu mayor proveedor."*
-- **Migration tooling is Priority 1A.** One-click import from Inmovilla becomes our most valuable conversion feature. If we make leaving Inmovilla painless, we take share.
-- **Rail partnerships must avoid Idealista-owned adjacencies.** Idealista Hipotecas, idealista/data, Idealista Energy Certificate (when they launch it) — we should partner with alternatives (iAhorro, TrioTeca, CertiCalia) to stay visibly non-aligned.
+**Date:** 2026-04-18  
+**Purpose:** durable findings that should shape product, GTM, pricing, and hiring
 
 ---
 
-## 2. Quantified pain: the Spanish agent lead funnel is leaking €72–120k per agency per year
+## 1. The Market Is Large, But Operationally Tiny
 
-Per published benchmarks from Spanish real estate automation vendors (Remmit, Sooprema, AI Fast Track) and corroborating US/international data:
+The relevant market is not a handful of polished enterprise brokerages.
+It is thousands of small, messy agencies and solo operators.
 
-- **40% of leads are lost** by the average Spanish agency — no response, late response, dropped follow-up.
-- **Responding to a lead within 5 minutes multiplies contact probability by 100x** vs. responding at 30 min.
-- **60% of leads who don't get a reply in <10 minutes contact another agency.**
-- A typical agent manages **50+ simultaneous active leads.**
-- **62% of Spanish real estate searches happen between 19:00 and 23:00** — after agent working hours, when nobody is at the desk.
+### What this means
 
-A mid-size agency losing ~40 of 100 monthly leads is leaving ~**1 closed sale/month** on the table = **€6,000–10,000/month in lost commissions** = **€72–120k/year**.
+- onboarding has to be simple
+- pricing has to make sense to small teams
+- product cannot assume clean data or clean process
+- white-glove setup matters more than polished dashboards in the beginning
 
-**Implications for Casablanca:**
+### Product implication
 
-- **Add "AI Speed-to-Lead" as a Phase 0 product alongside the media studio.** An AI WhatsApp/SMS responder that handles the first 5-minute reply automatically, 24/7. This directly addresses the 19:00–23:00 evening search surge. Every agent understands the math.
-- This is arguably a **more acute pain** than the media studio — a deeper budget ask unlocks faster. Ship it in week 3–4 after the media studio goes live.
-- **Pricing lever:** we can anchor the Speed-to-Lead product to "costs less than one month of lost commissions." At €149/mo we pay back in <10 days for a typical agency.
+Build for the owner-operator first.
 
----
+### GTM implication
 
-## 3. Channel fragmentation is universal — nobody has a central inbox
-
-Agents receive leads through:
-- Idealista, Fotocasa, Habitaclia, Pisos.com, Milanuncios (portal messaging)
-- Web form on agency site
-- WhatsApp (personal number, agent's own phone)
-- WhatsApp Business (if the agency has one)
-- Instagram DMs and comments
-- Phone calls
-- Referrals / walk-ins
-
-There is no unified inbox. Leads "fall through the cracks", duplicate replies happen when two agents both see a lead, context is lost between channels.
-
-Inmovilla has a "centralized leads" feature but it's read-only fragments with manual tagging. Witei is similar. Idealista Tools only surfaces Idealista leads.
-
-**Implications for Casablanca:**
-
-- **Unified Lead Inbox** becomes Phase 1's flagship feature — one stream of all leads from all channels, auto-deduped, assigned by round-robin or AI-routing rules.
-- **Phase 1 positioning line:** *"All your leads, from all your portals, in one place, answered in under 5 minutes."*
-- **WhatsApp is the #1 integration.** Spain runs on it. We should support both cloud API (365dialog/Twilio) and the agent's personal number (via Chrome extension or WhatsApp Web bridge — trickier, but a differentiator).
+Founders and the realtor team must prove the motion with small and midsize agencies before touching true enterprise.
 
 ---
 
-## 4. Reputation and trust crisis — buyers actively distrust Spanish agents
+## 2. The Strongest Competitive Insight Still Holds
 
-From Forocoches threads ("MENTIRAS de agentes inmobiliarios", "me dan asco los agentes inmobiliarios", "Desesperación vivienda — trucos de agente inmobiliario") and Trustpilot reviews, Spanish consumers repeatedly report:
+The most important structural fact is still that the dominant portal and the dominant parts of the software ecosystem are tightly connected.
 
-- Agents inflating listing prices (portales inflate up to **44% vs. registered transaction prices**, per eldiario.es)
-- Fake or stale listings that no longer exist (bait-and-switch to other flats)
-- Duplicate listings from different agents for the same property
-- Agents demanding visits before showing any property info
-- No license required in Spain generally — anyone can call themselves an "agente"
-- UGT formally denounced Idealista + Fotocasa for listing non-compliant housing (Dec 2025)
+### What this means
 
-**Implications for Casablanca:**
+- agencies are renting distribution from one side and workflow from the other
+- Casablanca has a credible independent story
+- migration and coexistence tooling are strategically important
 
-- **Verification layer opportunity:** every Casablanca-listed property carries a "verified by Casablanca" badge — listing is checked against Catastro, owner-confirmed, with declared accurate price. Over time this becomes a real consumer-side brand asset.
-- **Trust features for agents:** public "Verified Agent" profiles with Casablanca-tracked metrics (avg response time, % closed listings, client reviews), giving reputable agents a way to differentiate from the long tail.
-- **Don't ignore the consumer side of this brand.** When we eventually launch SearchCasa (Phase 4+), our consumer wedge is trust: "every listing is real, every agent is verified."
+### Product implication
 
----
+Prioritize imports, migration, and coexistence over perfectionist rebuilds.
 
-## 5. Captación (seller acquisition) is where agents are bleeding
+### GTM implication
 
-Per iad España's captación guide, the six barriers to acquiring listings are:
-1. **Intense local competition** — many agents chasing the same listings
-2. **Weak adaptation** to market shifts
-3. **Reputation crisis** — owners pick competitors if they perceive poor image
-4. **Weak online presentation** — owners judge agents by their photos, virtual tours, description quality
-5. **Obsolete outreach** — old techniques don't work
-6. **Underinvestment in tooling** — no CRM, no pricing estimator, no prospect tracking
-
-Critically: **92% of Spanish homebuyers start their search online**, and owners comparison-shop agents before signing the mandate.
-
-**Implications for Casablanca:**
-
-- **Captación Suite is Phase 2's flagship**, not an afterthought.
-  - Embeddable AVM valuation widget for agency websites — captures owner leads as they pre-shop their flat's price.
-  - "Compare your agent" page: agency microsite that lets an owner see the agent's portfolio, response time, avg days on market, recent closings.
-  - Automated LinkedIn/Instagram post generator: every new listing gets a reel and a post auto-drafted for the agent.
-- **Product #4 could be "Valuation Lead Magnet":** free widget for the agent's website that gives a seller a Catastro + comparable-based price estimate, captures the email + phone, routes to the agent. This is a pure growth channel for agents, and we bundle it into Agent OS pricing.
-- **Phase 0 media studio directly addresses captación point #4.** Owners comparing agents will pick the one with magazine-quality photos over the one with iPhone snapshots. We can pitch media studio as a *captación weapon* ("use our staged photos in your listing presentation to win mandates"), not just a listing dressing tool. This is a better pitch than "make listings pretty."
+The positioning is not "we are cooler."
+The positioning is "we are the independent layer that helps you make more money."
 
 ---
 
-## 6. Ley de Vivienda (2023) has reshaped the market — and created a software opportunity
+## 3. Speed-To-Lead Is A More Valuable Wedge Than Media
 
-Post Ley 12/2023:
-- **Agency commission must be paid by the landlord** (not the tenant) for rentals. Triggered mass layoffs — one reported agency went from 43 to <21 staff.
-- Rental transactions cratered in 2024; many agencies pivoted to sales.
-- Disclosure rules changed: agents must provide complete, truthful, accessible info on every listing.
-- "Zona tensionada" rent caps apply in Catalunya and some Madrid neighborhoods.
+Media opens doors.
+Response speed keeps customers and creates revenue proof.
 
-**Implications for Casablanca:**
+### What this means
 
-- **Compliance-by-default wins.** Our listing copy generator pre-populates the required Ley de Vivienda disclosures. Inmovilla hasn't done this properly yet.
-- **Pivot-tooling:** agencies moving from rentals to sales need to rebuild their database. A migration tool that pulls rental contacts into a sales pipeline is a conversion hook.
-- **Zona tensionada calculator:** for agencies operating in Madrid/Catalunya, automatic check on whether a given address falls under rent caps, with the applicable reference price.
+- agencies can rationalize paying for recovered leads more easily than paying for better photos
+- response-time improvement is measurable
+- a tool that touches live conversations is much harder to replace than a rendering tool
 
----
+### Product implication
 
-## 7. Document burden: nota simple, cédula de habitabilidad, certificado energético
+Phase 0 must be about live response and handoff trust, not about breadth of media capabilities.
 
-Every Spanish sale requires:
-- **Nota simple** from Registro de la Propiedad (pulled by the agent or buyer's lawyer)
-- **Certificado de eficiencia energética** — notary rejects transaction without it
-- **Cédula de habitabilidad** — required in many regions, 20-30 days to obtain
-- **ITE (Inspección Técnica de Edificios)** — for buildings older than ~45 years
-- **Plusvalía municipal** calculation
-- **ITP** (tax on transactions) filing
-- **IBI, comunidad** up-to-date certifications
+### GTM implication
 
-Each is a separate web form, separate supplier, separate PDF. Agents waste ~2–4 hours per transaction chasing documents.
-
-**Implications for Casablanca:**
-
-- **Document Concierge** (Phase 3) becomes a material revenue stream and a lock-in moat. Per-transaction take-rate (€20-80 for energy certificate, €5-15 for nota simple automation).
-- **Energy certificate partnership with CertiCalia** or similar as a month-9 deliverable.
-- **Nota simple automation via Colegio de Registradores API** — technically complex but valuable.
-- Bundle as "Casablanca Cierre" — a full closing concierge for agents, with commission carveout.
+The sales narrative should begin with missed revenue, not visual wow.
 
 ---
 
-## 8. The iad España disruption signal
+## 4. WhatsApp Is Central, But It Is Also The Main Friction Point
 
-iad España (part of iad Group, French origin, ~5,000 agents in Spain, growing fast) runs a 100%-remote, commission-at-87.8%-max model. Key signals from agent reviews:
+The strongest channel is also the hardest one operationally.
 
-- **Pull factor:** 69-87.8% commission retention vs. ~40-50% at traditional agencies
-- **Push factor away from iad:** high monthly fees (€150-200), required insurance, coach availability lottery, loneliness (no office)
-- iad agents describe needing better individual tooling — they don't have an office IT team
-- iad bundles an app called "propertips" for referrals
+### What this means
 
-**Implications for Casablanca:**
+- verification, templates, and routing are product-critical
+- onboarding friction can kill adoption if we treat it like a support issue
+- the product must handle the reality that many agencies still operate through personal channels
 
-- **Network-only agents (iad, SAFTI, etc.) are an underserved tier.** They have cash flow (bigger commission cuts), no agency overhead, and need all the tools iad doesn't provide in-house.
-- **Pricing tier opportunity:** "Casablanca Solo" at €149–249/mo positioned specifically at network-model agents who bill their own commissions.
-- **Competitive tell:** if iad/SAFTI bundle a media studio + speed-to-lead tool into their base package within 12 months, they become a serious threat. We should think about white-labeling Casablanca for a network as a defensive play.
+### Product implication
 
----
+Deployment and connection flows are first-order product work.
 
-## 9. Valuation / AVM market is active but fragmented
+### GTM implication
 
-- Tinsa Digital, Euroval, Gloval, Idealista Data, Trovimap all offer AVM.
-- Most are B2B for banks and funds, not B2C for sellers or agents.
-- Trovimap offers a free consumer AVM — lightweight, noisy.
-- Idealista Data charges agencies for access to their valuation model.
-
-**Implications for Casablanca:**
-
-- **Build or license an AVM wrapper** for our captación widget. Catastro data is free and public; comparable-based pricing is a straightforward ML problem on a dataset we'll accumulate naturally.
-- **Don't try to beat Tinsa on accuracy.** Beat them on integration: AVM embedded in the agent's acquisition workflow, not a standalone tool.
+The first 200 agencies should be onboarded with hands-on help.
 
 ---
 
-## 10. FSBO (particular vendedor) is a permanent feature of the market
+## 5. The Inbox Is The Real Retention Hook
 
-Idealista allows particulares to post **2 listings free**, then charges €140 for the third if associated with a business. This puts DIY sellers on the same shelf as agents.
+The inbox is where Casablanca becomes unavoidable.
 
-Common FSBO complaints:
-- Hundreds of competing listings in the same barrio
-- Don't know how to price
-- Notary will reject without the right docs
-- Time commitment is crushing
+### What this means
 
-**Implications for Casablanca:**
+- weekly usage matters more than signups
+- team visibility, routing, and handoff matter more than generic CRM objects
+- the first place we earn lock-in is not database depth but live workflow dependence
 
-- **Do not build an FSBO-direct product.** That pits us against every paying agency customer. Agents hate FSBO and hate any tool that enables it.
-- **Do build agent-side "FSBO converter":** a tool that helps agents approach active FSBO listings on Idealista/Milanuncios with a value-proposition message. We scrape public FSBO listings (legal), identify fresh ones, draft outreach messages for the agent to send. This is a captación goldmine.
+### Product implication
+
+Build the inbox before broad CRM.
+
+### GTM implication
+
+A customer only counts if the inbox is active.
 
 ---
 
-## Summary: product additions to incorporate
+## 6. Seller Acquisition Should Move Up
 
-| # | Finding | Product change | Where in roadmap |
+Once Casablanca helps agencies work buyer leads better, the next adjacent problem is seller acquisition.
+
+### Why
+
+- agencies care deeply about winning instructions
+- proof-of-performance helps win the next instruction
+- valuation requests, owner nurture, and listing-presentation assets have a clear economic story
+
+### Product implication
+
+Phase 2 should emphasize seller capture, not broad CRM parity.
+
+### GTM implication
+
+The account-expansion narrative should move from "better lead response" to "more instructions won."
+
+---
+
+## 7. Trust Is A Commercial Feature, Not A Brand Layer
+
+The market has a trust problem, but Casablanca should not answer it first with a consumer portal.
+It should answer it first by helping agencies prove responsiveness and professionalism.
+
+### Product implication
+
+Casablanca should generate:
+
+- response-time proofs
+- owner-facing progress updates
+- performance pages
+- listing presentation assets grounded in real workflow metrics
+
+### GTM implication
+
+Case studies should show measurable agency performance, not just before/after photos.
+
+---
+
+## 8. Transaction Rails Are Real, But Slower Than They Look
+
+Documents, mortgages, signatures, and utilities are valuable.
+But they are a second-order advantage, not the first thing that creates PMF.
+
+### What this means
+
+- we should not overbuild the partner layer early
+- the first marketplace should be selective
+- partner services should enter where the workflow already exists
+
+### Product implication
+
+Do not build a large rails program before workflow control and seller acquisition are working.
+
+### GTM implication
+
+Sell partner services as expansion, not as the main wedge.
+
+---
+
+## 9. The `EUR1B` Story Requires More Than Spain
+
+A Spain-only software story is unlikely to be enough in 36 months unless the partner layer becomes unusually large.
+
+### What this means
+
+- Portugal and Italy are not optional if the `EUR1B` target remains
+- product design must support localization early
+- the company needs one operating model that can travel
+
+### Product implication
+
+Avoid Spain-specific product assumptions that cannot generalize.
+
+### GTM implication
+
+Prove repeatability city by city, then market by market.
+
+---
+
+## 10. Strategic Buyer Logic Is Part Of The Plan
+
+The most realistic path to `EUR1B` in 36 months is a strategic premium, not just a clean SaaS multiple.
+
+### What this means
+
+- strategic relevance matters as much as raw ARR
+- benchmark data matters
+- cross-market presence matters
+- owning workflow matters more than feature count
+
+### Product implication
+
+Build products that increase strategic dependence, not just short-term conversion.
+
+### GTM implication
+
+Measure the business on active workflow and expansion depth, not only on logos.
+
+---
+
+## 11. Breakout AI Winners Sell Workflow, Not "AI"
+
+The strongest AI application companies in law, healthcare, and service win because they own the core workflow, not because they market the smartest model.
+
+### What this means
+
+- workflow ownership is more durable than feature novelty
+- high-frequency usage matters more than initial wow
+- software becomes strategic when work starts to run through it
+
+### Product implication
+
+Casablanca should keep building the response, inbox, seller, and partner workflow stack rather than broad AI feature breadth.
+
+### GTM implication
+
+Sell completed work and recovered revenue, not generic AI capability.
+
+---
+
+## 12. Forward Deployment Is Part Of The Moat
+
+The best AI application companies use deployment and enablement to learn faster than competitors.
+
+### What this means
+
+- onboarding quality changes the product outcome
+- field learning should shape the roadmap every week
+- implementation quality can be a competitive advantage
+
+### Product implication
+
+Deployment tooling, diagnostics, and setup flows deserve roadmap priority.
+
+### GTM implication
+
+The first 200 accounts should still feel deployed, not merely sold.
+
+---
+
+## 13. Trust Architecture Beats Autonomy Theatre
+
+In serious markets, customers reward systems they can trust more than systems that sound the most autonomous.
+
+### What this means
+
+- explicit ownership matters
+- handoff clarity matters
+- auditability matters
+- controlled escalation matters
+
+### Product implication
+
+Casablanca should ship confidence rules, handoff packages, and visible AI ownership before expanding autonomy.
+
+### GTM implication
+
+Case studies should show reliability and accountability, not only speed.
+
+---
+
+## 14. The Real Moat Is Data, Playbooks, And Evaluations Together
+
+Benchmark data alone is valuable, but benchmark data combined with reusable playbooks and measured AI quality is much stronger.
+
+### What this means
+
+- the best teams teach us how to improve the product
+- evaluations protect trust as automation expands
+- benchmarks become more valuable when tied to action
+
+### Product implication
+
+Instrument every workflow event and turn top-performing patterns into reusable defaults.
+
+### GTM implication
+
+Casablanca should increasingly sell proof, benchmarks, and best-practice operating standards.
+
+---
+
+## 15. Rituals Create Category Leadership
+
+Software becomes culturally important when it creates repeated behavior, not only when it solves a task.
+
+### What this means
+
+- the daily inbox can become a habit
+- the weekly manager report can become a ritual
+- the seller-proof pack can become a sales standard
+
+### Product implication
+
+Build reporting and benchmark products that agencies expect to use every week.
+
+### GTM implication
+
+Casablanca should aim to define what "good" agency operations look like in the market.
+
+---
+
+## Summary Table
+
+| Finding | What we believe now | Product implication | GTM implication |
 |---|---|---|---|
-| 1 | Idealista owns Inmovilla | Reframe competitive positioning; prioritize Inmovilla import; avoid Idealista-owned rail partners | MASTERPLAN §6, PRODUCT §Phase 1–3 |
-| 2 | €72-120k/year in lost leads per agency | **Add AI Speed-to-Lead as Phase 0.5**, shipping in weeks 3-4 | PRODUCT §Phase 0 |
-| 3 | Channel fragmentation | Unified Lead Inbox as Phase 1 flagship | PRODUCT §Phase 1 |
-| 4 | Trust crisis | "Verified Agent" + "Verified Listing" badges; consumer trust wedge in Phase 4 | MASTERPLAN §4, PRODUCT §Phase 4 |
-| 5 | Captación is bleeding | Captación Suite as Phase 2 flagship; AVM widget + microsite comparison + reel generator | PRODUCT §Phase 2 |
-| 6 | Ley de Vivienda | Compliance-by-default in listing copy; zona tensionada calculator; rental→sales migration tool | PRODUCT §Phase 1 |
-| 7 | Document burden | Document Concierge as Phase 3 revenue stream (not just nice-to-have) | PRODUCT §Phase 3 |
-| 8 | iad model | Pricing tier for network-only agents; watch for white-label defense | GTM §Pricing |
-| 9 | AVM fragmentation | Build wrapper AVM for captación widget; don't chase accuracy leaders | PRODUCT §Phase 2 |
-| 10 | FSBO permanence | Ship agent-side FSBO converter; never build consumer FSBO product | PRODUCT §Phase 2 |
-
-These additions are reflected in the updated PRODUCT-ROADMAP.md and GTM-ROADMAP.md.
+| Fragmented SMB market | simple beats broad | owner-operator first | founder-led sales first |
+| Independent angle matters | portal conflict is real | migration and coexistence tooling | strong positioning against landlord logic |
+| Response beats media | revenue proof beats wow | build Responde first | sell lost-revenue recovery |
+| WhatsApp is both channel and friction | onboarding is strategic | deployment workflows matter | white-glove first 200 |
+| Inbox is retention hook | activity beats logos | inbox before CRM | count active connected accounts only |
+| Seller acquisition should move up | instructions are the next wedge | valuation + owner nurture in Phase 2 | expansion revenue narrative |
+| Trust must be operational | proof beats slogans | reporting and performance pages | case studies on results |
+| Marketplace comes later | workflow first | selective partner layer | sell expansion later |
+| Spain is not enough | 3-market story required | localization discipline | PT then IT on a clock |
+| Strategic outcome is the base path | relevance beats generic growth | benchmark data and routing power | optimize for strategic importance |
+| Breakout AI winners sell workflow | owning work beats selling AI | deepen workflow surfaces | sell completed work |
+| Forward deployment is moat | implementation quality compounds | prioritize setup and diagnostics | deploy first 200 aggressively |
+| Trust architecture beats autonomy theatre | control beats flash | handoff and evaluation layers matter | sell reliability and professionalism |
+| Data + playbooks + evaluations compound | actionability beats raw data | build benchmark and playbook layer | position as operating standard |
+| Rituals create category leadership | habit beats utility alone | weekly proof and benchmark products | define the market standard |
 
 ---
 
-## Sources
+## What This Means For The Team
 
-Industry + market signal:
-- [Remmit — Por qué tu agencia pierde el 40% de sus leads](https://remmit.app/blog/por-que-tu-agencia-pierde-leads)
-- [Sooprema — ¿Tus captaciones mueren en WhatsApp?](https://www.sooprema.com/arreglar-seguimiento-whatsapp-inmobiliario/)
-- [AI Fast Track — Cómo responder a un lead inmobiliario en menos de 5 minutos](https://www.aifasttrack.tech/blog/responder-lead-inmobiliario-5-minutos)
-- [iad España — Dificultades para captar propiedades](https://www.join-iad.es/blog/dificultades-para-captar-propiedades/)
-- [iad España — Mejorar la captación inmobiliaria](https://www.join-iad.es/blog/mejorar-la-captacion-inmobiliaria/)
+### Founders
 
-Competitive landscape:
-- [Landing Agency — Mejor CRM inmobiliario en España 2025](https://www.landingagency.com/blog/mejor-crm-inmobiliario-en-espana-comparativa)
-- [InmoCMS — Comparativa CRM inmobiliarios](https://inmocms.com/comparativa-crm-inmobiliarios/)
-- [Witei — Top 5 mejores CRM Inmobiliario](https://get.witei.com/es/articulos/mejor-crm-inmobiliario-espana/)
-- [Avaibook — Comparativa CRM inmobiliarios](https://www.avaibook.com/blog/comparativa-crm-inmobiliarios/)
-- [ImmoEdge — Best CRMs for Real Estate Agencies in Spain](https://immoedge.com/spains-top-crms-for-real-estate-agencies/)
-- [Inmoweb — Property portals integrations](https://www.inmoweb.net/real-estate-portals/)
+- narrow the wedge relentlessly
+- hold the line on pricing
+- decide what not to build
+- protect trust, deployment quality, and evaluation discipline
 
-Market + regulation:
-- [Idealista — Los agentes inmobiliarios prevén que el acceso empeore en 2025](https://www.idealista.com/news/inmobiliario/vivienda/2024/11/21/821443-los-agentes-inmobiliarios-preven-que-el-acceso-al-mercado-de-la-vivienda-en-espana)
-- [Idealista — La competencia por cada piso de alquiler sigue subiendo](https://www.idealista.com/news/inmobiliario/vivienda/2026/04/15/892974-el-numero-de-interesados-que-compiten-por-cada-vivienda-en-alquiler-crece-un-17-en)
-- [eldiario.es — Los portales inflan hasta un 44% el aumento de los precios](https://www.eldiario.es/economia/portales-inmobiliarios-inflan-44-aumento-precios-vivienda_1_12722009.html)
-- [Infobae — UGT denuncia a Idealista y Fotocasa](https://www.infobae.com/espana/2025/12/05/ugt-denuncia-a-idealista-y-fotocasa-por-publicar-anuncios-de-pisos-que-no-cumplen-la-ley-no-son-minipisos-son-infraviviendas/)
-- [Idealista News — Impacto Ley de Vivienda en inmobiliarias](https://www.idealista.com/news/inmobiliario/vivienda/2023/11/29/809518-la-ley-de-vivienda-arrastra-a-las-inmobiliarias-despidos-y-giro-hacia-la)
-- [BOE — Ley 12/2023 por el derecho a la vivienda](https://www.boe.es/buscar/act.php?id=BOE-A-2023-12203)
-- [Arrenta — Cómo afecta la Ley de Vivienda a los profesionales](https://www.arrenta.es/blog/mercado-legislacion/como-afecta-ley-vivienda-actividad-profesionales-inmobiliarios/)
+### Realtor and operator team
 
-Consumer sentiment + trust:
-- [Trustpilot — Idealista reviews (1.3/5 rating)](https://www.trustpilot.com/review/idealista.com)
-- [El Blog Salmón — Precios inflados en Idealista](https://www.elblogsalmon.com/entorno/desesperado-porque-todos-pisos-idealista-tienen-precio-inflado-he-cambiado-estrategia-para-buscar-viviendas-chollo)
-- [Forocoches thread — Desesperación vivienda, trucos de agente inmobiliario](https://forocoches.com/foro/showthread.php?t=10003317)
-- [Forocoches thread — Mentiras de agentes inmobiliarios](https://forocoches.com/foro/showthread.php?t=7580472)
-- [Forocoches thread — Recomendáis ser asesor inmobiliario?](https://forocoches.com/foro/showthread.php?t=9422833)
+- own onboarding quality
+- own customer proof
+- own objection handling and field intelligence
+- turn high-performing customer behavior into reusable playbooks
 
-Documents + compliance:
-- [Certificados Energéticos — Cédula + certificado energético](https://www.certificadosenergeticos.com/cedula-de-habitabilidad-certificado-energetico)
-- [Immotècnics — Cédula de habitabilidad y certificado energético](https://immotecnics.com/cedula-habitabilidad-certificado-energetico/)
+### Developer team
 
-iad + alternative models:
-- [GoWork — Opiniones sobre iad España (195 reviews)](https://es.gowork.com/iad-espana-espana)
-- [Empresario Independiente — IAD España Opiniones 2025](https://empresarioindependiente.es/iad-espana-opiniones/)
-- [Trustpilot — iad España reviews](https://es.trustpilot.com/review/www.iadespana.es)
+- own live ingestion and routing
+- own reporting and benchmark data
+- own the seller-acquisition expansion layer
+- own the evaluation and trust architecture that keeps the workflow credible
 
-AVM / valuation:
-- [Tinsa Digital AVM](https://www.tinsadigital.com/que-hacemos/avm/)
-- [Idealista Data — AVM](https://www.idealista.com/data/consultoria-inmobiliaria/valoracion-automatica/)
-- [Euroval — AVM methodology](https://euroval.com/metodos-estadisticos-de-valoracion-masiva-de-inmuebles-valoracion-automatizada-avm/)
-
-Commissions + legal:
-- [Garón Abogados — No pagar comisión inmobiliaria](https://www.garonabogados.es/blog/comision-inmobiliaria-puentear-venta-piso/)
-- [Properfy — Comisiones inmobiliarias en España 2025](https://www.properfy.es/cuanto-cobra-una-inmobiliaria-por-vender-un-piso-honorarios-y-comisiones/)
-- [Artículo 14 — Consumo investiga comisiones ilegales](https://www.articulo14.es/economia/consumo-investiga-inmobiliarias-cobrar-comisiones-ilegales-inquilinos-20241022.html)
+If the team drifts away from these findings, the plan gets weaker immediately.

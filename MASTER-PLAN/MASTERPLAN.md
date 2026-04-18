@@ -1,214 +1,393 @@
 # Casablanca — Masterplan
 
-**Thesis in one sentence:** Become the AI-native operating system for European real-estate agencies, starting in Madrid with an AI media studio that an agent pays for in week one, and ending as the transaction rails every property in Europe runs on.
-
-**North-star valuation:** €1B+ within 5 years. The math works because we are not building a portal — we are building the system of record for a €70B/year transaction market that is currently served by 2010-era software.
-
----
-
-## 1. The thesis
-
-Spanish real estate is a massive, fragmented, under-digitized market whose core software is a joke.
-
-- **Residential transaction volume:** ~€140B/year in Spain (~650k transactions).
-- **Agent population:** ~60k registered agents, ~30k active agencies. Mostly 1–5 person shops.
-- **Software spend per agency:** €30–200/month on a CRM (Inmovilla, Witei, Idealista Tools, Fotocasa Pro) that looks and feels like 2011.
-- **Portal monopoly:** Idealista (~€250M revenue, ~€3B valuation) dominates classifieds but has no interest in fixing the agent's day-to-day.
-- **The gap:** there is no Toast, no Shopify, no Rippling for Spanish real estate. That gap is Casablanca.
-
-We are not trying to dethrone Idealista by building a prettier consumer portal. That is a billion-euro cold start. We are going to own the **supply side** — the agent's daily workflow — and monetize the transaction rails that flow through it. Once we hold 20%+ of Spanish listing supply, every distribution decision (Idealista, Fotocasa, our own surface) becomes ours to make.
+**Date:** 2026-04-18  
+**Primary objective:** maximize the probability of a `EUR1B` valuation event by `2029-04-17`  
+**Primary path:** build a strategically unavoidable company, not a generic fast-growing SaaS
 
 ---
 
-## 2. Why now
+## 1. The Thesis
 
-Five tailwinds converge in 2026 that make this possible for a small team:
+European real-estate agency software is fragmented, shallow, and strategically captured by portals.
 
-1. **Generative AI for media is finally production-grade.** Virtual staging that cost €200/room manually can now be done for cents via Fal/Flux. Listing photography — Spain's biggest listing-quality problem — is now a software problem.
-2. **LLMs speak fluent Spanish real estate.** Listing copy, lead qualification, contract review, client Q&A — all now automatable. The Spanish CRM incumbents have shipped zero AI features that matter.
-3. **WhatsApp Business API is mature.** Every Spanish agent's primary channel is WhatsApp. Building a WhatsApp-native CRM is finally feasible.
-4. **Regulatory pain is at an all-time high.** The Ley de Vivienda (2023), energy certificates, cédula de habitabilidad, nota simple, certificado ITE — agents now need to coordinate 5+ documents per transaction. Software is the only path through this.
-5. **Modern stack economics.** Convex + Next.js + Fal + Clerk means a 3-person team can ship what took 30 people in 2018. Our burn is an order of magnitude lower than our competitors' maintenance cost.
+Casablanca wins by becoming the **independent AI-native revenue OS** for agencies:
 
-The window for a category-defining entry closes when Idealista or a well-funded European player (PriceHubble, Casavo, Housfy) ships an agent OS. We have ~18 months.
+- first on response speed
+- then on live lead workflow
+- then on seller acquisition
+- then on partner monetization
 
----
+The company should be built the way breakout AI workflow leaders are built:
 
-## 3. The wedge: AI Speed-to-Lead ("Responde"), with Media Studio as the demo asset
+- embedded in daily work
+- trusted in high-stakes moments
+- deployment-heavy in the early years
+- benchmark-led as the moat compounds
 
-Our entry product — the product we bill for in week one — is **Responde**, an AI speed-to-lead system:
+The company is not trying to out-feature every CRM in Europe.
 
-- Auto-replies on WhatsApp in <60 seconds to every inbound lead, 24/7, in Spanish
-- Ingests leads from Idealista, Fotocasa, Habitaclia, web forms, and missed calls
-- Runs a Spanish qualification script (budget, timeline, neighborhood, property type), hands warm leads back to the agent
-- Covers the 19:00–23:00 search surge (62% of Spanish property searches happen after agent hours)
+The company is trying to own the most valuable operational loop in an agency:
 
-Our **demo asset** — the tool we use to open every sales meeting — is the **AI Media Studio**:
+1. inbound lead arrives
+2. someone responds
+3. the lead gets routed and worked
+4. the agency proves performance to the next seller
+5. partner services attach inside that workflow
 
-- AI photo enhancement, virtual staging, twilight conversion, floor plans, Spanish listing copy, multi-portal export
-- The 90-second before/after slider is the viral marketing artifact
-- Bundled free into every Responde tier; standalone at €29/mo (Studio Lite) as funnel top only
-
-**Why this ordering (after doing the competitive research in `COMPETITIVE-LANDSCAPE.md`):**
-
-- **Responde is greenfield in Spain.** No Spanish incumbent ships a WhatsApp-native 24/7 AI speed-to-lead bot. Inmovilla, Witei, Fotocasa Pro all stop at email forwarding. Standalone speed-to-lead products (US-based kvCORE, Follow Up Boss) have no Spain presence and no WhatsApp-native AI.
-- **The ROI math is quantifiable in euros.** Agencies lose 40% of leads to slow response = ~€72–120k/year per agency (per `RESEARCH-FINDINGS.md` §2). Responde at €99/mo pays for itself if it recovers one lead per year. Every agent can do this math in the first 60 seconds of the demo.
-- **Media Studio is a saturated category.** Pedra.ai (€29/mo, 20k+ agents globally, documented Barcelona case study), Idealista's free Texto Inteligente + bundled VHS, Witei/Inmovilla/Mobilia all ship AI staging, price floor €2/photo at REHAVITAT. Competing on media alone is a race to the bottom. But the *demo* is still the best door-opener in proptech — so we use it, bundled.
-- **Fast to ship.** Fal.ai + Convex media jobs ship in week 1 (demo). WhatsApp Business API + Responde ship weeks 2–3 (product). Two-week timeline to first paying customer.
-- **Pricing bundles cleanly around the math, not the wow.** Responde Solo €99/mo, Agencia €349/mo, Studio Lite €29/mo (funnel top only). No standalone Studio Pro — we refuse to fight Pedra at €29–79 for staging.
-
-Responde is **not** the company either. It is the Trojan horse that puts Casablanca inside every agency in Madrid within 90 days. Once we're in, we expand into Listing Cockpit + Unified Inbox (Phase 1), then the full Agent OS + Captación Suite (Phase 2), then Transaction Rails (Phase 3).
+If Casablanca owns that loop across Spain, Portugal, and Italy, it becomes strategically valuable enough that a `EUR1B` outcome is plausible within 36 months.
 
 ---
 
-## 4. The expansion: from media studio to transaction OS
+## 2. The Endgame We Are Actually Optimizing For
 
-We expand in five phases, each unlocked by owning the previous phase's data. **Conviction levels** reflect our confidence in hitting each phase's commercial milestones given what we know today; see `COMPETITIVE-LANDSCAPE.md` §3.
+There are two possible `EUR1B` outcomes:
 
-| Phase | Product | Timeline | Why it matters | Conviction |
-|---|---|---|---|---|
-| 0. Responde + Media Studio | AI speed-to-lead (primary); AI image/copy (bundled demo) | Now → Month 2 | Entry. Revenue in week 1. | **8/10 HIGH** (Responde) / 5 as standalone Studio / 9 as bundled Studio |
-| 1. Listing Cockpit + Unified Inbox | Multi-portal publishing, omnichannel lead inbox, WhatsApp | Month 2 → Month 4 | We own the listing lifecycle and the lead stream. | **8/10 HIGH** |
-| 2. Agent OS + Captación Suite | Full CRM, pipeline, mobile, AVM widget, FSBO converter, microsites | Month 4 → Month 9 | We become the system of record, and we weaponize seller acquisition. | **7/10 MEDIUM-HIGH** |
-| 3. Transaction Rails + Document Concierge | Mortgage, notary, e-signature, escrow, nota simple, energy cert | Month 9 → Month 18 | We monetize the transaction, not just the SaaS seat. Where the €1B math lives. | **8/10 strategy · 6/10 12-mo execution** |
-| 4. Consumer Layer + European Expansion | Optional consumer portal, Portugal, Italy, France | Year 2 → Year 5 | European rollup. | **6/10 MEDIUM** |
-| 5. Platform + Consolidation | Marketplace, data products, CRM acquisitions, Casablanca Capital | Year 3+ | Endgame. | **4/10 LOW — aspirational** |
+### Path A: Strategic outcome
 
-Each phase deepens lock-in and multiplies ARPU. A solo agent pays us €49 for media; a mid-size agency pays us €4k/month for the OS; a transaction fee of 0.5% on a €400k piso is €2,000 of margin with zero CAC.
+Casablanca becomes the most important independent workflow layer in idealista's core geographies and commands a strategic premium.
 
----
+This is the plan.
 
-## 5. The moat
+### Path B: Standalone venture-scale valuation
 
-We have three moats and they compound.
+Casablanca compounds into a multi-country revenue machine large enough to justify a `EUR1B` private mark on fundamentals alone.
 
-### Moat 1: Data
-Every listing we process teaches the system. After 100k listings we have the largest Spanish-market-specific vision dataset in existence: rooms, styles, pricing-by-neighborhood, photo-quality-to-days-on-market. Nobody else — not Idealista, not OpenAI — has this. This dataset is what makes the next version of our AI untouchable.
+This is upside, not the base plan.
 
-### Moat 2: Workflow lock-in
-Once an agency runs their pipeline, contacts, WhatsApp comms, viewings calendar, and commission tracking through us, switching means exporting 3 years of relationships. They don't. This is the Salesforce moat, not the Slack moat.
+The reason this distinction matters:
 
-### Moat 3: Transaction graph
-We build direct integrations with the mortgage brokers, notarías, registros, tasadoras, and insurers that every Spanish transaction touches. Each integration is slow and boring; the resulting graph is uncopyable. This is the moat that justifies the €1B.
+- it changes what metrics matter
+- it changes the product order
+- it changes when we expand
+- it changes what kind of moat we need
 
-**What is not a moat:** the AI models themselves. Anyone can call Flux. Our edge is the data on top, the workflow underneath, and the transaction rails beside.
+We are not building a random AI startup and hoping the market rewards speed.
+We are building a company that becomes strategically painful to ignore.
 
 ---
 
-## 6. Competitive positioning
+## 3. Why Now
 
-| Competitor | What they do | Why we win |
+Five conditions make this moment unusually attractive:
+
+1. **AI can now handle live agency work**
+   AI is finally good enough in Spanish to draft responses, summarize conversations, qualify interest, and generate seller-facing assets.
+
+2. **Incumbents are still structured like old software companies**
+   They can add AI features, but they do not move like workflow-first AI companies.
+
+3. **WhatsApp is native behavior**
+   That gives a smaller company a chance to build around the real channel instead of around old CRM abstractions.
+
+4. **Seller acquisition is more measurable and more software-driven than before**
+   Agencies need proof, speed, and presentation quality to win instructions.
+
+5. **The independent angle is real**
+   The landlord of the ecosystem also sells to the customer. That creates a durable story for Casablanca if we earn the right to tell it.
+
+AI adoption helps us. It also helps everyone else.
+So the real advantage is not "using AI."
+The real advantage is **using AI inside the right workflow before anyone else owns it.**
+
+---
+
+## 4. The Wedge
+
+The wedge is **Responde + Inbox**, not Media Studio.
+
+### What the wedge does
+
+- answers leads fast
+- handles first contact consistently
+- routes conversations clearly
+- lets agencies see what got answered, when, and by whom
+- creates measurable revenue proof
+
+### Why this is the right wedge
+
+- it is on the path of money
+- it is used daily
+- it creates trust and operational dependence
+- it naturally expands into seller acquisition
+- it can become the distribution layer for partner services later
+
+### What media becomes
+
+Media remains important as:
+
+- the demo that opens doors
+- the visual proof that gets attention
+- a bundled feature inside the workflow
+
+Media does not remain important as:
+
+- the primary SKU
+- the core market position
+- the main source of valuation
+
+---
+
+## 5. The Expansion Ladder
+
+Casablanca expands in a strict order.
+
+### Phase 0: Response control
+
+Own the first reply and the handoff.
+
+### Phase 1: Workflow control
+
+Own the inbox, routing, assignment, accountability, and reporting.
+
+### Phase 2: Seller acquisition
+
+Help agencies win instructions through valuation requests, owner nurture, proof-of-performance pages, and listing-presentation assets.
+
+### Phase 3: Selective marketplace
+
+Attach high-value partner services that fit naturally into the workflow:
+
+- e-sign
+- mortgage handoff
+- documents
+- utilities
+
+### Phase 4: Cross-market strategic layer
+
+Replicate the revenue OS across Portugal and Italy while preserving a single operating model.
+
+This order matters. If we invert it, we lose focus and increase execution risk.
+
+---
+
+## 6. What We Will Not Do
+
+These are load-bearing decisions.
+
+1. **We will not build a media-first company.**
+2. **We will not clone a broad CRM in year 1.**
+3. **We will not launch a consumer portal early.**
+4. **We will not build a heavy marketplace before owning workflow.**
+5. **We will not become a brokerage.**
+6. **We will not equate account count with real adoption.**
+7. **We will not confuse velocity with progress.**
+
+Any feature or strategy that violates those rules must justify itself against the `EUR1B in 36 months` objective, not against short-term excitement.
+
+---
+
+## 7. The Moat
+
+The moat is not the model.
+
+The moat is the combination of:
+
+### 1. Workflow lock-in
+
+Once an agency routes live conversations, owner follow-up, and performance reporting through Casablanca, leaving is not a simple software swap.
+
+### 2. Benchmark data
+
+Casablanca will see response times, source quality, lead-to-visit conversion, instruction win signals, and seller-capture performance across agencies and cities.
+
+That network benchmark layer is more defensible than any single AI feature.
+
+### 3. Cross-market relevance
+
+If Casablanca becomes useful in Spain, Portugal, and Italy under one operating model, it stops looking like a local tool and starts looking like strategic infrastructure.
+
+### 4. Partner routing power
+
+Once partner services enter through Casablanca, the company sits beside the money flow, not only beside the software workflow.
+
+### 5. Trust architecture and evaluation discipline
+
+If Casablanca becomes known for clear handoffs, visible ownership, reliable escalation, and measured AI quality, it becomes harder to dismiss as "just another AI tool."
+
+### 6. Playbook network and ritual brand
+
+If Casablanca captures how the best agencies respond, follow up, and win instructions, then turns that into weekly reports, proof pages, and manager rituals, it becomes more than software.
+It becomes the standard agencies learn from.
+
+---
+
+## 8. Competitive Positioning
+
+Casablanca is positioned against four categories:
+
+### 1. Portal-owned software
+
+Their strength:
+
+- distribution
+- installed base
+- ecosystem control
+
+Their weakness:
+
+- structural conflict
+- slower workflow reinvention
+- weaker independent-agency story
+
+### 2. Legacy CRMs
+
+Their strength:
+
+- feature depth
+- long customer history
+
+Their weakness:
+
+- not workflow-native around live messaging
+- weaker AI integration
+- weak proof-of-revenue positioning
+
+### 3. AI media products
+
+Their strength:
+
+- visual wow
+- cheap entry price
+
+Their weakness:
+
+- commodity pressure
+- low lock-in
+- weak path to marketplace power
+
+### 4. Horizontal CRMs and inbox tools
+
+Their strength:
+
+- general software quality
+- mature sales software patterns
+
+Their weakness:
+
+- not built for this vertical
+- no local workflow truth
+- weak expansion into seller acquisition and partner services
+
+The one line we should be able to say clearly is:
+
+**Casablanca is the independent AI-native revenue OS for agencies.**
+
+Not the prettiest tool.
+Not the cheapest tool.
+The most important workflow tool.
+
+---
+
+## 9. Geographic Strategy
+
+### Spain
+
+Spain is where we prove the model.
+
+### Portugal
+
+Portugal is where we prove the model generalizes in an adjacent idealista market.
+
+### Italy
+
+Italy is where we prove Casablanca is not just a Spanish special case.
+
+The company should not open more markets than that inside the first 36 months unless there is extraordinary pull.
+
+France and Germany are later questions.
+
+---
+
+## 10. Milestones To The `EUR1B` Attempt
+
+These are the canonical company milestones:
+
+| Date | Gate | Outcome |
 |---|---|---|
-| **Idealista (portal + Inmovilla + Idealista Tools + VHS + Texto Inteligente)** | **Vertically integrated:** the #1 portal AND the #1 CRM (Inmovilla, ~90% of Spanish MLS) AND their own agency suite (Idealista Tools) AND bundled virtual staging AND a free AI description tool. An agent today often pays Idealista three times and gets Idealista's AI for free on top. | They are the *landlord* of Spanish real estate software. We are the *only* independent OS. Pitch: *"paga Idealista una vez por tus anuncios — no dos."* They can't undercut that positioning without cannibalizing their own portal business. |
-| **Pedra.ai** | Global AI media studio (staging, photo, copy, reels, floor plans). €29/mo. 20k+ agents. Active Spanish case studies (Barcelona eXp). | They own the standalone-media-studio SKU at our proposed price. We do *not* try to beat them at their own game. We bundle Media Studio into Responde (€99) and compete on speed-to-lead + CRM + transaction rails, categories Pedra does not touch. |
-| **Witei / Mediaelx / Inmofactory / Mobilia** | Legacy Spanish CRMs not owned by the portals; several have added AI staging | 2010-era UX, shallow AI, SMB-owned, low R&D. We are 10x better on AI-native workflow and positioned against the incumbent (Inmovilla) rather than each other. |
-| **Fotocasa Pro** | #2 portal's agent suite | Tied to their portal; agents hate being locked into any single portal's ecosystem. |
-| **iad España / SAFTI / Keller Williams ES** | Network agent models (higher commission retention, no office) | Agents are defecting *to* them from traditional agencies. They're underserved by tooling. Opportunity — we sell to them as "Solo Network" tier, and potentially white-label defensively. |
-| **PriceHubble / Casavo / Housfy** | Venture-backed European proptech | Different wedges (valuation, iBuyer, buyer-side). We are agent-OS; we are partners or irrelevant, not competitors. |
-| **US speed-to-lead stacks (Follow Up Boss, kvCORE, Zillow PA)** | Mature US speed-to-lead tooling, no Spain presence, not WhatsApp-native | The Spanish market is greenfield for speed-to-lead — this is our sharpest wedge. |
-| **Compass (hypothetical entry)** | US agent platform | Unlikely to enter Spain — their model is brokerage, not SaaS; regulated market per country. |
+| 2026-05-31 | G0 | 10 live design partners, 8 paying agencies |
+| 2026-07-31 | G1 | 25 active paying agencies, pricing and trust proven |
+| 2026-10-31 | G2 | 75 active paying agencies, Madrid repeatability proven |
+| 2027-01-31 | G3 | 200 active paying agencies, onboarding systemized |
+| 2027-04-30 | G4 | 500 active paying agencies, seller-acquisition wedge live |
+| 2027-10-31 | G5 | 1,200 active paying agencies, multi-city Spain working |
+| 2028-04-30 | G6 | 2,200 active paying agencies, Portugal live |
+| 2028-10-31 | G7 | 3,800 active paying agencies, Italy live |
+| 2029-04-17 | G8 | 5,500+ active paying agencies, strategic outcome window open |
 
-**Critical positioning insight (from research):** The biggest strategic finding is that **Idealista owns Inmovilla.** The dominant Spanish real estate CRM is a product of the dominant Spanish real estate portal. Most Spanish agents don't realize this. Every feature Inmovilla ships is a strategic weapon for Idealista's portal — and every euro a Spanish agency pays Inmovilla goes to the company selling ads to their buyers. This gives us a clean, durable, agent-sympathetic positioning: **Casablanca is the only major Spanish real estate OS not owned by a portal.** Full research in `RESEARCH-FINDINGS.md`.
+An account only counts if:
 
-**Our asymmetric advantage:** we are three people in Madrid with three friends who are agents. We ship weekly; they ship quarterly. We use the product in the field tomorrow; they have never met a working agent. Most importantly, we aren't accountable to a portal's P&L.
+- it pays
+- at least one live channel is connected
+- the workflow is active weekly
 
----
-
-## 7. Strategic principles (what we won't do)
-
-These are load-bearing. Violating them kills the company.
-
-1. **We will not become a brokerage.** We sell picks and shovels. Becoming the agent is a different, lower-margin, regulated, capital-intensive business (Compass, Housfy, Purplebricks). Stay SaaS + rails.
-2. **We will not launch a consumer portal before we have listing leverage.** A premature portal forces Idealista to fight us; a late portal (with 25%+ of supply locked in) is a coronation.
-3. **We will not build for enterprise first.** Engel & Völkers is a 12-month sales cycle. Independent Madrid agents are a 12-minute sales cycle. PMF lives in the SMB.
-4. **We will not fragment our focus internationally before Spain works.** Spain is €70B of TAM. Winning Spain first is non-negotiable. Portugal is a year-2 decision.
-5. **We will not over-hire.** Every AI-native company that hit $100M ARR in 2025 did it with <30 people. We aim for the same.
-6. **We will not build our own LLMs or image models.** We are a data, workflow, and distribution company that *uses* AI. Training foundation models is a distraction.
-7. **We will not take agent commissions.** Our pricing is transparent SaaS + transaction fees from *partners* (mortgage origination, notary, insurance). Agents are the customer, not the product.
+Those definitions are not negotiable.
 
 ---
 
-## 8. Milestones to €1B (dated)
+## 11. What Success Looks Like
 
-Project start: 2026-04-17. Every milestone below has a hard date; see `GTM-ROADMAP.md` for the gate-slip response ("if we miss, every founder back into field sales").
+### By year 1
 
-| Date (≤) | Milestone | ARR / MRR | Proof point | Conviction |
-|---|---|---|---|---|
-| 2026-05-01 | Gate G0 | €300 MRR | Friend's agency pays — Responde pricing holds | 9/10 |
-| 2026-05-17 | Gate G1 — Phase 0 done | €2k MRR | Responde live; 70%+ paid on Responde tier (not €29 Studio) | 8/10 |
-| 2026-07-17 | Gate G2 — Phase 1 done | €15k MRR | Unified inbox live; 10+ Inmovilla migrations | 7/10 |
-| 2026-10-17 | Gate G3 | €50k MRR | 3 cities live, first press | 7/10 |
-| 2027-01-17 | Gate G4 — seed closes | €100k MRR (~€1.2M ARR) | Multi-city Spain, seed round closed | 6/10 |
-| 2027-04-17 | Gate G5 — Phase 2 done | €225k MRR (~€2.7M ARR) | 1,800 agencies, Captación Suite driving inbound | 6/10 |
-| 2027-10-17 | Gate G6 — Series A opens | €700k MRR (~€8.4M ARR) | Transaction rails live, Portugal pilot | 6/10 |
-| 2028-04-17 | Gate G7 — Phase 4 done | €2.24M MRR (~€27M ARR) | Italy + Portugal contributing, Series A closed | 5/10 |
-| 2029-04-17 | Series B territory | €8.4M MRR (~€100M ARR) | 4+ countries, rails 25%+ of revenue | 5/10 |
-| 2030-04-17 | France live | €12.5M MRR (~€150M ARR) | Acquisitions closing | 4/10 |
-| **2031-04-17** | **€1B valuation event** | €16.7M MRR (~€200M ARR) | **Series C, IPO, or strategic exit** | 4/10 |
+- Casablanca clearly wins on response-time workflow, not just on demos
+- seller-acquisition expansion is credible
+- onboarding is repeatable
+- pricing supports a real company, not a toy tool
 
-Conviction decreases the further out we look — this is honest, not pessimistic. Phase 0 and 1 are near-term, well-understood, and well-defended by research. Series C conviction at 4/10 isn't "we won't get there" — it's "the path beyond year 3 has too many exogenous variables to be confident today." We raise these scores as we prove each prior gate.
+### By year 2
 
-These are aggressive but not absurd. Toast did ~€1B valuation in 5 years post-launch. Rippling: 4. Deel: 3. The AI-era compressed that further. We're targeting 5 years to the €1B event from today.
+- Casablanca is a known operating layer in Spain
+- Portugal is live
+- the partner layer is starting to attach
+- the company can expand without founders doing every deployment themselves
 
----
+### By year 3
 
-## 9. The endgame
-
-Three possible endings, in decreasing order of ambition.
-
-1. **European real estate OS (IPO).** Casablanca is to European real estate what Toast is to restaurants. €500M+ ARR, public company, owns the transaction rails in 6+ countries.
-2. **Strategic acquisition by Idealista/EQT or a global proptech.** Most likely at Series B/C when we have enough listing supply to threaten the portal. Outcome: €1–3B exit.
-3. **Private-equity roll-up play.** We acquire Inmovilla, Witei, and similar legacy CRMs for their customer bases and consolidate. Higher revenue, lower multiple, but a clear €1B path.
-
-We optimize for option 1 and keep 2 and 3 as insurance.
+- Spain, Portugal, and Italy are all real
+- Casablanca owns a meaningful benchmark data network
+- partner services add revenue and strategic depth
+- a `EUR1B` strategic conversation is credible
 
 ---
 
-## 10. Team principles
+## 12. The Team Principles
 
-- **Three founders in Madrid.** Plus three friend-agents as permanent design partners and future referral engines.
-- **Ship daily.** Every week a Madrid agent should see something new. Our speed is our moat against incumbents.
-- **Live in the field.** Every founder does at least one agency visit per week in year one. No exceptions. Product decisions die in conference rooms.
-- **Spanish-first, English-native.** Product, support, and marketing are Spanish. Engineering and docs are English. This scales internationally without rework.
-- **AI-native, human-backed.** Every workflow has an AI first draft and a human confirmation. We don't ship autonomous mistakes.
-
----
-
-## 11. Risks and how we kill them
-
-| Risk | Mitigation |
-|---|---|
-| Idealista launches a competing media studio | Our lead is 18 months; our data moat compounds; we're syndication-friendly so we ride their rails. |
-| Fal.ai raises prices / goes down | Multi-provider abstraction from day one (Fal primary, Replicate/Runware fallback). Own fine-tunes by month 6. |
-| Agents won't pay | Solved in week 1 with the three friends. If they won't pay, we pivot before we hire. |
-| WhatsApp Business API policy change | WhatsApp is a channel, not the product. Email + SMS + in-app inbox as backup. |
-| Spanish regulatory shift | We *benefit* from regulation; more compliance = more software need. |
-| Can't hire in Madrid | Remote-friendly for engineering, Madrid-core for sales/ops. |
-| Runway before PMF | €150k of pre-seed covers 6 months. PMF signal by month 3 or we cut scope. |
+1. **We sell deployments, not demos.**
+2. **We count active workflow, not vanity signups.**
+3. **We ship only what changes conversion, retention, or ACV.**
+4. **Founders stay close to the field longer than feels comfortable.**
+5. **Realtors and developers operate as one revenue team, not as separate departments.**
+6. **We cut scope faster than competitors.**
+7. **We expand only after a city becomes repeatable.**
+8. **We evaluate AI behavior before we celebrate AI behavior.**
+9. **We turn field learning into reusable playbooks.**
+10. **We build rituals that customers repeat every week.**
 
 ---
 
-## 12. What success looks like in one year
+## 13. Risks And How We Kill Them
 
-- €1M+ ARR, growing 15%+ MoM
-- 2,500+ paying agents across Spain, concentration in Madrid/Barcelona/Valencia
-- Media studio + listing cockpit shipped; agent OS in alpha
-- Seed round closed, Series A conversations starting
-- Team of 8–12, all hires retained
-- Inbound referrals >50% of new revenue
-- Known brand in Spanish proptech circles (SIMA, Proptech Spain, Idealista roundtables)
-- First transaction-rail integration live (mortgage partner)
-
-If we hit those, the €1B is not a question of if but of when.
+| Risk | What it means | How we kill it |
+|---|---|---|
+| Trust risk | Agencies resist live AI on real leads | obsess over handoff, transparency, and white-glove onboarding |
+| Onboarding friction | Channels do not get connected fast enough | make deployment engineering a core function |
+| Commodity risk | Media and basic AI features get copied | stay focused on workflow and seller acquisition |
+| Evaluation risk | AI quality becomes inconsistent or hard to trust | treat evaluations, guardrails, and rollback paths as shipping requirements |
+| Incumbent response | Portal or CRM incumbents react faster than expected | move up the stack and win the independent narrative |
+| Scope risk | We overbuild CRM or marketplace too early | enforce phase order brutally |
+| Expansion risk | New countries absorb focus too early | expand only after city-level repeatability |
+| Capital risk | Funding markets tighten | hit higher-quality metrics and keep an efficiency path |
 
 ---
 
-## 13. First principles we'll come back to
+## 14. First Principles
 
-- **Agents are the customer, the transaction is the product.**
-- **Software that saves an agent an hour a day is software they'll never leave.**
-- **Own the workflow, distribute through the portals, monetize the transaction.**
-- **Data compounds; code does not. Ship the data flywheel first.**
-- **In a fragmented market, distribution beats product, and focus beats distribution.**
+- **The first response is the first wedge.**
+- **Workflow control matters more than feature breadth.**
+- **Seller acquisition is more strategic than content generation.**
+- **A marketplace only works after workflow control exists.**
+- **Benchmark data compounds faster than code.**
+- **Trust architecture compounds faster than autonomy theatre.**
+- **Playbooks and rituals create category power.**
+- **The right `EUR1B` plan is one a strategic buyer cannot ignore.**
 
-This is the plan. Everything else — roadmap, GTM, financials — serves it.
+Everything in the roadmap should strengthen those points.

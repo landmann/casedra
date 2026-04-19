@@ -11,49 +11,43 @@ import {
   Workflow,
 } from "lucide-react";
 
-import {
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Input,
-  Textarea,
-} from "@casablanca/ui";
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@casablanca/ui";
+
+const calendarHref = "https://cal.com/product@casablanca.cloud/demo";
+const emailHref = "mailto:product@casablanca.cloud?subject=Demo%20Casablanca";
 
 const agenda = [
   {
-    title: "Response audit",
+    title: "Dónde se enfrían los leads",
     description:
-      "Map where leads arrive, how long they wait, and where revenue is leaking today.",
+      "Revisamos por dónde entran, cuánto tardáis en responder y dónde se pierde seguimiento hoy.",
     icon: TimerReset,
   },
   {
-    title: "Workflow design",
+    title: "Cómo trabaja Casablanca",
     description:
-      "Show how Casablanca handles first response, routing, takeover, and manager visibility.",
+      "Verás primera respuesta, reparto, traspaso al agente y visibilidad semanal para dirección.",
     icon: Workflow,
   },
   {
-    title: "Rollout plan",
+    title: "Qué haríamos primero",
     description:
-      "Define connection steps, proof memos, and what a first live office should look like.",
+      "Terminamos con una propuesta simple para una primera oficina, no con una promesa abstracta.",
     icon: Network,
   },
 ] as const;
 
 const prepChecklist = [
-  "Channel mix: WhatsApp, portals, forwarding, website forms",
-  "Current team structure and who owns inbound demand",
-  "Approximate lead volume and speed-to-lead pain points",
-  "Whether seller acquisition is already a priority",
+  "Qué canales usáis hoy: WhatsApp, portales, formularios",
+  "Quién responde ahora y cómo se reparten los leads",
+  "Volumen aproximado de leads por semana",
+  "Qué os preocupa más: tiempo de respuesta, seguimiento o control",
 ] as const;
 
 export const metadata: Metadata = {
-  title: "Book a walkthrough | Casablanca",
+  title: "Reservar demo | Casablanca",
   description:
-    "See how Casablanca handles response control, inbox workflow, and seller-side proof for agency teams.",
+    "Reserva una demo de Casablanca y revisamos vuestro flujo real de leads, reparto y seguimiento.",
 };
 
 export default function BookDemoPage() {
@@ -72,8 +66,8 @@ export default function BookDemoPage() {
           >
             Casablanca
           </Link>
-          <Button asChild variant="outline" className="rounded-full px-5 sm:px-6">
-            <Link href="/masterplan">Open masterplan</Link>
+          <Button asChild className="rounded-full px-5 sm:px-6">
+            <Link href={calendarHref}>Ver huecos disponibles</Link>
           </Button>
         </header>
 
@@ -82,17 +76,15 @@ export default function BookDemoPage() {
             <div className="max-w-3xl">
               <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-background/85 px-3 py-2 text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground sm:px-4 sm:text-[11px] sm:tracking-[0.28em]">
                 <CalendarClock className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                Live walkthrough
+                Demo de 20 min
               </div>
               <h1 className="mt-6 max-w-4xl text-balance font-serif text-[3rem] font-normal leading-[1.02] text-foreground sm:text-[4.15rem] xl:text-[4.75rem]">
-                See Casablanca in the context that matters:
-                <br />
-                real agency workflow.
+                Te enseñamos Casablanca sobre el flujo real de tu oficina.
               </h1>
               <p className="mt-6 max-w-2xl text-base leading-8 text-muted-foreground sm:text-lg">
-                We will walk through inbound lead handling, routing, takeover, and weekly proof.
-                The goal is not to show generic AI features. The goal is to map how Casablanca
-                becomes a trusted operating layer inside an actual office.
+                No hacemos una demo genérica. Miramos cómo entran hoy vuestros leads, cómo se
+                responden, dónde se pierde seguimiento y cómo encajaría Casablanca si tuviera
+                sentido empezar.
               </p>
 
               <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -121,15 +113,15 @@ export default function BookDemoPage() {
               <CardHeader className="space-y-4">
                 <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.24em] text-primary">
                   <ClipboardList className="h-3.5 w-3.5" aria-hidden="true" />
-                  Bring this
+                  Traed esto
                 </div>
                 <div>
                   <CardTitle className="font-serif text-[2rem] font-normal leading-tight sm:text-3xl">
-                    The best walkthrough starts with your actual operating mess.
+                    Cuanto más real sea vuestro contexto, más útil será la demo.
                   </CardTitle>
                   <CardDescription className="mt-3 text-sm leading-6">
-                    We can tailor the session if you arrive with a clear picture of where demand
-                    comes from and where it gets lost.
+                    No hace falta una preparación pesada. Solo necesitamos una imagen honesta de cómo
+                    trabajáis hoy.
                   </CardDescription>
                 </div>
               </CardHeader>
@@ -148,10 +140,12 @@ export default function BookDemoPage() {
                       <ShieldCheck className="h-4 w-4" aria-hidden="true" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-foreground">Confidence before autonomy</p>
+                      <p className="text-sm font-semibold text-foreground">
+                        Control visible antes que autonomía ciega
+                      </p>
                       <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                        We will show exactly how ownership, escalation, and human takeover stay
-                        explicit inside the workflow.
+                        Te enseñaremos exactamente cuándo responde Casablanca y cuándo entra una
+                        persona del equipo.
                       </p>
                     </div>
                   </div>
@@ -164,87 +158,67 @@ export default function BookDemoPage() {
             <Card className="rounded-[28px] border-border/80 bg-background/92 shadow-[0_24px_70px_rgba(31,26,20,0.07)] sm:rounded-[30px]">
               <CardHeader>
                 <CardTitle className="font-serif text-[2rem] font-normal leading-tight sm:text-3xl">
-                  Tell us what we should focus on
+                  Reserva una hora
                 </CardTitle>
                 <CardDescription className="mt-2 text-sm leading-6">
-                  Share the basics and we will shape the walkthrough around your workflow and lead
-                  volume, not a generic demo script.
+                  La vía más rápida es elegir hueco en calendario. Si prefieres, escríbenos y lo
+                  coordinamos por email.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <form className="flex flex-col gap-4">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <label className="flex flex-col gap-2 text-sm font-medium">
-                      Full name
-                      <Input placeholder="Marta Ruiz" required />
-                    </label>
-                    <label className="flex flex-col gap-2 text-sm font-medium">
-                      Work email
-                      <Input type="email" placeholder="marta@agency.com" required />
-                    </label>
-                  </div>
-                  <label className="flex flex-col gap-2 text-sm font-medium">
-                    Agency or office name
-                    <Input placeholder="Atico Chamberi" required />
-                  </label>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <label className="flex flex-col gap-2 text-sm font-medium">
-                      Team size
-                      <Input placeholder="8 agents" />
-                    </label>
-                    <label className="flex flex-col gap-2 text-sm font-medium">
-                      Main market
-                      <Input placeholder="Madrid" />
-                    </label>
-                  </div>
-                  <label className="flex flex-col gap-2 text-sm font-medium">
-                    What should we review?
-                    <Textarea
-                      rows={5}
-                      placeholder="Where leads arrive today, response bottlenecks, who owns inbox coverage, seller-acquisition goals..."
-                      required
-                    />
-                  </label>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap xl:flex-nowrap">
-                    <Button type="submit" size="lg" className="rounded-full px-7">
-                      Request a session
-                    </Button>
-                    <Button asChild variant="outline" size="lg" className="rounded-full px-7">
-                      <Link
-                        href="https://cal.com/product@casablanca.cloud/demo"
-                        className="inline-flex items-center gap-2"
-                      >
-                        View calendar slots
-                        <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                      </Link>
-                    </Button>
-                  </div>
-                  <p className="text-xs leading-6 text-muted-foreground">
-                    Prefer email? Reach us directly at{" "}
-                    <Link href="mailto:product@casablanca.cloud" className="underline">
-                      product@casablanca.cloud
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-3">
+                  {[
+                    { label: "Duración", value: "20 min" },
+                    { label: "Formato", value: "Online" },
+                    { label: "Foco", value: "Vuestro flujo real" },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="rounded-2xl border border-border/80 bg-secondary/45 px-4 py-4"
+                    >
+                      <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
+                        {item.label}
+                      </p>
+                      <p className="mt-3 text-lg font-semibold text-foreground">{item.value}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap xl:flex-nowrap">
+                  <Button asChild size="lg" className="rounded-full px-7">
+                    <Link href={calendarHref} className="inline-flex items-center gap-2">
+                      Ver huecos disponibles
+                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
                     </Link>
-                    .
-                  </p>
-                </form>
+                  </Button>
+                  <Button asChild variant="outline" size="lg" className="rounded-full px-7">
+                    <Link href={emailHref}>Escribir por email</Link>
+                  </Button>
+                </div>
+                <p className="text-xs leading-6 text-muted-foreground">
+                  También puedes escribir directamente a{" "}
+                  <Link href="mailto:product@casablanca.cloud" className="underline">
+                    product@casablanca.cloud
+                  </Link>
+                  .
+                </p>
               </CardContent>
             </Card>
 
             <Card className="rounded-[28px] border-primary/25 bg-primary/10 sm:rounded-[30px]">
               <CardHeader>
                 <CardTitle className="font-serif text-[2rem] font-normal leading-tight sm:text-3xl">
-                  What you should expect from the session
+                  Qué os lleváis de la demo
                 </CardTitle>
                 <CardDescription className="mt-2 text-sm leading-6 text-foreground/75">
-                  A narrower, more useful walkthrough than a normal proptech demo.
+                  Una conversación más concreta y más útil que una demo proptech al uso.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {[
-                  "A concrete view of the first-response and handoff loop Casablanca is built to own.",
-                  "A manager-level picture of weekly proof, SLA visibility, and account health.",
-                  "An honest discussion of deployment friction, channel setup, and where trust can break.",
-                  "A rollout plan for a first live office rather than a vague feature tour.",
+                  "Un mapa claro de dónde se os enfrían los leads hoy.",
+                  "Cómo encajaría Casablanca en vuestra oficina sin cambiarlo todo de golpe.",
+                  "Qué haríamos primero y qué no tocaríamos aún.",
+                  "Una respuesta honesta sobre si tiene sentido empezar o no.",
                 ].map((item) => (
                   <div
                     key={item}
@@ -254,8 +228,8 @@ export default function BookDemoPage() {
                   </div>
                 ))}
                 <Button asChild variant="secondary" className="rounded-full px-6">
-                  <Link href="mailto:product@casablanca.cloud" className="inline-flex items-center gap-2">
-                    Email us directly
+                  <Link href={emailHref} className="inline-flex items-center gap-2">
+                    Escríbenos directamente
                     <MessageCircle className="h-4 w-4" aria-hidden="true" />
                   </Link>
                 </Button>

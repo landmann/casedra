@@ -28,49 +28,23 @@
     }
   },
   "resources": {
-    "clerk-auth": {
-      "configuration": {
-        "app_name": "casedra"
-      },
-      "createdAt": "2026-04-17T11:00:13.791Z",
-      "lastRevealedAt": "2026-04-17T11:00:14.398Z",
-      "lastStatus": "complete",
-      "name": "clerk-auth",
-      "providerId": "prvdr_61UGOeSW4e0T9Etwn537w",
-      "providerName": "Clerk",
-      "resourceId": "fres_61UWY5VyVcJrPm2Lo16UWII2PVFIRKdrcCTDbnJA08gi",
-      "serviceId": "auth"
-    },
-    "clerk-plan": {
-      "configuration": {},
-      "createdAt": "2026-04-17T11:00:10.629Z",
-      "lastRevealedAt": "2026-04-17T11:00:11.292Z",
-      "lastStatus": "complete",
-      "name": "clerk-plan",
-      "providerId": "prvdr_61UGOeSW4e0T9Etwn537w",
-      "providerName": "Clerk",
-      "resourceId": "fres_61UWY5S5N33k8IfFa16UWII2PVFIRKdrcCTDbnJA0NOq",
-      "serviceId": "hobby"
-    },
-    "vercel-plan": {
-      "configuration": {},
-      "createdAt": "2026-04-17T11:00:40.662Z",
-      "lastRevealedAt": "2026-04-17T11:00:41.466Z",
-      "lastStatus": "complete",
-      "name": "vercel-plan",
+    "Vercel-plan": {
+      "name": "Vercel-plan",
       "providerId": "prvdr_61ULUAr4zlQgZkvXY5LsG",
       "providerName": "Vercel",
+      "serviceId": "hobby",
       "resourceId": "fres_61UWY5wa1s4cAxErb16UWII2PVFIRKdrcCTDbnJA0X0i",
-      "serviceId": "hobby"
-    },
-    "vercel-project": {
-      "configuration": {
-        "name": "casedra"
-      },
-      "createdAt": "2026-04-17T11:00:42.981Z",
-      "lastRevealedAt": "2026-04-17T11:00:43.603Z",
+      "createdAt": "2026-04-17T11:00:40.499Z",
       "lastStatus": "complete",
-      "name": "vercel-project",
+      "lastRevealedAt": null,
+      "configuration": {}
+    },
+    "Vercel/project": {
+      "configuration": {},
+      "createdAt": "2026-04-17T11:00:42.798Z",
+      "lastRevealedAt": null,
+      "lastStatus": "complete",
+      "name": "Vercel/project",
       "providerId": "prvdr_61ULUAr4zlQgZkvXY5LsG",
       "providerName": "Vercel",
       "resourceId": "fres_61UWY5ypIzDZRhWAQ16UWII2PVFIRKdrcCTDbnJA0X4C",

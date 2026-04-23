@@ -1,56 +1,389 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import {
+	agencyMembershipStatusValidator,
+	agencyRoleValidator,
+	agencyStatusValidator,
+	channelStatusValidator,
+	channelTypeValidator,
+	contactKindValidator,
+	conversationOwnerTypeValidator,
+	conversationStateValidator,
+	handoffTriggerValidator,
+	leadKindValidator,
+	leadStatusValidator,
+	messageBodyFormatValidator,
+	messageDirectionValidator,
+	messageSenderTypeValidator,
+	performancePeriodTypeValidator,
+} from "./workflowValidators";
+
+const listingLocationValidator = v.object({
+	street: v.string(),
+	city: v.string(),
+	stateOrProvince: v.string(),
+	postalCode: v.string(),
+	country: v.string(),
+});
+
+const listingSourceMetadataValidator = v.object({
+	provider: v.literal("idealista"),
+	externalListingId: v.string(),
+	sourceUrl: v.string(),
+});
+
+const locationResolutionStatusValidator = v.union(
+	v.literal("exact_match"),
+	v.literal("building_match"),
+	v.literal("needs_confirmation"),
+	v.literal("unresolved"),
+	v.literal("manual_override"),
+);
+
+const requestedStrategyValidator = v.union(
+	v.literal("auto"),
+	v.literal("idealista_api"),
+	v.literal("firecrawl"),
+	v.literal("browser_worker"),
+);
+
+const acquisitionMethodValidator = v.union(
+	v.literal("url_parse"),
+	v.literal("idealista_api"),
+	v.literal("firecrawl"),
+	v.literal("browser_worker"),
+);
+
+const listingLocationResolutionValidator = v.object({
+	status: locationResolutionStatusValidator,
+	confidenceScore: v.number(),
+	officialSource: v.string(),
+	requestedStrategy: v.optional(requestedStrategyValidator),
+	actualAcquisitionMethod: v.optional(acquisitionMethodValidator),
+	parcelRef14: v.optional(v.string()),
+	unitRef20: v.optional(v.string()),
+	resolvedAddressLabel: v.optional(v.string()),
+	resolverVersion: v.string(),
+	resolvedAt: v.string(),
+	reasonCodes: v.array(v.string()),
+});
+
+const resolveLocationCandidateValidator = v.object({
+	id: v.string(),
+	label: v.string(),
+	parcelRef14: v.optional(v.string()),
+	unitRef20: v.optional(v.string()),
+	distanceMeters: v.optional(v.number()),
+	score: v.number(),
+	reasonCodes: v.array(v.string()),
+	prefillLocation: v.optional(listingLocationValidator),
+});
+
+const resolutionEvidenceValidator = v.object({
+	reasonCodes: v.array(v.string()),
+	matchedSignals: v.array(v.string()),
+	discardedSignals: v.array(v.string()),
+	candidateCount: v.number(),
+	requestedStrategy: requestedStrategyValidator,
+	actualAcquisitionMethod: v.optional(acquisitionMethodValidator),
+	officialSource: v.string(),
+});
+
+const resolveIdealistaLocationResultValidator = v.object({
+	status: v.union(
+		v.literal("exact_match"),
+		v.literal("building_match"),
+		v.literal("needs_confirmation"),
+		v.literal("unresolved"),
+	),
+	requestedStrategy: requestedStrategyValidator,
+	confidenceScore: v.number(),
+	officialSource: v.string(),
+	resolverVersion: v.string(),
+	resolvedAt: v.string(),
+	resolvedAddressLabel: v.optional(v.string()),
+	parcelRef14: v.optional(v.string()),
+	unitRef20: v.optional(v.string()),
+	prefillLocation: v.optional(listingLocationValidator),
+	candidates: v.array(resolveLocationCandidateValidator),
+	evidence: resolutionEvidenceValidator,
+	sourceMetadata: listingSourceMetadataValidator,
+	cacheExpiresAt: v.optional(v.string()),
+});
 
 const listings = defineTable({
-  agentId: v.string(),
-  title: v.string(),
-  slug: v.string(),
-  status: v.union(v.literal("draft"), v.literal("active"), v.literal("sold"), v.literal("archived")),
-  sourceType: v.union(v.literal("manual"), v.literal("firecrawl")),
-  sourceUrl: v.optional(v.string()),
-  location: v.object({
-    street: v.string(),
-    city: v.string(),
-    stateOrProvince: v.string(),
-    postalCode: v.string(),
-    country: v.string(),
-  }),
-  details: v.object({
-    priceUsd: v.number(),
-    bedrooms: v.number(),
-    bathrooms: v.number(),
-    squareFeet: v.optional(v.number()),
-    lotSizeSqFt: v.optional(v.number()),
-    yearBuilt: v.optional(v.number()),
-    propertyType: v.string(),
-    description: v.string(),
-  }),
-  media: v.array(
-    v.object({
-      url: v.string(),
-      type: v.union(v.literal("photo"), v.literal("video"), v.literal("floor_plan"), v.literal("virtual_tour"), v.literal("document")),
-      caption: v.optional(v.string()),
-      tags: v.optional(v.array(v.string())),
-    })
-  ),
-  createdAt: v.number(),
-  updatedAt: v.number(),
+	agentId: v.string(),
+	title: v.string(),
+	slug: v.string(),
+	status: v.union(
+		v.literal("draft"),
+		v.literal("active"),
+		v.literal("sold"),
+		v.literal("archived"),
+	),
+	sourceType: v.union(
+		v.literal("manual"),
+		v.literal("firecrawl"),
+		v.literal("idealista"),
+	),
+	sourceUrl: v.optional(v.string()),
+	sourceMetadata: v.optional(listingSourceMetadataValidator),
+	locationResolution: v.optional(listingLocationResolutionValidator),
+	location: listingLocationValidator,
+	details: v.object({
+		priceUsd: v.number(),
+		bedrooms: v.number(),
+		bathrooms: v.number(),
+		squareFeet: v.optional(v.number()),
+		lotSizeSqFt: v.optional(v.number()),
+		yearBuilt: v.optional(v.number()),
+		propertyType: v.string(),
+		description: v.string(),
+	}),
+	media: v.array(
+		v.object({
+			url: v.string(),
+			type: v.union(
+				v.literal("photo"),
+				v.literal("video"),
+				v.literal("floor_plan"),
+				v.literal("virtual_tour"),
+				v.literal("document"),
+			),
+			caption: v.optional(v.string()),
+			tags: v.optional(v.array(v.string())),
+		}),
+	),
+	createdAt: v.number(),
+	updatedAt: v.number(),
 })
-  .index("by_agent", ["agentId"])
-  .index("by_slug", ["slug"]);
+	.index("by_agent", ["agentId"])
+	.index("by_slug", ["slug"]);
+
+const locationResolutions = defineTable({
+	provider: v.literal("idealista"),
+	externalListingId: v.string(),
+	sourceUrl: v.string(),
+	requestedStrategy: requestedStrategyValidator,
+	resolverVersion: v.string(),
+	resultStatus: v.optional(
+		v.union(
+			v.literal("exact_match"),
+			v.literal("building_match"),
+			v.literal("needs_confirmation"),
+			v.literal("unresolved"),
+		),
+	),
+	result: v.optional(resolveIdealistaLocationResultValidator),
+	normalizedSignals: v.optional(v.any()),
+	leaseOwner: v.optional(v.string()),
+	leaseExpiresAt: v.optional(v.number()),
+	lastAttemptAt: v.optional(v.number()),
+	lastCompletedAt: v.optional(v.number()),
+	expiresAt: v.number(),
+	errorCode: v.optional(v.string()),
+	errorMessage: v.optional(v.string()),
+	createdAt: v.number(),
+	updatedAt: v.number(),
+})
+	.index("by_lookup", [
+		"provider",
+		"externalListingId",
+		"requestedStrategy",
+		"resolverVersion",
+	])
+	.index("by_source_url", ["sourceUrl"])
+	.index("by_expires_at", ["expiresAt"]);
+
+const listingCreateRequests = defineTable({
+	agentId: v.string(),
+	idempotencyKey: v.string(),
+	listingIds: v.array(v.id("listings")),
+	createdAt: v.number(),
+	updatedAt: v.number(),
+}).index("by_agent_and_key", ["agentId", "idempotencyKey"]);
 
 const mediaJobs = defineTable({
-  listingId: v.id("listings"),
-  kind: v.union(v.literal("social_graphic"), v.literal("flyer"), v.literal("short_form_video"), v.literal("property_description")),
-  status: v.union(v.literal("pending"), v.literal("completed"), v.literal("failed")),
-  resultUrl: v.optional(v.string()),
-  metadata: v.optional(v.any()),
-  error: v.optional(v.string()),
-  createdAt: v.number(),
-  updatedAt: v.number(),
+	listingId: v.id("listings"),
+	kind: v.union(
+		v.literal("social_graphic"),
+		v.literal("flyer"),
+		v.literal("short_form_video"),
+		v.literal("property_description"),
+	),
+	status: v.union(
+		v.literal("pending"),
+		v.literal("completed"),
+		v.literal("failed"),
+	),
+	resultUrl: v.optional(v.string()),
+	metadata: v.optional(v.any()),
+	error: v.optional(v.string()),
+	createdAt: v.number(),
+	updatedAt: v.number(),
 }).index("by_listing", ["listingId"]);
 
+const agencies = defineTable({
+	name: v.string(),
+	slug: v.string(),
+	country: v.string(),
+	timezone: v.string(),
+	status: agencyStatusValidator,
+	createdAt: v.number(),
+	updatedAt: v.number(),
+}).index("by_slug", ["slug"]);
+
+const agencyMemberships = defineTable({
+	agencyId: v.id("agencies"),
+	userId: v.string(),
+	role: agencyRoleValidator,
+	status: agencyMembershipStatusValidator,
+	displayName: v.optional(v.string()),
+	createdAt: v.number(),
+	updatedAt: v.number(),
+})
+	.index("by_user", ["userId"])
+	.index("by_agency", ["agencyId"])
+	.index("by_agency_and_user", ["agencyId", "userId"]);
+
+const channels = defineTable({
+	agencyId: v.id("agencies"),
+	type: channelTypeValidator,
+	label: v.string(),
+	status: channelStatusValidator,
+	provider: v.string(),
+	externalChannelId: v.optional(v.string()),
+	config: v.optional(v.any()),
+	createdAt: v.number(),
+	updatedAt: v.number(),
+}).index("by_agency", ["agencyId"]);
+
+const contacts = defineTable({
+	agencyId: v.id("agencies"),
+	kind: contactKindValidator,
+	fullName: v.optional(v.string()),
+	phone: v.optional(v.string()),
+	email: v.optional(v.string()),
+	preferredLanguage: v.optional(v.string()),
+	notes: v.optional(v.string()),
+	createdAt: v.number(),
+	updatedAt: v.number(),
+}).index("by_agency", ["agencyId"]);
+
+const leads = defineTable({
+	agencyId: v.id("agencies"),
+	contactId: v.optional(v.id("contacts")),
+	channelId: v.optional(v.id("channels")),
+	listingId: v.optional(v.id("listings")),
+	kind: leadKindValidator,
+	sourceType: channelTypeValidator,
+	sourceLabel: v.string(),
+	externalLeadId: v.optional(v.string()),
+	status: leadStatusValidator,
+	receivedAt: v.number(),
+	rawPayload: v.optional(v.any()),
+	createdAt: v.number(),
+	updatedAt: v.number(),
+})
+	.index("by_agency", ["agencyId", "receivedAt"])
+	.index("by_contact", ["contactId"]);
+
+const conversations = defineTable({
+	agencyId: v.id("agencies"),
+	leadId: v.id("leads"),
+	contactId: v.optional(v.id("contacts")),
+	channelId: v.optional(v.id("channels")),
+	listingId: v.optional(v.id("listings")),
+	state: conversationStateValidator,
+	ownerType: conversationOwnerTypeValidator,
+	ownerUserId: v.optional(v.string()),
+	version: v.number(),
+	sourceType: channelTypeValidator,
+	sourceLabel: v.string(),
+	summary: v.optional(v.string()),
+	nextRecommendedStep: v.optional(v.string()),
+	firstResponseAt: v.optional(v.number()),
+	lastInboundAt: v.optional(v.number()),
+	lastOutboundAt: v.optional(v.number()),
+	lastMessageAt: v.number(),
+	reopenedAt: v.optional(v.number()),
+	closedAt: v.optional(v.number()),
+	createdAt: v.number(),
+	updatedAt: v.number(),
+})
+	.index("by_agency", ["agencyId", "lastMessageAt"])
+	.index("by_state", ["agencyId", "state", "lastMessageAt"])
+	.index("by_owner", ["agencyId", "ownerType", "ownerUserId", "lastMessageAt"])
+	.index("by_lead", ["leadId"])
+	.index("by_channel", ["agencyId", "channelId", "lastMessageAt"]);
+
+const messages = defineTable({
+	agencyId: v.id("agencies"),
+	conversationId: v.id("conversations"),
+	direction: messageDirectionValidator,
+	senderType: messageSenderTypeValidator,
+	senderUserId: v.optional(v.string()),
+	body: v.string(),
+	bodyFormat: messageBodyFormatValidator,
+	providerMessageId: v.optional(v.string()),
+	externalEventId: v.optional(v.string()),
+	dedupeKey: v.optional(v.string()),
+	sentAt: v.number(),
+	metadata: v.optional(v.any()),
+	createdAt: v.number(),
+}).index("by_conversation", ["conversationId", "sentAt", "createdAt"]);
+
+const assignments = defineTable({
+	agencyId: v.id("agencies"),
+	conversationId: v.id("conversations"),
+	assigneeUserId: v.string(),
+	assignedByUserId: v.string(),
+	reason: v.string(),
+	active: v.boolean(),
+	createdAt: v.number(),
+	endedAt: v.optional(v.number()),
+}).index("by_conversation", ["conversationId", "createdAt"]);
+
+const handoffEvents = defineTable({
+	agencyId: v.id("agencies"),
+	conversationId: v.id("conversations"),
+	fromOwnerType: conversationOwnerTypeValidator,
+	fromUserId: v.optional(v.string()),
+	toOwnerType: conversationOwnerTypeValidator,
+	toUserId: v.optional(v.string()),
+	trigger: handoffTriggerValidator,
+	summarySnapshot: v.optional(v.string()),
+	recommendation: v.optional(v.string()),
+	createdAt: v.number(),
+}).index("by_conversation", ["conversationId", "createdAt"]);
+
+const performanceSnapshots = defineTable({
+	agencyId: v.id("agencies"),
+	periodType: performancePeriodTypeValidator,
+	periodStart: v.number(),
+	periodEnd: v.number(),
+	conversationCount: v.number(),
+	respondedConversationCount: v.number(),
+	medianFirstResponseSeconds: v.optional(v.number()),
+	responseCoveragePct: v.optional(v.number()),
+	handoffRatePct: v.optional(v.number()),
+	manualTakeoverRatePct: v.optional(v.number()),
+	createdAt: v.number(),
+}).index("by_agency_and_period", ["agencyId", "periodType", "periodStart"]);
+
 export default defineSchema({
-  listings,
-  mediaJobs,
+	agencies,
+	agencyMemberships,
+	assignments,
+	channels,
+	contacts,
+	conversations,
+	handoffEvents,
+	listings,
+	listingCreateRequests,
+	locationResolutions,
+	leads,
+	mediaJobs,
+	messages,
+	performanceSnapshots,
 });

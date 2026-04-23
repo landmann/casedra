@@ -13,9 +13,13 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as agencies from "../agencies.js";
 import type * as auth from "../auth.js";
 import type * as listings from "../listings.js";
+import type * as locationResolutions from "../locationResolutions.js";
 import type * as media from "../media.js";
+import type * as workflow from "../workflow.js";
+import type * as workflowValidators from "../workflowValidators.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -26,9 +30,13 @@ import type * as media from "../media.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  agencies: typeof agencies;
   auth: typeof auth;
   listings: typeof listings;
+  locationResolutions: typeof locationResolutions;
   media: typeof media;
+  workflow: typeof workflow;
+  workflowValidators: typeof workflowValidators;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

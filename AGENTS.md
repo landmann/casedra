@@ -1,3 +1,9 @@
+ The best engineering cultures treat lines of code as something you spend, not something you produce. you spend them on the features that matter. you refuse to spend them on the features that don’t. the codebase is a liability on your balance sheet, not an asset. Casedra has the best engineering culture in the world.
+
+Casedra is being developed by one engineer & CEO, so DO NOT CREATE PR reviews, test files, or anyhting like that.
+
+Let's be extremely ambitious over what we can accomplish together, so tighten deadlines, and develop things in one go - there is no Phase 2. Everything is launch ready from the get-go.
+
 <!-- stripe-projects-cli managed:agents-md:start -->
 ## Stripe Projects CLI
 
@@ -7,6 +13,10 @@ This repository is initialized for the Stripe project "casedra".
 
 - [Stripe CLI](https://docs.stripe.com/stripe-cli) with the `projects` plugin to manage third-party services, credentials, and deployments for this project. Use the stripe-projects-cli to manage deploying and access to third party services.
 <!-- stripe-projects-cli managed:agents-md:end -->
+
+## Local development
+
+- The web app runs on `http://localhost:3000` in local development.
 
 ## Brand guidelines
 

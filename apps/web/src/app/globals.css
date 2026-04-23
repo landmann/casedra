@@ -48,6 +48,123 @@ body {
     linear-gradient(to bottom, rgba(255, 251, 242, 0.94), rgba(255, 251, 242, 1));
 }
 
+.casedra-clerk-auth {
+  --clerk-color-primary: #9c6137;
+  --clerk-color-foreground: #1f1a14;
+  --clerk-color-neutral: #e8dfcc;
+  --clerk-color-border: #e8dfcc;
+  --clerk-color-ring: #9c6137;
+  --clerk-color-input: #fff8ee;
+  --clerk-color-input-foreground: #1f1a14;
+  --clerk-font-family: var(--font-sans);
+  --clerk-font-family-buttons: var(--font-sans);
+  --clerk-border-radius: 1rem;
+}
+
+.casedra-clerk-auth .cl-rootBox,
+.casedra-clerk-auth .cl-cardBox {
+  width: 100%;
+}
+
+.casedra-clerk-auth .cl-card {
+  width: 100%;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 2rem !important;
+  background: rgba(255, 251, 242, 0.94) !important;
+  box-shadow: 0 34px 100px rgba(31, 26, 20, 0.12) !important;
+  backdrop-filter: blur(18px);
+}
+
+.casedra-clerk-auth .cl-headerTitle {
+  font-family: var(--font-serif) !important;
+  font-size: clamp(1.9rem, 1.6rem + 1vw, 2.55rem) !important;
+  font-weight: 400 !important;
+  letter-spacing: -0.02em !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.casedra-clerk-auth .cl-headerSubtitle,
+.casedra-clerk-auth .cl-footerActionText,
+.casedra-clerk-auth .cl-dividerText,
+.casedra-clerk-auth .cl-formFieldHintText,
+.casedra-clerk-auth .cl-identityPreviewText {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.casedra-clerk-auth .cl-headerSubtitle {
+  font-size: 0.95rem !important;
+  line-height: 1.7 !important;
+}
+
+.casedra-clerk-auth .cl-dividerLine {
+  background: hsl(var(--border)) !important;
+}
+
+.casedra-clerk-auth .cl-dividerText,
+.casedra-clerk-auth .cl-formFieldLabel {
+  font-size: 0.7rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+}
+
+.casedra-clerk-auth .cl-formFieldLabel {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.casedra-clerk-auth .cl-formFieldInput {
+  min-height: 2.95rem !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 1rem !important;
+  background: rgba(255, 248, 238, 0.92) !important;
+  box-shadow: none !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.casedra-clerk-auth .cl-formFieldInput:focus,
+.casedra-clerk-auth .cl-formFieldInput:focus-visible {
+  border-color: #9c6137 !important;
+  box-shadow: 0 0 0 1px rgba(156, 97, 55, 0.35) !important;
+}
+
+.casedra-clerk-auth .cl-formButtonPrimary {
+  min-height: 2.95rem !important;
+  border-radius: 9999px !important;
+  background: #9c6137 !important;
+  box-shadow: none !important;
+  color: #fffbf2 !important;
+  transition: background-color 180ms ease, transform 180ms ease !important;
+}
+
+.casedra-clerk-auth .cl-formButtonPrimary:hover,
+.casedra-clerk-auth .cl-formButtonPrimary:focus-visible {
+  background: #87522d !important;
+}
+
+.casedra-clerk-auth .cl-socialButtonsBlockButton {
+  min-height: 2.95rem !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 9999px !important;
+  background: rgba(255, 251, 242, 0.84) !important;
+  box-shadow: none !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.casedra-clerk-auth .cl-socialButtonsBlockButton:hover,
+.casedra-clerk-auth .cl-socialButtonsBlockButton:focus-visible {
+  background: hsl(var(--secondary)) !important;
+}
+
+.casedra-clerk-auth .cl-footerActionLink,
+.casedra-clerk-auth .cl-identityPreviewEditButton {
+  color: #9c6137 !important;
+}
+
+.casedra-clerk-auth .cl-formFieldErrorText,
+.casedra-clerk-auth .cl-alertText {
+  font-size: 0.85rem !important;
+}
+
 @layer base {
   * {
     @apply border-border;

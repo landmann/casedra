@@ -9,23 +9,13 @@
     }
   },
   "resources": {
-    "clerk-auth": {
-      "name": "clerk-auth",
-      "providerName": "Clerk",
-      "serviceId": "auth"
-    },
-    "clerk-plan": {
-      "name": "clerk-plan",
-      "providerName": "Clerk",
-      "serviceId": "hobby"
-    },
-    "vercel-plan": {
-      "name": "vercel-plan",
+    "Vercel-plan": {
+      "name": "Vercel-plan",
       "providerName": "Vercel",
       "serviceId": "hobby"
     },
-    "vercel-project": {
-      "name": "vercel-project",
+    "Vercel/project": {
+      "name": "Vercel/project",
       "providerName": "Vercel",
       "serviceId": "project"
     }

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { Button, Card, CardContent, CardHeader, CardTitle } from "@casedra/ui";
+import { MarketingHeaderAuthCta } from "./MarketingHeaderAuthCta";
 import {
   calendarHref,
   demoRoute,
@@ -157,9 +158,7 @@ export default function HomePage() {
               Implantación
             </a>
           </nav>
-          <Button asChild className="rounded-full px-5 sm:px-6">
-            <Link href={calendarHref}>Ver huecos disponibles</Link>
-          </Button>
+          <MarketingHeaderAuthCta calendarHref={calendarHref} />
         </header>
 
         <main className="relative mx-auto w-full max-w-7xl px-5 pb-20 pt-6 sm:px-8 sm:pt-8 lg:px-12 lg:pb-28">

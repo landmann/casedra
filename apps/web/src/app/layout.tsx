@@ -49,7 +49,7 @@ export default function RootLayout({
 					fontSerif.variable,
 				)}
 			>
-				<ClerkProvider>
+				<ClerkProvider signInUrl="/sign-in">
 					<Providers>{children}</Providers>
 				</ClerkProvider>
 			</body>

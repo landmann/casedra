@@ -621,15 +621,13 @@ Context change:
 
 Add these environment variables:
 
-- `LOCALIZA_ENABLED` for server-side feature gating
-- `NEXT_PUBLIC_LOCALIZA_ENABLED` for client-side gating
 - `IDEALISTA_API_KEY` and `IDEALISTA_API_SECRET` if official API access is granted
 - `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID` if the Browserbase-backed browser-worker adapter is required
 
+There is no dedicated Localiza feature flag anymore. Access is controlled by app-level allowlisting, and the resolver is available whenever the user can enter the app and the required upstream credentials exist.
+
 Rules:
 
-- The onboarding UI must hide the Localiza action when `NEXT_PUBLIC_LOCALIZA_ENABLED` is false.
-- The server must reject resolver calls when `LOCALIZA_ENABLED` is false.
 - The browser-worker adapter must not be instantiated unless its Browserbase env vars are present.
 - The resolver must enforce per-adapter timeouts and an overall deadline so one slow adapter cannot block the create flow indefinitely.
 
@@ -670,14 +668,31 @@ Implementation note:
 
 This is the working engineering checklist for Localiza. It is intentionally more granular than the product brief and should be kept current as slices land.
 
+### Critical-path update - 2026-04-24
+
+- Resolver versioning is now centralized in `apps/web/src/server/localiza/version.ts`; the first policy is `stable-bootstrap-date-plus-patch`, meaning semantic behavior changes to parsing, acquisition, official matching, scoring, or cache payloads must bump the trailing patch.
+- Fixture policy is locked to the existing repo rule: do not create new test files. Frozen Localiza fixtures and validation cases live in `packages/api/src/workflow.test.ts` until this repo has a broader approved test layout.
+- The first deterministic frozen layer now covers Idealista URL canonicalization, numeric designator false-positive prevention, threshold classification, and a registry entry for each supported cadastral territory.
+- Resolver cache completion is lease-owner guarded in `convex/locationResolutions.ts`, so an expired resolver cannot overwrite a newer in-flight or completed result for the same lookup.
+- Direct Convex cache functions now require an authenticated Convex identity, and `locationResolutions:pruneExpired` uses the `by_expires_at` index to remove stale rows without broad scans.
+- Confirmed wrong-address incidents now have a durable `localizaIncidents` source and authenticated report/resolve mutations, and the metrics snapshot counts open and recent severity-1 false-positive autofill incidents.
+- The live golden registry now contains live Idealista candidate links, but readiness remains blocked until those links are marked `officially_validated`; do not widen rollout on pending live-link candidates.
+- Live validation is still a beta blocker: the Firecrawl path and each official cadastre adapter must be run against the real golden links before widening beyond the current app allowlist.
+- The beta acquisition contract is now explicitly Firecrawl-only in code: `Auto` only attempts Firecrawl, `idealista_api` and `browser_worker` remain disabled, and `/app/localiza` exposes the readiness gate before allowlist widening.
+- Spanish beta listings now write unit-neutral `priceAmount`, `currencyCode`, `interiorAreaSquareMeters`, and `lotAreaSquareMeters`; legacy `priceUsd` / `squareFeet` fields remain accepted only at the Convex table edge for existing local data.
+
 ### Phase 0. Ground truth and rollout guardrails
 
 - [x] Re-read the full Localiza brief and verify the current repo insertion points.
 - [x] Confirm where listing create data currently enters the system.
-- [ ] Confirm where the golden dataset fixtures will live in-repo.
-- [ ] Decide the first `resolverVersion` format and bump policy.
-- [ ] Confirm whether the first rollout is gated by env only or by a user allowlist.
-- [ ] Document the exact unsupported and blocked cases to surface during beta.
+- [x] Confirm where the golden dataset fixtures will live in-repo.
+  Current state: deterministic frozen fixtures live in `packages/api/src/workflow.test.ts` because repo policy forbids new test files.
+- [x] Decide the first `resolverVersion` format and bump policy.
+  Current state: `apps/web/src/server/localiza/version.ts` exports `localiza-bootstrap-2026-04-23.2` and the `stable-bootstrap-date-plus-patch` policy.
+- [x] Confirm whether the first rollout is gated by env only or by a user allowlist.
+  Current state: Localiza access is currently gated by app-level allowlisting in `apps/web/src/lib/app-access.ts`.
+- [x] Document the exact unsupported and blocked cases to surface during beta.
+  Current state: `/app/localiza` now renders an "Unsupported during beta" card listing the six explicit out-of-scope cases (non-Idealista portals, listings outside Spain, hidden-address listings without coordinates in regional territories, unit-level autofill without independent proof, disabled Idealista API and Browserbase paths, and the no-bulk/no-owner-lookup boundary) so operators see them at the same time they read the readiness gate.
 
 ### Phase 1. Shared domain model and persistence contract
 
@@ -689,8 +704,10 @@ This is the working engineering checklist for Localiza. It is intentionally more
 - [x] Extend Convex listing schema for the new Localiza fields.
 - [x] Extend the Convex listing create mutation args and insert path to persist the new fields.
 - [x] Enforce source-type and metadata consistency again at the Convex mutation boundary.
-- [ ] Decide whether `priceUsd` and `squareFeet` should be renamed to unit-neutral field names before Spanish beta.
-- [ ] Decide whether listings need a normalized display label separate from component address fields.
+- [x] Decide whether `priceUsd` and `squareFeet` should be renamed to unit-neutral field names before Spanish beta.
+  Current state: new create payloads use `priceAmount`, `currencyCode`, `interiorAreaSquareMeters`, and `lotAreaSquareMeters`; the onboarding UI writes EUR and square-meter values by default.
+- [x] Decide whether listings need a normalized display label separate from component address fields.
+  Current state: listings now carry an optional `displayAddressLabel` field across `convex/schema.ts`, `convex/listings.ts`, `packages/api/src/schema/listings.ts`, and `packages/types/src/index.ts`. The Convex insert path auto-fills it from `locationResolution.resolvedAddressLabel` when not set explicitly, so Localiza-resolved listings get a single rendered string for cards and audit while manual listings can stay component-only.
 
 ### Phase 2. Onboarding and listing-intake groundwork
 
@@ -703,7 +720,12 @@ This is the working engineering checklist for Localiza. It is intentionally more
 - [x] Add the `Find exact location` action to the onboarding form.
 - [x] Add loading, exact, building, candidate, unresolved, and manual-override UI states.
 - [x] Keep `Auto` as the default Localiza strategy in the onboarding UI.
-- [x] Add explicit retry strategy selection for `Idealista API`, `Firecrawl`, and `Browser worker`.
+- [x] Add explicit retry strategy selection for the acquisition methods that are currently available.
+  Current state: onboarding exposes `Auto` and `Firecrawl`; `Idealista API` and `Browser worker` stay hidden until their adapters are implemented and enabled.
+- [x] Ignore stale Localiza responses when the user edits the URL, changes source mode, or changes strategy mid-request.
+- [x] Reset Localiza-linked address and hidden source state when the user changes source mode, URL, or strategy.
+- [x] Canonicalize the saved Idealista URL from resolver output before create validation runs.
+- [x] Cancel any in-flight Localiza request when the draft is cleared or the listing is queued so a late response cannot repopulate the next draft.
 - [x] Persist the selected Localiza metadata in the final create payload.
 - [x] Keep the pasted Idealista URL visible after resolution and after save.
 - [x] Make the final onboarding listing batch create idempotent across safe client retries.
@@ -712,8 +734,7 @@ This is the working engineering checklist for Localiza. It is intentionally more
 
 - [x] Add a `localiza` service to API context so router code does not own resolution logic.
 - [x] Add a protected `resolveIdealistaLocation` tRPC mutation.
-- [x] Add server-side feature gating with `LOCALIZA_ENABLED`.
-- [x] Add client-side feature gating with `NEXT_PUBLIC_LOCALIZA_ENABLED`.
+- [x] Remove dedicated Localiza feature flags and rely on app-level access control instead.
 - [x] Define the normalized `IdealistaSignals` model in server code.
 - [x] Define the public resolver response contract used by the onboarding UI.
 - [x] Add structured Localiza error types and timeout/error reason mapping.
@@ -722,11 +743,18 @@ This is the working engineering checklist for Localiza. It is intentionally more
 ### Phase 4. Acquisition adapters
 
 - [x] Implement Idealista URL validation and listing ID parsing.
-- [ ] Test whether official Idealista API access exists and is sufficient for user-submitted URLs.
+- [x] Lock the beta acquisition contract.
+  Current state: beta is Firecrawl-only. `apps/web/src/server/localiza/acquisition-contract.ts` is the source of truth, `Auto` attempts only Firecrawl, and disabled adapters are excluded from the onboarding availability snapshot.
+- [ ] Test whether official Idealista API access exists and is sufficient for user-submitted URLs after beta needs a second acquisition path.
+- [x] Keep the onboarding UI aligned with adapter readiness so disabled strategies are not exposed to users.
+  Current state: the onboarding page now receives a server-side availability snapshot and only exposes `Auto` plus the explicit adapters whose server config is actually enabled in the current environment.
 - [ ] Implement the official Idealista adapter if approved and usable.
+  Current state: the `idealista_api` adapter remains intentionally disabled and is not part of the beta auto path.
 - [x] Implement the Firecrawl acquisition adapter.
+  Current state: the adapter accepts the canonical `FIRECRAWL_API_KEY` plus Stripe Projects-generated `FIRECRAWL_API_API_KEY` / `FIRECRAWL_PLAN_API_KEY` aliases so local and deployed availability checks use the same credential source.
 - [ ] Benchmark Firecrawl success and failure modes on the golden dataset.
 - [ ] Implement the Browserbase-backed fallback adapter only if the first two adapters are insufficient.
+  Current state: the `browser_worker` adapter remains intentionally disabled, is not part of the beta auto path, and still requires explicit compliance approval before production use.
 - [ ] Ensure the browser-worker path only collects minimum normalized signals.
 - [ ] Ensure the browser-worker path does not persist raw HTML or page dumps.
 
@@ -742,23 +770,25 @@ This is the working engineering checklist for Localiza. It is intentionally more
 - [x] Implement candidate scoring and threshold logic.
 - [x] Implement exact, building, candidate, and unresolved decision assignment.
 - [x] Implement machine-readable evidence generation with stable `reasonCodes`.
-- [ ] Add `idealista/maps` verification only as a higher-confidence signal, not as canonical truth.
+- [x] Add `idealista/maps` verification only as a higher-confidence signal, not as canonical truth.
+  Current state: `apps/web/src/server/localiza/maps-verifier.ts` runs only when the official cadastre returns `building_match` and a top candidate exists. The resolver promotes `building_match` to `exact_match` only when idealista/maps confirms the same listing ID at the resolved coordinates; any HTTP error, anti-bot block, or "listing id not found" is logged as inconclusive and never downgrades the result.
 
 ### Phase 5A. Review follow-ups from the first state Catastro slice
 
 - [x] Tighten `exact_match` designator proof in `apps/web/src/server/localiza/score.ts` and `apps/web/src/server/localiza/catastro-state.ts`.
-  Current risk: `corpusIncludesDesignator()` can treat unrelated standalone numeric tokens in the listing text as unit or portal proof. Example: `3 habitaciones` can satisfy candidate designator `3`, which can incorrectly help promote a result to `exact_match`.
+  Current state: `corpusIncludesDesignator()` now requires street/designator or explicit portal/door context, so unrelated standalone numeric tokens like `3 habitaciones` do not provide exact-match proof.
 - [x] Split acquisition-adapter failures from cadastral matching failures in `apps/web/src/server/localiza/resolver.ts`.
-  Current risk: the resolver wraps signal acquisition and official Catastro matching in the same `try` block, so a `state_catastro` timeout or error is currently recorded as `${strategy}_failed`. In `auto` mode this can also trigger unnecessary retries through other acquisition adapters instead of surfacing a cadastre failure cleanly.
+  Current state: acquisition failures and official cadastre failures are logged and cached with separate reason codes, so `auto` does not retry other acquisition adapters after the official matching step fails.
 - [x] Make regional routing coordinate-safe instead of province-string-only in `apps/web/src/server/localiza/score.ts` and `apps/web/src/server/localiza/catastro-state.ts`.
-  Current risk: Navarra / Álava / Bizkaia / Gipuzkoa routing currently depends on `signals.province`. If the listing has usable coordinates but no province hint, we can still hit the national Catastro path even though those territories require regional cadastres.
+  Current state: Navarra / Álava / Bizkaia / Gipuzkoa routing uses province aliases plus coordinate reverse-geocoding, and candidate scoring accepts official regional aliases like `Araba`, `Vizcaya`, and `Guipúzcoa`.
 
 ### Phase 6. Cache, leases, and concurrency safety
 
 - [x] Add a dedicated `locationResolutions` cache table.
 - [x] Add lookup indexes for `(provider, externalListingId, resolverVersion)`.
 - [x] Add cache lookup by `sourceUrl`.
-- [ ] Add expiry lookup and cleanup behavior for stale cache rows.
+- [x] Add expiry lookup and cleanup behavior for stale cache rows.
+  Current state: `locationResolutions:pruneExpired` requires an authenticated Convex identity, deletes bounded batches through `by_expires_at`, and returns whether more stale rows remain.
 - [x] Add an in-flight lease with short expiry for concurrent resolve attempts.
 - [x] Make later callers reuse cached or in-flight results instead of fan-out resolving.
 - [x] Add failure cooldown behavior for repeated hard failures.
@@ -766,33 +796,46 @@ This is the working engineering checklist for Localiza. It is intentionally more
 
 ### Phase 7. Observability and analytics
 
-- [ ] Add structured server logs for start, adapter failure, cadastre failure, completion, confirm, and manual override.
+- [x] Add structured server logs for start, adapter failure, cadastre failure, completion, confirm, and manual override.
+  Current state: resolver logs use `localiza.resolve.*` event names and include user/source/duration context where available; listing create now emits backend `localiza.resolve.user_confirmed` and `localiza.resolve.manual_override` logs from persisted resolution metadata.
 - [x] Expose routed territory and exact official service URL in user-facing resolver output for auditability.
 - [x] Add PostHog events for URL paste, resolve click, success, unresolved, candidate select, manual override, and listing created.
-- [ ] Add metrics for success rate by acquisition adapter and territory adapter.
-- [ ] Add unresolved-rate and timeout-rate monitoring thresholds.
-- [ ] Add a severity-1 incident procedure for any confirmed false-positive autofill.
+- [x] Add metrics for success rate by acquisition adapter and territory adapter.
+  Current state: `locationResolutions:getMetricsSnapshot` aggregates resolve attempts, status rates, acquisition-adapter rates, territory-adapter rates, median duration, manual override rate, and user-confirmation rate.
+- [x] Add unresolved-rate and timeout-rate monitoring thresholds.
+  Current state: the metrics snapshot returns beta thresholds and alert labels when unresolved or timeout rates breach the configured backend limits.
+- [x] Add a severity-1 incident procedure and durable incident source for any confirmed false-positive autofill.
+  Current state: `localizaIncidents` stores open/resolved severity-1 false-positive autofill incidents, `locationResolutions:reportFalsePositiveIncident` and `locationResolutions:resolveFalsePositiveIncident` are authenticated operator mutations, and `locationResolutions:getMetricsSnapshot` returns false-positive incident counts plus an immediate alert label.
+- [x] Expose an operator-safe rollout readiness gate.
+  Current state: `/app/localiza` and the protected `listings.localizaReadiness` query combine the Firecrawl-only acquisition contract, golden dataset readiness, aggregate metrics, and active alert labels without exposing raw source URLs.
 
 ### Phase 8. Testing and fixture strategy
 
-- [ ] Add unit tests for URL parsing.
+- [x] Add unit tests for URL parsing.
 - [ ] Add unit tests for signal normalization.
 - [ ] Add unit tests for candidate scoring.
-- [ ] Add unit tests for threshold and state assignment.
+  Current state: exact/building threshold and regional province-alias coverage exist; full candidate-scoring fixture coverage is still open.
+- [x] Add unit tests for threshold and state assignment.
 - [ ] Add integration tests for mocked resolver flows.
 - [ ] Add integration tests for create-with-resolution metadata.
 - [ ] Add integration tests for manual override.
-- [ ] Add deterministic CI fixtures built from frozen normalized signals and official responses.
-- [ ] Add a smaller live-link regression set for scheduled or manual verification.
+- [x] Add deterministic CI fixtures built from frozen normalized signals and official responses.
+  Current state: the canonical frozen golden fixture registry lives in `apps/web/src/server/localiza/golden-dataset.ts` with 30 deterministic fixtures, planned outcome coverage, territory coverage, and frozen-contract threshold validation in the existing `packages/api/src/workflow.test.ts` file.
+- [x] Add a smaller live-link regression set for scheduled or manual verification.
+  Current state: `apps/web/src/server/localiza/golden-dataset.ts` contains live Idealista candidate links with expected territory/status hints and explicit validation status. Golden readiness now reports `localiza_live_regression_set_pending_official_validation` until each live candidate is validated against the official cadastre and marked `officially_validated`.
 - [ ] Add Playwright coverage for exact match, building match, needs confirmation, unresolved, and manual override flows.
+  Current state: repo policy still forbids new test files, so the first Localiza coverage lives in the existing `packages/api/src/workflow.test.ts` file and currently guards source-type/source-URL consistency, draft-state helpers for failed-resolve clearing and in-flight add prevention, strategy-option helper alignment with server-side adapter readiness, Idealista URL parsing, designator false-positive prevention, regional province aliases, threshold classification, and the territory fixture registry.
 
 ### Phase 9. Rollout readiness
 
+- [x] Expose a single readiness gate for allowlist widening.
+  Current state: `/app/localiza` shows whether widening is blocked by missing Firecrawl config, live-link validation, false-positive incidents, unresolved/timeout thresholds, metrics unavailability, or other aggregate health alerts. Metrics query failures fail closed with `localiza_metrics_unavailable` instead of crashing the operator gate.
 - [ ] Confirm zero silent false positives on internal dogfood before beta.
 - [ ] Validate median resolve times against the stated targets.
 - [ ] Validate success thresholds against the golden dataset.
 - [ ] Keep manual entry fully functional even when the resolver is disabled.
-- [ ] Write a narrow feature doc once the resolver path is wired into onboarding.
+- [x] Write a narrow feature doc once the resolver path is wired into onboarding.
+  Current state: `feat/localiza.md` now contains a "How To Use Localiza" section covering what Localiza does, the four outcomes, what counts as a manual override, and how to read the trust card.
 
 ## Implementation Order
 
@@ -808,7 +851,7 @@ This is the concrete build order we will execute and later check against:
 8. Validate Firecrawl against the golden dataset.
 9. Validate the explicit retry strategies against the same links so users can recover from adapter-specific failure.
 10. Only stand up the Browserbase-backed minimal-signal worker if the official API and Firecrawl paths are insufficient on the dataset.
-11. Finish observability, fixtures, regression tests, and feature-flagged rollout.
+11. Finish observability, fixtures, regression tests, and allowlisted rollout.
 
 Execution notes:
 
@@ -831,10 +874,12 @@ The resolver state machine is:
 
 Rules:
 
-- Editing the URL resets the state to `idle`.
-- A new resolve attempt cancels the previous client-side state and reuses any valid cached server result.
+- Editing the URL resets the state to `idle` and invalidates any in-flight client request so stale responses are ignored.
+- A new resolve attempt supersedes the previous client-side request and reuses any valid cached server result.
+- Clearing the draft or queuing a listing also invalidates any in-flight client request before the next draft starts.
 - Double-clicking the resolve button must not launch duplicate network calls.
 - Editing a prefilled address field after resolution moves the client state to `manual_override`.
+- A failed re-resolve clears only Localiza-owned exact or building prefills; manual overrides remain intact.
 - The final listing create call is the only write that creates a listing record.
 - Safe retries of the final create call must reuse an idempotency key so the batch is not duplicated.
 
@@ -878,14 +923,17 @@ Timeout budget:
 
 ### Resolver regression after deployment
 
-- Gate the feature behind an environment flag.
+- Control rollout through app-level allowlisting rather than a dedicated Localiza feature flag.
 - Keep manual address entry fully functional.
-- Rollback means disabling the resolver path; no listing data migration is required for safety.
+- Rollback means removing allowlisted access or hiding the Idealista-specific intake path; no listing data migration is required for safety.
 
 ### Wrong-address incident
 
 - Treat any confirmed false-positive autofill as a severity-1 product bug.
+- Record it through `locationResolutions:reportFalsePositiveIncident` with the offending source URL, listing id when available, resolver version, observed status, and operator notes.
 - Add the offending URL to the golden dataset immediately.
+- Keep the incident open until the URL is represented by a frozen or officially validated live fixture and the resolver no longer produces the wrong autofill.
+- Close it through `locationResolutions:resolveFalsePositiveIncident` only after the fix is shipped and the app allowlist is safe to widen again.
 - Ship the fix before widening rollout.
 
 ## Compliance And Data Handling
@@ -924,6 +972,8 @@ Each log includes:
 - candidate count
 - error code if present
 
+Implementation note: resolver events are emitted by `apps/web/src/server/localiza/resolver.ts`; confirm and manual-override backend events are emitted from the protected listing create path after Convex returns the saved listing id.
+
 ### Product analytics
 
 Capture PostHog events if PostHog is configured:
@@ -934,7 +984,7 @@ Capture PostHog events if PostHog is configured:
 - `localiza_resolve_unresolved`
 - `localiza_candidate_selected`
 - `localiza_manual_override`
-- `localiza_listing_created`
+- `listing_created`
 
 ### Dashboard metrics
 
@@ -954,6 +1004,9 @@ Alerts:
 
 - Alert immediately on any confirmed false-positive autofill.
 - Alert when unresolved rate or adapter timeout rate breaches the agreed beta threshold for two consecutive measurement windows.
+
+Implementation note: `locationResolutions:getMetricsSnapshot` is the authenticated backend operator snapshot for the current rollout. It intentionally returns aggregate counts and rates rather than raw source URLs and is not exposed as an app-facing tRPC procedure.
+It now includes `falsePositiveIncidents`, `openFalsePositiveIncidents`, and the `localiza_false_positive_incident_reported` alert label when any confirmed wrong-address incident exists in the current window or remains open.
 
 ## Test Plan
 
@@ -1027,7 +1080,7 @@ Ship once:
 Blast radius control:
 
 - GA rollout still leaves manual entry available.
-- Disabling the feature flag returns the product to the pre-Localiza behavior immediately.
+- Removing users from the allowlist or hiding the Idealista intake surface returns the product to the pre-Localiza behavior immediately.
 
 ## Timeline
 
@@ -1055,7 +1108,7 @@ Timeline risk note:
 
 - Integrate the onboarding UI.
 - Add candidate selection and manual override states.
-- Add logs, analytics, and feature flag.
+- Add logs, analytics, and rollout guardrails.
 
 ### 2026-04-28
 
@@ -1070,19 +1123,60 @@ This is a complete build, not a partial v1 with deferred core functionality.
 
 ## Acceptance Checklist
 
-- [ ] User can paste an Idealista URL and trigger resolution from onboarding.
-- [ ] Resolver returns one of the four contract states every time.
-- [ ] Exact results only auto-fill when confidence rules are satisfied.
-- [ ] Building-level and ambiguous results require user confirmation.
-- [ ] User can manually override any suggested address.
-- [ ] Resolution metadata is stored with the listing.
-- [ ] Resolution attempts are cached and auditable.
+- [x] User can paste an Idealista URL and trigger resolution from onboarding.
+- [x] Resolver returns one of the four contract states every time.
+- [x] Exact results only auto-fill when confidence rules are satisfied.
+- [x] Building-level and ambiguous results require user confirmation.
+- [x] User can manually override any suggested address.
+- [x] Resolution metadata is stored with the listing.
+- [x] Resolution attempts are cached and auditable.
 - [ ] State Catastro path works for territories covered by the national service.
 - [ ] Navarra and each Basque territory return either official exact automation or official candidate confirmation, not silent failure.
-- [ ] Logs and analytics exist for all key transitions.
+- [x] Logs and analytics exist for all key transitions.
 - [ ] Golden dataset passes before GA.
 - [ ] Manual entry still works if the resolver is disabled.
 - [ ] The browser-worker path, if enabled, only collects minimal normalized signals and does not store raw page dumps or bulk media.
+
+## How To Use Localiza
+
+This is the narrow user-facing reference for Localiza inside the Casedra listing intake flow.
+
+### What Localiza does
+
+- You paste an Idealista listing URL into the onboarding listing form.
+- Casedra reads what the listing publicly exposes (municipality, district, approximate map point, floor text, area, price, etc.) and matches that signal set against the official Spanish cadastres.
+- Localiza never copies addresses from the listing text. The proposed address always comes from an official cadastre (`Dirección General del Catastro`, `Registro de la Riqueza Territorial de Navarra`, or the Álava / Bizkaia / Gipuzkoa official cadastre, depending on territory).
+
+### The four outcomes
+
+Every resolve call ends in exactly one of these:
+
+1. **Exact match** — The official cadastre confirms the property at street, building, and unit precision, and a second independent signal (cadastral unit reference or `idealista/maps` backlink) supports the same listing. The address fields are prefilled. You can still edit anything before saving.
+2. **Building match** — The official cadastre confirms the building or parcel, but unit-level precision is not proven. You see the proposed building address and a `Use this building` action. Confirming prefills the address with `building_match` recorded in the listing's resolution metadata.
+3. **Needs confirmation** — Two to five ranked candidates are shown with their official source label, distance from the listing's map point, and the matching signals. Pick one to prefill, or fall back to manual entry.
+4. **Unresolved** — Localiza could not produce a trustworthy match. The pasted URL is preserved, the manual address fields stay open, and you can retry with a different acquisition strategy or save the listing manually.
+
+### What counts as a manual override
+
+The listing's resolution metadata is set to `manual_override` whenever the saved address differs materially from what Localiza prefilled, regardless of the original outcome. That includes:
+
+- Editing any of the prefilled street, city, province, or postal code fields after an `exact_match` or `building_match` autofill.
+- Picking one of the candidates from a `needs_confirmation` result and then editing it before saving.
+- Skipping the suggested address entirely and entering a manual one.
+
+`manual_override` is never a resolver failure. It is a faithful record that the human-entered address took priority over the cadastre suggestion, and it is preserved in the audit trail alongside the original Idealista URL and the resolver version that produced the suggestion.
+
+### How to read the trust card
+
+The result card shows, top to bottom:
+
+- **Confidence label** — `Exact match`, `Building match`, `Needs confirmation`, or `Unresolved`.
+- **Resolved address** — the official cadastre's rendered label, plus the cadastral reference (parcel or unit) when available.
+- **Official source** — the named cadastre that produced the result, with a link to the source service so the choice is auditable.
+- **Why this match** — a short explanation built from machine-readable reason codes (e.g. coordinate proximity, designator confirmation, idealista/maps backlink) so it is clear which signals supported the choice.
+- **Action buttons** — vary by outcome: prefill on `exact_match`, `Use this building` or `Review candidates` on `building_match`, candidate cards on `needs_confirmation`, retry on `unresolved`.
+
+If a result feels wrong, the safe action is to edit the address and save: the listing will be persisted as `manual_override` and the resolver call is preserved for audit. If the autofilled address is concretely wrong, file it through the false-positive incident path so the offending URL becomes a permanent fixture in the golden dataset.
 
 ## Sources
 

@@ -75,6 +75,7 @@ const listingLocationResolutionValidator = v.object({
 	resolvedAddressLabel: v.optional(v.string()),
 	resolverVersion: v.string(),
 	resolvedAt: v.string(),
+	candidateCount: v.optional(v.number()),
 	reasonCodes: v.array(v.string()),
 });
 
@@ -145,10 +146,15 @@ const listings = defineTable({
 	sourceMetadata: v.optional(listingSourceMetadataValidator),
 	locationResolution: v.optional(listingLocationResolutionValidator),
 	location: listingLocationValidator,
+	displayAddressLabel: v.optional(v.string()),
 	details: v.object({
-		priceUsd: v.number(),
+		priceAmount: v.optional(v.number()),
+		currencyCode: v.optional(v.union(v.literal("EUR"), v.literal("USD"))),
 		bedrooms: v.number(),
 		bathrooms: v.number(),
+		interiorAreaSquareMeters: v.optional(v.number()),
+		lotAreaSquareMeters: v.optional(v.number()),
+		priceUsd: v.optional(v.number()),
 		squareFeet: v.optional(v.number()),
 		lotSizeSqFt: v.optional(v.number()),
 		yearBuilt: v.optional(v.number()),
@@ -209,6 +215,35 @@ const locationResolutions = defineTable({
 	])
 	.index("by_source_url", ["sourceUrl"])
 	.index("by_expires_at", ["expiresAt"]);
+
+const localizaIncidents = defineTable({
+	kind: v.literal("false_positive_autofill"),
+	severity: v.literal("sev1"),
+	status: v.union(v.literal("open"), v.literal("resolved")),
+	sourceUrl: v.string(),
+	externalListingId: v.optional(v.string()),
+	listingId: v.optional(v.id("listings")),
+	resolverVersion: v.optional(v.string()),
+	resultStatus: v.optional(
+		v.union(
+			v.literal("exact_match"),
+			v.literal("building_match"),
+			v.literal("needs_confirmation"),
+			v.literal("unresolved"),
+			v.literal("manual_override"),
+		),
+	),
+	reportedByUserId: v.string(),
+	resolvedByUserId: v.optional(v.string()),
+	notes: v.optional(v.string()),
+	resolutionNotes: v.optional(v.string()),
+	createdAt: v.number(),
+	updatedAt: v.number(),
+	resolvedAt: v.optional(v.number()),
+})
+	.index("by_status_and_kind", ["status", "kind"])
+	.index("by_source_url", ["sourceUrl"])
+	.index("by_created_at", ["createdAt"]);
 
 const listingCreateRequests = defineTable({
 	agentId: v.string(),
@@ -403,6 +438,7 @@ export default defineSchema({
 	handoffEvents,
 	listings,
 	listingCreateRequests,
+	localizaIncidents,
 	locationResolutions,
 	leads,
 	mediaJobs,

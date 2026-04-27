@@ -17,9 +17,8 @@ export const createTRPCContext = async (
 	const isAllowedUser = isAllowedAppUser(user);
 	const session =
 		userId && isAllowedUser ? { userId, sessionId: sessionId ?? null } : null;
-	const convexAuthToken = userId && isAllowedUser
-		? await getToken({ template: "convex" })
-		: null;
+	const convexAuthToken =
+		userId && isAllowedUser ? await getToken({ template: "convex" }) : null;
 
 	if (userId && isAllowedUser && !convexAuthToken) {
 		throw new Error("Missing Convex auth token for authenticated session");

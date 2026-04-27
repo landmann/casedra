@@ -19,35 +19,35 @@ import { generalEmail, generalEmailHref } from "../../marketing-data";
 
 const quickActions = [
 	{
-		title: "Connect a live channel",
+		title: "Conectar un canal en directo",
 		description:
-			"Set up WhatsApp or portal forwarding so real inbound demand lands in the workflow.",
+			"Conecta WhatsApp o portales para que los contactos lleguen a la bandeja.",
 		icon: MessageSquareText,
-		cta: "Open channel setup",
+		cta: "Abrir configuración de canales",
 		href: "/app/onboarding?step=brand",
 	},
 	{
-		title: "Review routing rules",
+		title: "Revisar reglas de reparto",
 		description:
-			"Define who owns which leads, when AI can continue, and when handoff should happen.",
+			"Decide quién recibe cada contacto y cuándo debe entrar una persona.",
 		icon: Workflow,
-		cta: "Inspect routing",
+		cta: "Ver reparto",
 		href: "#",
 	},
 	{
-		title: "Prepare seller proof",
+		title: "Preparar prueba para vendedores",
 		description:
-			"Turn response and conversion performance into a weekly pack for owner-facing conversations.",
+			"Prepara una prueba semanal clara para conversaciones con propietarios.",
 		icon: LayoutDashboard,
-		cta: "Generate proof pack",
+		cta: "Preparar prueba",
 		href: "#",
 	},
 	{
-		title: "Coordinate rollout",
+		title: "Coordinar la puesta en marcha",
 		description:
-			"Track deployment status, at-risk accounts, and who needs training before go-live.",
+			"Ve qué falta, qué cuentas necesitan atención y quién necesita formación.",
 		icon: Users,
-		cta: "View rollout tasks",
+		cta: "Ver tareas",
 		href: generalEmailHref,
 	},
 ] as const;
@@ -56,77 +56,81 @@ const inboxQueue = [
 	{
 		contact: "Ana Garcia",
 		source: "Idealista",
-		state: "Awaiting agent",
+		state: "Esperando agente",
 		owner: "Marta Ruiz",
 		summary:
-			"Viewing request for a 2-bed in Chamberi. Budget already qualified.",
+			"Solicitud de visita para un piso de 2 dormitorios en Chamberí. Presupuesto ya cualificado.",
 	},
 	{
 		contact: "Carlos Moreno",
 		source: "WhatsApp",
-		state: "Bot active",
-		owner: "AI",
+		state: "Casedra responde",
+		owner: "Casedra",
 		summary:
-			"Asking about availability and parking for a listing in Chamartin.",
+			"Pregunta por disponibilidad y aparcamiento en un inmueble de Chamartín.",
 	},
 	{
 		contact: "Lucia Vega",
-		source: "Web valuation form",
-		state: "New seller lead",
-		owner: "Owner nurture queue",
+		source: "Formulario web de valoración",
+		state: "Nuevo contacto vendedor",
+		owner: "Seguimiento de propietarios",
 		summary:
-			"Requested valuation for a 3-bed flat and wants a meeting next week.",
+			"Pidió una valoración para un piso de 3 dormitorios y quiere una reunión la semana que viene.",
 	},
 ] as const;
 
 const scorecard = [
-	{ label: "Median first response", value: "01:42", tone: "text-foreground" },
-	{ label: "Inbox weekly active", value: "81%", tone: "text-foreground" },
 	{
-		label: "Live channels connected",
+		label: "Respuesta típica",
+		value: "01:42",
+		tone: "text-foreground",
+	},
+	{ label: "Bandeja activa semanal", value: "81%", tone: "text-foreground" },
+	{
+		label: "Canales en directo conectados",
 		value: "14 / 16",
 		tone: "text-foreground",
 	},
-	{ label: "Trust incidents", value: "0", tone: "text-primary" },
+	{ label: "Problemas abiertos", value: "0", tone: "text-primary" },
 ] as const;
 
 const workflowCards = [
 	{
-		title: "Response control",
-		body: "Casedra answered 92% of meaningful leads inside SLA this week and escalated only when local context was required.",
-		footer: "Updated 12 minutes ago",
+		title: "Control de respuesta",
+		body: "Casedra respondió el 92% de los contactos relevantes dentro del tiempo prometido esta semana.",
+		footer: "Actualizado hace 12 minutos",
 	},
 	{
-		title: "Manager visibility",
-		body: "Two accounts need routing adjustments because weekend coverage dropped below target.",
-		footer: "Needs review today",
+		title: "Visibilidad de dirección",
+		body: "Dos cuentas necesitan ajustes de reparto porque la cobertura del fin de semana cayó por debajo del objetivo.",
+		footer: "Necesita revisión hoy",
 	},
 	{
-		title: "Seller acquisition",
-		body: "Five owner opportunities were created from proof-led follow-up and valuation capture flows.",
-		footer: "Expansion wedge active",
+		title: "Captación de vendedores",
+		body: "Cinco propietarios pidieron valoración después de un seguimiento claro.",
+		footer: "Listo para revisar",
 	},
 ] as const;
 
 const activityFeed = [
 	{
-		title: "Weekly proof memo delivered",
+		title: "Resumen semanal entregado",
 		description:
-			"Atico Chamberi received their Monday review with SLA and recovery metrics.",
+			"Ático Chamberí recibió su revisión del lunes con respuesta, pendientes y siguientes pasos.",
 		timestamp: "09:12",
 		icon: CheckCircle2,
 	},
 	{
-		title: "Low-confidence handoff triggered",
+		title: "Traspaso al equipo",
 		description:
-			"Mortgage timing question escalated to Marta Ruiz with full conversation summary.",
+			"Una pregunta sobre plazos hipotecarios se escaló a Marta Ruiz con el resumen completo de la conversación.",
 		timestamp: "08:47",
 		icon: AlertCircle,
 	},
 	{
-		title: "New seller valuation request",
+		title: "Nueva solicitud de valoración de vendedor",
 		description:
-			"Lucia Vega entered via owner capture page and routed into nurture workflow.",
+			"Lucia Vega pidió una valoración y quedó lista para seguimiento.",
 		timestamp: "08:31",
 		icon: Sparkles,
 	},
@@ -149,16 +153,15 @@ export default function StudioPage() {
 									className="h-3.5 w-3.5 text-primary"
 									aria-hidden="true"
 								/>
-								Product preview
+								Vista previa del producto
 							</div>
 							<div>
 								<h1 className="font-serif text-[2.8rem] font-normal leading-tight text-foreground sm:text-[4rem]">
-									Agency command center
+									Centro de mando de la agencia
 								</h1>
 								<p className="mt-3 max-w-3xl text-base leading-7 text-muted-foreground">
-									A preview of Casedra as the live workflow layer around inbound
-									demand, team routing, and seller-side proof. This is the
-									product posture the public UI now points to.
+									Una vista previa de Casedra para contactos, reparto del equipo
+									y prueba semanal para captar vendedores.
 								</p>
 							</div>
 						</div>
@@ -169,7 +172,7 @@ export default function StudioPage() {
 										href="/book-demo"
 										className="inline-flex items-center gap-2"
 									>
-										Book a walkthrough
+										Reservar recorrido
 										<ArrowRight className="h-4 w-4" aria-hidden="true" />
 									</Link>
 								</Button>
@@ -179,7 +182,7 @@ export default function StudioPage() {
 								href="/masterplan"
 								className="text-sm text-muted-foreground transition-colors hover:text-foreground"
 							>
-								Read the planning stack
+								Leer el plan maestro
 							</Link>
 						</div>
 					</div>
@@ -233,11 +236,11 @@ export default function StudioPage() {
 							<CardHeader className="flex flex-col items-start justify-between gap-4 sm:flex-row">
 								<div>
 									<CardTitle className="font-serif text-[2rem] font-normal leading-tight sm:text-3xl">
-										Live inbox queue
+										Cola de bandeja en directo
 									</CardTitle>
 									<p className="mt-2 text-sm leading-6 text-muted-foreground">
-										A single surface for buyer leads, seller capture, and human
-										takeover.
+											Una sola superficie para contactos compradores, captación de
+										vendedores y toma de control humana.
 									</p>
 								</div>
 								<Button
@@ -247,7 +250,7 @@ export default function StudioPage() {
 									className="rounded-full"
 								>
 									<Link href="/app/inbox">
-										Open inbox
+										Abrir bandeja
 										<ArrowRight className="ml-1 h-4 w-4" aria-hidden="true" />
 									</Link>
 								</Button>
@@ -272,7 +275,7 @@ export default function StudioPage() {
 													{item.state}
 												</span>
 												<span className="rounded-full border border-border bg-background px-3 py-1">
-													Owner: {item.owner}
+													Responsable: {item.owner}
 												</span>
 											</div>
 										</div>
@@ -287,11 +290,10 @@ export default function StudioPage() {
 						<Card className="rounded-[28px] border-primary/25 bg-primary/10 sm:rounded-[30px]">
 							<CardHeader>
 								<CardTitle className="font-serif text-[2rem] font-normal leading-tight sm:text-3xl">
-									Office scorecard
+									Cuadro de mando de la oficina
 								</CardTitle>
 								<p className="mt-2 text-sm leading-6 text-foreground/75">
-									The metrics that decide whether the workflow is healthy,
-									trusted, and worth expanding.
+									Los números que dicen si la oficina responde bien y a tiempo.
 								</p>
 							</CardHeader>
 							<CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
@@ -318,11 +320,10 @@ export default function StudioPage() {
 						<Card className="rounded-[28px] border-border/80 bg-[linear-gradient(180deg,rgba(255,251,242,0.96),rgba(248,241,229,0.88))] shadow-[0_24px_70px_rgba(31,26,20,0.07)] sm:rounded-[30px]">
 							<CardHeader>
 								<CardTitle className="font-serif text-[2rem] font-normal leading-tight sm:text-3xl">
-									Workflow highlights
+										Destacados del trabajo
 								</CardTitle>
 								<p className="mt-2 text-sm leading-6 text-muted-foreground">
-									The surfaces that make Casedra feel like infrastructure rather
-									than a novelty layer.
+										Lo que la oficina ve cada día.
 								</p>
 							</CardHeader>
 							<CardContent className="space-y-4">
@@ -350,7 +351,7 @@ export default function StudioPage() {
 							<Card className="rounded-[28px] border-border/80 bg-background/92 shadow-[0_24px_70px_rgba(31,26,20,0.07)] sm:rounded-[30px]">
 								<CardHeader>
 									<CardTitle className="font-serif text-[2rem] font-normal leading-tight sm:text-3xl">
-										Recent activity
+										Actividad reciente
 									</CardTitle>
 								</CardHeader>
 								<CardContent className="space-y-4">
@@ -387,19 +388,18 @@ export default function StudioPage() {
 							<Card className="rounded-[28px] border-primary/25 bg-primary/10 sm:rounded-[30px]">
 								<CardHeader>
 									<CardTitle className="font-serif text-[2rem] font-normal leading-tight sm:text-3xl">
-										Deployment checklist
+											Lista de puesta en marcha
 									</CardTitle>
 									<p className="mt-2 text-sm leading-6 text-foreground/75">
-										A reminder that rollout quality is part of the product, not
-										a support afterthought.
+											Lo mínimo para abrir Casedra con criterio.
 									</p>
 								</CardHeader>
 								<CardContent className="space-y-3">
 									{[
-										"At least one live channel connected",
-										"Clear assignment and takeover rules agreed with the office",
-										"First proof memo scheduled for the next Monday review",
-										"Manager knows where to monitor SLA and account health",
+										"Al menos un canal en directo conectado",
+										"Reglas claras de asignación y toma de control acordadas con la oficina",
+											"Primer resumen semanal programado para la revisión del lunes",
+											"Dirección sabe dónde revisar respuesta, pendientes y riesgos",
 									].map((item) => (
 										<div
 											key={item}
@@ -417,12 +417,12 @@ export default function StudioPage() {
 											href={generalEmailHref}
 											className="inline-flex items-center gap-2"
 										>
-											Talk to the deployment team
+												Hablar con el equipo
 											<ShieldCheck className="h-4 w-4" aria-hidden="true" />
 										</Link>
 									</Button>
 									<p className="text-xs leading-6 text-foreground/70">
-										Contact:{" "}
+										Contacto:{" "}
 										<Link href={generalEmailHref} className="underline">
 											{generalEmail}
 										</Link>

@@ -83,6 +83,11 @@ const regionalTerritoryMatchers: Array<{
   },
 ];
 
+const getProvinceAliasSets = () =>
+  regionalTerritoryMatchers.map((territory) =>
+    territory.aliases.map((alias) => normalizeLocalizaText(alias))
+  );
+
 const streetTypeExpansions: Record<string, string> = {
   CL: "Calle",
   CLL: "Calle",
@@ -130,6 +135,11 @@ const designatorContextPrefixes = [
   "bloque",
   "escalera",
 ];
+
+export const LOCALIZA_MIN_VIABLE_SCORE = 0.45;
+export const LOCALIZA_BUILDING_MATCH_THRESHOLD = 0.75;
+export const LOCALIZA_EXACT_MATCH_THRESHOLD = 0.9;
+export const LOCALIZA_MIN_SCORE_GAP = 0.12;
 
 interface TerritoryReverseGeocodeResponse {
   features?: Array<{
@@ -251,22 +261,34 @@ export const getProvinceNameFromCode = (provinceCode?: string) =>
 
 export const provinceMatchesHint = (
   provinceCode: string | undefined,
-  provinceHint: string | undefined,
+  provinceHint: string | undefined
 ) => {
   if (!provinceHint) {
     return true;
   }
 
-  const candidateProvince = normalizeLocalizaText(
-    getProvinceNameFromCode(provinceCode),
-  );
-  const normalizedHint = normalizeLocalizaText(provinceHint);
+  return provinceNamesMatch(getProvinceNameFromCode(provinceCode), provinceHint);
+};
 
-  if (!candidateProvince || !normalizedHint) {
+export const provinceNamesMatch = (
+  leftProvince: string | undefined,
+  rightProvince: string | undefined
+) => {
+  const normalizedLeft = normalizeLocalizaText(leftProvince);
+  const normalizedRight = normalizeLocalizaText(rightProvince);
+
+  if (!normalizedLeft || !normalizedRight) {
     return false;
   }
 
-  return candidateProvince === normalizedHint;
+  if (normalizedLeft === normalizedRight) {
+    return true;
+  }
+
+  return getProvinceAliasSets().some(
+    (aliases) =>
+      aliases.includes(normalizedLeft) && aliases.includes(normalizedRight)
+  );
 };
 
 export const detectRegionalTerritoryByName = (territoryHint?: string) => {
@@ -449,4 +471,42 @@ export const corpusIncludesDesignator = (
   );
 
   return contextualPattern.test(corpus);
+};
+
+export const classifyLocalizaCandidateOutcome = (input: {
+  topScore: number;
+  secondScore?: number;
+  hasStreetLevelProof: boolean;
+  hasDesignatorProof: boolean;
+}) => {
+  const scoreGap = Number(
+    (input.topScore - (input.secondScore ?? 0)).toFixed(2),
+  );
+
+  if (
+    input.topScore >= LOCALIZA_EXACT_MATCH_THRESHOLD &&
+    scoreGap >= LOCALIZA_MIN_SCORE_GAP &&
+    input.hasStreetLevelProof &&
+    input.hasDesignatorProof
+  ) {
+    return {
+      status: "exact_match" as const,
+      scoreGap,
+    };
+  }
+
+  if (
+    input.topScore >= LOCALIZA_BUILDING_MATCH_THRESHOLD &&
+    scoreGap >= LOCALIZA_MIN_SCORE_GAP
+  ) {
+    return {
+      status: "building_match" as const,
+      scoreGap,
+    };
+  }
+
+  return {
+    status: "needs_confirmation" as const,
+    scoreGap,
+  };
 };

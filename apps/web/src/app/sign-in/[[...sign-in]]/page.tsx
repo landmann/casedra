@@ -8,36 +8,36 @@ import { ArrowLeft, Building2, ShieldCheck, Sparkles, Workflow } from "lucide-re
 import { isAllowedAppUser } from "@/lib/app-access";
 
 export const metadata: Metadata = {
-	title: "Sign In | Casedra",
+	title: "Iniciar sesión | Casedra",
 	description:
-		"Access the Casedra workspace for live lead handling, routing control, and weekly proof.",
+		"Accede al espacio de trabajo de Casedra para gestionar contactos en directo, controlar el reparto y generar pruebas semanales.",
 };
 
 const accessReasons = [
 	{
 		icon: Workflow,
-		title: "Route live demand with intent",
+		title: "Reparte cada contacto",
 		description:
-			"Keep WhatsApp, portals, and web intake inside one operating layer instead of scattered threads.",
+			"WhatsApp, portales y formularios llegan a una sola bandeja.",
 	},
 	{
 		icon: ShieldCheck,
-		title: "Keep control visible",
+		title: "Mantén el control visible",
 		description:
-			"See coverage, handoffs, and unresolved follow-up without chasing screenshots from the team.",
+			"Consulta cobertura, traspasos y seguimientos pendientes sin pedirle capturas al equipo.",
 	},
 	{
 		icon: Sparkles,
-		title: "Turn execution into proof",
+		title: "Demuestra el trabajo hecho",
 		description:
-			"Package response quality and operating rhythm into something leadership can review each week.",
+			"Dirección ve qué se respondió, qué falta y dónde hay que actuar.",
 	},
 ] as const;
 
 const accessSignals = [
-	"Lead coverage",
-	"Agent handoff",
-	"Seller-side proof",
+	"Cobertura de contactos",
+	"Traspaso entre agentes",
+	"Pruebas para vendedores",
 ] as const;
 
 export default async function SignInPage() {
@@ -67,12 +67,12 @@ export default async function SignInPage() {
 							</span>
 							<span className="inline-flex items-center gap-2">
 								<ArrowLeft className="h-4 w-4" aria-hidden="true" />
-								Back to site
+								Volver al sitio
 							</span>
 						</Link>
 						<div className="hidden items-center gap-2 rounded-full border border-border bg-background/85 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground shadow-sm sm:inline-flex">
 							<Building2 className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-							Casedra workspace access
+							Acceso al espacio de Casedra
 						</div>
 					</header>
 
@@ -80,19 +80,18 @@ export default async function SignInPage() {
 						<div className="max-w-3xl">
 							<div className="inline-flex max-w-full items-center gap-2 rounded-full border border-border/80 bg-background/85 px-3 py-2 text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground shadow-sm backdrop-blur sm:px-4 sm:text-[11px] sm:tracking-[0.28em]">
 								<Building2 className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-								Financial-times calm, operating-room visibility
+								Control claro para la oficina
 							</div>
 							<h1 className="mt-6 max-w-4xl text-balance font-serif text-[3rem] font-normal leading-[0.98] text-foreground sm:text-[4.4rem] xl:text-[5.1rem]">
-								Sign in to the layer that keeps inbound demand under control.
+									Inicia sesión para controlar cada contacto.
 							</h1>
 							<p className="mt-6 max-w-2xl text-base leading-8 text-muted-foreground sm:text-lg">
-								Casedra gives your office one place to review first response, routing,
-								coverage, and the proof that seller-side conversations are not slipping
-								between channels.
+								Casedra le da a tu oficina un único lugar para revisar la primera
+								respuesta, el reparto, la cobertura y la prueba de que las conversaciones
+								con propietarios no se escapan entre canales.
 							</p>
 							<p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground">
-								Workspace access is currently limited to approved accounts during the
-								private rollout.
+									El acceso está limitado a cuentas aprobadas por ahora.
 							</p>
 
 							<div className="mt-8 flex flex-wrap gap-2.5 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground sm:gap-3 sm:text-xs sm:tracking-[0.2em]">

@@ -4,12 +4,10 @@ import type {
 	AIGenerationRecord,
 	BrandCreateInput,
 	BrandSourceType,
-	IdealistaAcquisitionMethod,
 	ListingCreateInput,
 	ListingLocationResolution,
 	ListingSourceType,
 	LocalizaAcquisitionStrategy,
-	LocalizaTerritoryAdapter,
 	MediaGenerationKind,
 	ResolveIdealistaLocationResult,
 } from "@casedra/types";
@@ -36,9 +34,20 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { env } from "@/env";
+import {
+	type AvailableLocalizaStrategy,
+	buildLocalizaStrategyOptions,
+	getPreferredLocalizaStrategy,
+} from "@/lib/localiza-strategies";
 import { trpc } from "@/trpc/shared";
+import {
+	buildClearedLocationDraft,
+	canAddListingDraft,
+	clearLocationAfterFailedResolve,
+	hasLocalizaLinkedDraftState,
+} from "./localiza-draft-state";
 
 const stepOrder = ["brand", "listings", "review"] as const;
 export type OnboardingStepKey = (typeof stepOrder)[number];
@@ -72,10 +81,11 @@ type ListingDraft = {
 	locationResolution?: ListingLocationResolution;
 	location: ListingCreateInput["location"];
 	details: {
-		priceUsd: string;
+		priceAmount: string;
+		currencyCode: ListingCreateInput["details"]["currencyCode"];
 		bedrooms: string;
 		bathrooms: string;
-		squareFeet?: string;
+		interiorAreaSquareMeters?: string;
 		propertyType: ListingCreateInput["details"]["propertyType"];
 		description: string;
 	};
@@ -86,6 +96,7 @@ type PlannedGeneration = Pick<
 	"kind" | "listingId" | "mediaKey"
 > & {
 	label: string;
+	listingTitle: string;
 };
 
 const createListingDraft = (): ListingDraft => ({
@@ -97,31 +108,32 @@ const createListingDraft = (): ListingDraft => ({
 		city: "",
 		stateOrProvince: "",
 		postalCode: "",
-		country: "Spain",
+		country: "España",
 	},
 	details: {
-		priceUsd: "",
+		priceAmount: "",
+		currencyCode: "EUR",
 		bedrooms: "",
 		bathrooms: "",
-		squareFeet: "",
+		interiorAreaSquareMeters: "",
 		propertyType: propertyOptions[0],
 		description: "",
 	},
 });
 
 const generationTemplates: { kind: MediaGenerationKind; label: string }[] = [
-	{ kind: "social_graphic", label: "Instagram carousel" },
-	{ kind: "flyer", label: "Open house flyer" },
-	{ kind: "short_form_video", label: "30s vertical video" },
-	{ kind: "property_description", label: "Listing description" },
-	{ kind: "email_copy", label: "Buyer nurture email" },
+	{ kind: "social_graphic", label: "Carrusel de Instagram" },
+	{ kind: "flyer", label: "Folleto de visita" },
+	{ kind: "short_form_video", label: "Vídeo vertical de 30 s" },
+	{ kind: "property_description", label: "Descripción del anuncio" },
+	{ kind: "email_copy", label: "Correo de seguimiento para comprador" },
 ];
 
 const brandTips: Record<BrandSourceType, string> = {
 	firecrawl:
-		"We will pull palette, messaging, and voice from your public site using Firecrawl.",
+		"Pega tu web. Casedra leerá lo básico: nombre, color y tono.",
 	manual:
-		"Give us the essentials so Casedra can mirror your brand across every deliverable.",
+		"Escribe lo esencial para que Casedra use la marca correcta.",
 };
 
 const listingSourceOptions: Array<{
@@ -129,21 +141,21 @@ const listingSourceOptions: Array<{
 	label: string;
 	icon: typeof Globe2;
 }> = [
-	{
-		value: "idealista",
-		label: "Use Idealista URL",
-		icon: Globe2,
-	},
-	{
-		value: "firecrawl",
-		label: "Use URL import",
-		icon: Globe2,
-	},
-	{
-		value: "manual",
-		label: "Enter manually",
-		icon: Sparkles,
-	},
+		{
+			value: "idealista",
+			label: "Pegar Idealista",
+			icon: Globe2,
+		},
+		{
+			value: "firecrawl",
+			label: "Pegar otro enlace",
+			icon: Globe2,
+		},
+		{
+			value: "manual",
+			label: "Escribir a mano",
+			icon: Sparkles,
+		},
 ];
 
 const listingSourceCopy: Record<
@@ -157,29 +169,26 @@ const listingSourceCopy: Record<
 > = {
 	idealista: {
 		description:
-			"Paste the Idealista link now. Localiza can try Auto first or let you force a specific acquisition method, while address entry stays editable.",
-		urlLabel: "Idealista listing URL",
+			"Pega el enlace de Idealista. Casedra buscará la dirección y la dejará editable.",
+		urlLabel: "URL del anuncio de Idealista",
 		urlPlaceholder: "https://www.idealista.com/inmueble/108926410/",
-		urlHint:
-			"Start with Auto, then retry with Firecrawl, Browser worker, or Idealista API when you need a different path.",
+		urlHint: "Usa Automático. Si no encuentra la dirección, rellénala a mano.",
 	},
 	firecrawl: {
 		description:
-			"Use a public listing URL when you want URL-based intake without Idealista-specific handling.",
-		urlLabel: "Public listing URL",
+			"Pega un enlace público del inmueble. Si falta algo, lo podrás editar.",
+		urlLabel: "URL pública del anuncio",
 		urlPlaceholder: "https://www.fotocasa.es/...",
-		urlHint:
-			"Use any supported public listing page and keep the address fields editable.",
+		urlHint: "Casedra leerá la página y tú revisarás los campos.",
 	},
 	manual: {
-		description:
-			"Use manual mode when you already know the listing details and do not need URL-based intake.",
+		description: "Escribe los datos del inmueble directamente.",
 	},
 };
 
 const listingSourceDisplayCopy: Record<ListingSourceType, string> = {
 	idealista: "Idealista",
-	firecrawl: "URL import",
+	firecrawl: "Otro enlace",
 	manual: "Manual",
 };
 
@@ -191,80 +200,28 @@ const localizaStatusCopy: Record<
 	}
 > = {
 	exact_match: {
-		label: "Exact match",
-		description:
-			"We found enough evidence to prefill the official address automatically.",
+		label: "Dirección encontrada",
+		description: "Hemos rellenado la dirección. Revísala antes de guardar.",
 	},
 	building_match: {
-		label: "Building match",
+		label: "Edificio encontrado",
 		description:
-			"We found the official building, but unit-level certainty is still limited.",
+			"Hemos encontrado el edificio. Confirma el piso o completa lo que falte.",
 	},
 	needs_confirmation: {
-		label: "Needs confirmation",
-		description:
-			"We found promising official candidates, but the user must confirm one.",
+		label: "Elige una dirección",
+		description: "Hemos encontrado varias opciones. Elige la correcta.",
 	},
 	unresolved: {
-		label: "Unresolved",
+		label: "No encontrada",
 		description:
-			"We could not verify the exact location yet. Keep the pasted URL and enter the address manually.",
+			"No hemos podido confirmar la ubicación. Escribe la dirección a mano.",
 	},
 	manual_override: {
-		label: "Manual override",
+		label: "Editada a mano",
 		description:
-			"The address was adjusted after a resolver suggestion, so the final saved listing should reflect a manual override.",
+			"La dirección se cambió manualmente. Se guardará tal como aparece.",
 	},
-};
-
-const localizaStrategyOptions: Array<{
-	value: LocalizaAcquisitionStrategy;
-	label: string;
-	description: string;
-}> = [
-	{
-		value: "auto",
-		label: "Auto",
-		description:
-			"Use the best available method first, then let the user retry explicitly if needed.",
-	},
-	{
-		value: "firecrawl",
-		label: "Firecrawl",
-		description: "Rendered extraction path for user-submitted URLs.",
-	},
-	{
-		value: "browser_worker",
-		label: "Browser worker",
-		description: "Browserbase-backed fallback for tough pages.",
-	},
-	{
-		value: "idealista_api",
-		label: "Idealista API",
-		description: "Official Idealista path when credentials are available.",
-	},
-];
-
-const localizaStrategyLabel: Record<LocalizaAcquisitionStrategy, string> = {
-	auto: "Auto",
-	idealista_api: "Idealista API",
-	firecrawl: "Firecrawl",
-	browser_worker: "Browser worker",
-};
-
-const localizaMethodLabel: Record<IdealistaAcquisitionMethod, string> = {
-	url_parse: "URL parse fallback",
-	idealista_api: "Idealista API",
-	firecrawl: "Firecrawl",
-	browser_worker: "Browser worker",
-};
-
-const localizaTerritoryLabel: Record<LocalizaTerritoryAdapter, string> = {
-	state_catastro: "National Catastro",
-	navarra_rtn: "Navarra",
-	alava_catastro: "Álava",
-	bizkaia_catastro: "Bizkaia",
-	gipuzkoa_catastro: "Gipuzkoa",
 };
 
 const capturePosthogEvent = (
@@ -286,6 +243,15 @@ function slugify(value: string) {
 		.replace(/(^-|-$)+/g, "");
 }
 
+const parseOptionalPositiveInteger = (value?: string) => {
+	if (!value?.trim()) {
+		return undefined;
+	}
+
+	const parsed = Number(value);
+	return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+};
+
 function computePlannedGenerations(
 	listings: ListingCreateInput[],
 ): PlannedGeneration[] {
@@ -299,13 +265,14 @@ function computePlannedGenerations(
 				? listingSlug
 				: `listing-${listingIndex + 1}`;
 
-		return generationTemplates.map((template) => ({
-			kind: template.kind,
-			label: template.label,
-			listingId,
-			mediaKey: `${listingId}-${template.kind}`,
-		}));
-	});
+			return generationTemplates.map((template) => ({
+				kind: template.kind,
+				label: template.label,
+				listingId,
+				listingTitle: listing.title,
+				mediaKey: `${listingId}-${template.kind}`,
+			}));
+		});
 }
 
 const buildLocationResolutionFromResult = (
@@ -336,6 +303,7 @@ const buildLocationResolutionFromResult = (
 		overrides?.resolvedAddressLabel ?? result.resolvedAddressLabel,
 	resolverVersion: result.resolverVersion,
 	resolvedAt: result.resolvedAt,
+	candidateCount: result.evidence.candidateCount,
 	reasonCodes: Array.from(
 		new Set([
 			...result.evidence.reasonCodes,
@@ -363,9 +331,13 @@ const hasMaterialLocationChange = (
 
 interface OnboardingFlowProps {
 	initialStep: OnboardingStepKey;
+	availableLocalizaStrategies: AvailableLocalizaStrategy[];
 }
 
-export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
+export default function OnboardingFlow({
+	initialStep,
+	availableLocalizaStrategies,
+}: OnboardingFlowProps) {
 	const router = useRouter();
 	const normalizedStep = stepOrder.includes(initialStep)
 		? initialStep
@@ -383,6 +355,7 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 	const [localizaResult, setLocalizaResult] =
 		useState<ResolveIdealistaLocationResult | null>(null);
 	const [localizaError, setLocalizaError] = useState<string | null>(null);
+	const [isLocalizaResolving, setIsLocalizaResolving] = useState(false);
 	const [selectedLocalizaCandidateId, setSelectedLocalizaCandidateId] =
 		useState<string | null>(null);
 	const [submissionError, setSubmissionError] = useState<string | null>(null);
@@ -391,6 +364,10 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 	>(null);
 	const hasTrackedLocalizaUrlPasteRef = useRef(false);
 	const hasTrackedManualOverrideRef = useRef(false);
+	const localizaRequestSequenceRef = useRef(0);
+	const activeLocalizaRequestRef = useRef<number | null>(null);
+	const onboardingFieldId = useId();
+	const fieldId = (suffix: string) => `${onboardingFieldId}-${suffix}`;
 
 	const buildLocalizaAnalyticsPayload = (
 		result: ResolveIdealistaLocationResult,
@@ -423,14 +400,10 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 			...prev,
 			location: {
 				...prev.location,
-				country: "Spain",
+				country: "España",
 			},
 		}));
 	}, [listingDraft.sourceType]);
-
-	useEffect(() => {
-		setSubmissionIdempotencyKey(null);
-	}, [listings]);
 
 	const currentIndex = stepOrder.indexOf(currentStep);
 	const isFirstStep = currentIndex === 0;
@@ -442,62 +415,19 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 	);
 
 	const resolveIdealistaLocation =
-		trpc.listings.resolveIdealistaLocation.useMutation({
-			onSuccess: (result) => {
-				hasTrackedManualOverrideRef.current = false;
-				setLocalizaError(null);
-				setLocalizaResult(result);
-				setSelectedLocalizaCandidateId(null);
-				setListingDraft((prev) => ({
-					...prev,
-					sourceMetadata: result.sourceMetadata,
-					location:
-						result.prefillLocation && result.status === "exact_match"
-							? result.prefillLocation
-							: prev.location,
-					locationResolution:
-						result.status === "exact_match" || result.status === "unresolved"
-							? buildLocationResolutionFromResult(result)
-							: undefined,
-				}));
-				capturePosthogEvent("localiza_resolve_result", {
-					...buildLocalizaAnalyticsPayload(result),
-					outcome:
-						result.status === "unresolved" ? "unresolved" : "resolved",
-				});
-				capturePosthogEvent(
-					result.status === "unresolved"
-						? "localiza_resolve_unresolved"
-						: "localiza_resolve_success",
-					buildLocalizaAnalyticsPayload(result),
-				);
-			},
-			onError: (error) => {
-				hasTrackedManualOverrideRef.current = false;
-				setLocalizaResult(null);
-				setLocalizaError(error.message);
-				setSelectedLocalizaCandidateId(null);
-				setListingDraft((prev) => ({
-					...prev,
-					sourceMetadata: undefined,
-					locationResolution: undefined,
-				}));
-				capturePosthogEvent("localiza_resolve_failed", {
-					requestedStrategy: localizaStrategy,
-					sourceType: listingDraft.sourceType,
-					sourceUrlPresent: Boolean(listingDraft.sourceUrl.trim()),
-					errorMessage: error.message,
-				});
-			},
-		});
+		trpc.listings.resolveIdealistaLocation.useMutation();
 
-	const numberFormatter = useMemo(
-		() =>
-			new Intl.NumberFormat("es-ES", {
-				maximumFractionDigits: 0,
-			}),
-		[],
+	const formatListingPrice = (details: ListingCreateInput["details"]) =>
+		new Intl.NumberFormat("es-ES", {
+			style: "currency",
+			currency: details.currencyCode,
+			maximumFractionDigits: 0,
+		}).format(details.priceAmount);
+	const localizaStrategyOptions = useMemo(
+		() => buildLocalizaStrategyOptions(availableLocalizaStrategies),
+		[availableLocalizaStrategies],
 	);
+	const hasConfiguredLocalizaStrategy = localizaStrategyOptions.length > 0;
 
 	const canContinue = useMemo(() => {
 		if (currentStep === "brand") {
@@ -527,38 +457,18 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 	]);
 
 	const canAddListing = useMemo(() => {
-		if (
-			!listingDraft.title.trim() ||
-			!listingDraft.location.street.trim() ||
-			!listingDraft.location.city.trim() ||
-			!listingDraft.location.stateOrProvince.trim() ||
-			!listingDraft.location.postalCode.trim() ||
-			!listingDraft.location.country.trim() ||
-			!listingDraft.details.description.trim()
-		) {
-			return false;
-		}
+		return canAddListingDraft(listingDraft, isLocalizaResolving);
+	}, [isLocalizaResolving, listingDraft]);
 
-		if (listingDraft.sourceType === "manual") {
-			return true;
-		}
-
-		return listingDraft.sourceUrl.trim().length > 0;
-	}, [
-		listingDraft.details.description,
-		listingDraft.location.city,
-		listingDraft.location.country,
-		listingDraft.location.postalCode,
-		listingDraft.location.stateOrProvince,
-		listingDraft.location.street,
-		listingDraft.sourceType,
-		listingDraft.sourceUrl,
-		listingDraft.title,
-	]);
+	const clearActiveLocalizaRequest = () => {
+		activeLocalizaRequestRef.current = null;
+		setIsLocalizaResolving(false);
+	};
 
 	const clearLocalizaDraftState = () => {
 		hasTrackedLocalizaUrlPasteRef.current = false;
 		hasTrackedManualOverrideRef.current = false;
+		clearActiveLocalizaRequest();
 		setLocalizaStrategy("auto");
 		setLocalizaResult(null);
 		setLocalizaError(null);
@@ -571,8 +481,13 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 	};
 
 	const handleListingSourceTypeChange = (sourceType: ListingSourceType) => {
+		if (sourceType === listingDraft.sourceType) {
+			return;
+		}
+
 		hasTrackedLocalizaUrlPasteRef.current = false;
 		hasTrackedManualOverrideRef.current = false;
+		clearActiveLocalizaRequest();
 		if (sourceType !== "idealista") {
 			clearLocalizaDraftState();
 		} else {
@@ -585,10 +500,17 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 		setListingDraft((prev) => ({
 			...prev,
 			sourceType,
-			sourceMetadata:
-				sourceType === "idealista" ? prev.sourceMetadata : undefined,
-			locationResolution:
-				sourceType === "idealista" ? prev.locationResolution : undefined,
+			sourceUrl: "",
+			sourceMetadata: undefined,
+			locationResolution: undefined,
+			location: hasLocalizaLinkedDraftState(prev)
+				? buildClearedLocationDraft(sourceType, prev.location.country)
+				: sourceType === "idealista"
+					? {
+							...prev.location,
+							country: prev.location.country.trim() || "España",
+						}
+					: prev.location,
 		}));
 	};
 
@@ -609,6 +531,7 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 			}
 		}
 
+		clearActiveLocalizaRequest();
 		setLocalizaResult(null);
 		setLocalizaError(null);
 		setSelectedLocalizaCandidateId(null);
@@ -617,13 +540,25 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 			sourceUrl: value,
 			sourceMetadata: undefined,
 			locationResolution: undefined,
+			location: hasLocalizaLinkedDraftState(prev)
+				? buildClearedLocationDraft(prev.sourceType, prev.location.country)
+				: prev.location,
 		}));
 	};
 
 	const handleLocalizaStrategyChange = (
 		strategy: LocalizaAcquisitionStrategy,
 	) => {
+		if (!localizaStrategyOptions.some((option) => option.value === strategy)) {
+			return;
+		}
+
+		if (strategy === localizaStrategy) {
+			return;
+		}
+
 		hasTrackedManualOverrideRef.current = false;
+		clearActiveLocalizaRequest();
 		setLocalizaStrategy(strategy);
 		setLocalizaResult(null);
 		setLocalizaError(null);
@@ -632,6 +567,9 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 			...prev,
 			sourceMetadata: undefined,
 			locationResolution: undefined,
+			location: hasLocalizaLinkedDraftState(prev)
+				? buildClearedLocationDraft(prev.sourceType, prev.location.country)
+				: prev.location,
 		}));
 	};
 
@@ -664,18 +602,22 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 			return {
 				...prev,
 				location: nextLocation,
-				locationResolution: shouldMarkManualOverride
-					? {
-							...prev.locationResolution!,
-							status: "manual_override",
-							reasonCodes: Array.from(
-								new Set([
-									...prev.locationResolution!.reasonCodes,
-									"manual_address_override",
-								]),
-							),
-						}
-					: prev.locationResolution,
+				locationResolution: (() => {
+					if (!shouldMarkManualOverride || !prev.locationResolution) {
+						return prev.locationResolution;
+					}
+
+					return {
+						...prev.locationResolution,
+						status: "manual_override",
+						reasonCodes: Array.from(
+							new Set([
+								...prev.locationResolution.reasonCodes,
+								"manual_address_override",
+							]),
+						),
+					};
+				})(),
 			};
 		});
 	};
@@ -685,23 +627,114 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 			return;
 		}
 
+		if (activeLocalizaRequestRef.current !== null) {
+			return;
+		}
+
 		const url = listingDraft.sourceUrl.trim();
+		const requestedStrategy =
+			getPreferredLocalizaStrategy(
+				localizaStrategy,
+				availableLocalizaStrategies,
+			) ?? localizaStrategy;
+		const sourceType = listingDraft.sourceType;
 		if (!url) {
-			setLocalizaError("Paste an Idealista listing URL first.");
+			clearActiveLocalizaRequest();
+			setLocalizaError("Pega primero una URL de anuncio de Idealista.");
 			setLocalizaResult(null);
 			return;
 		}
 
+		if (!hasConfiguredLocalizaStrategy) {
+			clearActiveLocalizaRequest();
+			setLocalizaError(
+				"La búsqueda de ubicación exacta no está configurada en este entorno. Sigue introduciendo la dirección manualmente.",
+			);
+			setLocalizaResult(null);
+			return;
+		}
+
+		if (requestedStrategy !== localizaStrategy) {
+			setLocalizaStrategy(requestedStrategy);
+		}
+
+		const requestId = localizaRequestSequenceRef.current + 1;
+		localizaRequestSequenceRef.current = requestId;
+		activeLocalizaRequestRef.current = requestId;
+		setIsLocalizaResolving(true);
 		setLocalizaError(null);
 		capturePosthogEvent("localiza_resolve_clicked", {
-			requestedStrategy: localizaStrategy,
-			sourceType: listingDraft.sourceType,
+			requestedStrategy,
+			sourceType,
 			sourceUrlPresent: true,
 		});
-		await resolveIdealistaLocation.mutateAsync({
-			url,
-			strategy: localizaStrategy,
-		});
+		try {
+			const result = await resolveIdealistaLocation.mutateAsync({
+				url,
+				strategy: requestedStrategy,
+			});
+
+			// Ignora respuestas del resolver para solicitudes sustituidas o canceladas.
+			if (activeLocalizaRequestRef.current !== requestId) {
+				return;
+			}
+
+			hasTrackedManualOverrideRef.current = false;
+			clearActiveLocalizaRequest();
+			setLocalizaError(null);
+			setLocalizaResult(result);
+			setSelectedLocalizaCandidateId(null);
+			setListingDraft((prev) => ({
+				...prev,
+				sourceUrl: result.sourceMetadata.sourceUrl,
+				sourceMetadata: result.sourceMetadata,
+				location:
+					result.prefillLocation && result.status === "exact_match"
+						? result.prefillLocation
+						: prev.location,
+				locationResolution:
+					result.status === "exact_match" || result.status === "unresolved"
+						? buildLocationResolutionFromResult(result)
+						: undefined,
+			}));
+			capturePosthogEvent("localiza_resolve_result", {
+				...buildLocalizaAnalyticsPayload(result),
+				outcome: result.status === "unresolved" ? "unresolved" : "resolved",
+			});
+			capturePosthogEvent(
+				result.status === "unresolved"
+					? "localiza_resolve_unresolved"
+					: "localiza_resolve_success",
+				buildLocalizaAnalyticsPayload(result),
+			);
+		} catch (error) {
+			if (activeLocalizaRequestRef.current !== requestId) {
+				return;
+			}
+
+			hasTrackedManualOverrideRef.current = false;
+			clearActiveLocalizaRequest();
+			setLocalizaResult(null);
+			setLocalizaError(
+				"No pudimos comprobar la dirección. Escríbela a mano y continúa.",
+			);
+			setSelectedLocalizaCandidateId(null);
+			setListingDraft((prev) => ({
+				...prev,
+				sourceMetadata: undefined,
+				locationResolution: undefined,
+				location: clearLocationAfterFailedResolve(prev),
+			}));
+			capturePosthogEvent("localiza_resolve_failed", {
+				requestedStrategy,
+				sourceType,
+				sourceUrlPresent: true,
+				errorMessage:
+					error instanceof Error
+						? error.message
+						: "La búsqueda de ubicación exacta no pudo terminar.",
+			});
+		}
 	};
 
 	const handleApplyBuildingMatch = () => {
@@ -713,10 +746,11 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 			return;
 		}
 
+		const prefillLocation = localizaResult.prefillLocation;
 		setListingDraft((prev) => ({
 			...prev,
 			sourceMetadata: localizaResult.sourceMetadata,
-			location: localizaResult.prefillLocation!,
+			location: prefillLocation,
 			locationResolution: buildLocationResolutionFromResult(localizaResult, {
 				status: "building_match",
 				extraReasonCodes: ["building_match_accepted"],
@@ -758,6 +792,7 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 			return;
 		}
 
+		const candidatePrefillLocation = selectedCandidate.prefillLocation;
 		hasTrackedManualOverrideRef.current = false;
 		capturePosthogEvent("localiza_candidate_confirmed", {
 			...buildLocalizaAnalyticsPayload(localizaResult),
@@ -772,7 +807,7 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 		setListingDraft((prev) => ({
 			...prev,
 			sourceMetadata: localizaResult.sourceMetadata,
-			location: selectedCandidate.prefillLocation!,
+			location: candidatePrefillLocation,
 			locationResolution: buildLocationResolutionFromResult(localizaResult, {
 				status: "building_match",
 				confidenceScore: selectedCandidate.score,
@@ -862,6 +897,7 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 	const resetListingDraft = () => {
 		hasTrackedLocalizaUrlPasteRef.current = false;
 		hasTrackedManualOverrideRef.current = false;
+		clearActiveLocalizaRequest();
 		setLocalizaStrategy("auto");
 		setLocalizaResult(null);
 		setLocalizaError(null);
@@ -870,16 +906,16 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 	};
 
 	const handleAddListing = () => {
-		if (!canAddListing) {
+		if (isLocalizaResolving || !canAddListing) {
 			return;
 		}
 
-		const price = Number(listingDraft.details.priceUsd);
+		const priceAmount = Number(listingDraft.details.priceAmount);
 		const bedrooms = Number(listingDraft.details.bedrooms);
 		const bathrooms = Number(listingDraft.details.bathrooms);
-		const squareFeet = listingDraft.details.squareFeet
-			? Number(listingDraft.details.squareFeet)
-			: undefined;
+		const interiorAreaSquareMeters = parseOptionalPositiveInteger(
+			listingDraft.details.interiorAreaSquareMeters,
+		);
 
 		const slug = slugify(listingDraft.title);
 
@@ -900,11 +936,12 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 				country: listingDraft.location.country.trim(),
 			},
 			details: {
-				priceUsd: Number.isFinite(price) ? price : 0,
+				priceAmount: Number.isFinite(priceAmount) ? priceAmount : 0,
+				currencyCode: listingDraft.details.currencyCode,
 				bedrooms: Number.isFinite(bedrooms) ? bedrooms : 0,
 				bathrooms: Number.isFinite(bathrooms) ? bathrooms : 0,
-				squareFeet: Number.isFinite(squareFeet ?? NaN) ? squareFeet : undefined,
-				lotSizeSqFt: undefined,
+				interiorAreaSquareMeters,
+				lotAreaSquareMeters: undefined,
 				yearBuilt: undefined,
 				propertyType: listingDraft.details.propertyType,
 				description: listingDraft.details.description.trim(),
@@ -912,6 +949,7 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 			media: [],
 		};
 
+		setSubmissionIdempotencyKey(null);
 		setListings((prev) => [listing, ...prev]);
 		resetListingDraft();
 	};
@@ -966,7 +1004,7 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 			setSubmissionError(
 				error instanceof Error
 					? error.message
-					: "We could not save your listings yet.",
+					: "Todavía no hemos podido guardar tus inmuebles.",
 			);
 		}
 	};
@@ -974,19 +1012,18 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 	return (
 		<div className="min-h-screen bg-muted/30">
 			<div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-12 sm:px-12">
-				<header className="flex flex-col gap-3">
-					<span className="inline-flex items-center gap-2 self-start rounded-full border border-border px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-						Onboarding
-					</span>
-					<h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-						Set up your brand, listings, and media studio plan
-					</h1>
-					<p className="max-w-3xl text-sm text-muted-foreground sm:text-base">
-						We will tailor Casedra to your brokerage. Share your brand, add live
-						listings, and preview the AI media plan we will generate for every
-						property.
-					</p>
-				</header>
+					<header className="flex flex-col gap-3">
+						<span className="inline-flex items-center gap-2 self-start rounded-full border border-border px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+							Primer ajuste
+						</span>
+						<h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+							Configura marca e inmuebles.
+						</h1>
+						<p className="max-w-3xl text-sm text-muted-foreground sm:text-base">
+							Da a Casedra lo justo para trabajar con tu tono, tus propiedades y
+							tu equipo.
+						</p>
+					</header>
 
 				<nav className="flex flex-wrap items-center gap-3">
 					{stepOrder.map((step, index) => {
@@ -1031,10 +1068,10 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 					<CardContent className="flex flex-col gap-6 pt-0">
 						{currentStep === "brand" ? (
 							<>
-								<div className="flex flex-col gap-2">
-									<span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-										Brand intake mode
-									</span>
+									<div className="flex flex-col gap-2">
+										<span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+											Marca
+										</span>
 									<div className="inline-flex w-full flex-col gap-2 rounded-lg border border-border p-2 sm:flex-row">
 										{brandSourceOptions.map((source) => (
 											<Button
@@ -1064,13 +1101,13 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 										<div className="sm:col-span-2">
 											<label
 												className="text-sm font-medium text-foreground"
-												htmlFor="brand-website"
+												htmlFor={fieldId("brand-website")}
 											>
-												Company website
+													Sitio web de la empresa
 											</label>
 											<Input
-												id="brand-website"
-												placeholder="https://www.yourbrokerage.com"
+												id={fieldId("brand-website")}
+												placeholder="https://www.tuagencia.com"
 												value={brand.website ?? ""}
 												onChange={(event) =>
 													setBrand((prev) => ({
@@ -1084,13 +1121,13 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 										<div>
 											<label
 												className="text-sm font-medium text-foreground"
-												htmlFor="brand-company-name"
+												htmlFor={fieldId("brand-company-name")}
 											>
-												Company name (optional override)
+													Nombre de la empresa
 											</label>
 											<Input
-												id="brand-company-name"
-												placeholder="Casedra Realty"
+												id={fieldId("brand-company-name")}
+												placeholder="Inmobiliaria Casedra"
 												value={brand.companyName}
 												onChange={(event) =>
 													setBrand((prev) => ({
@@ -1104,12 +1141,12 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 										<div>
 											<label
 												className="text-sm font-medium text-foreground"
-												htmlFor="brand-primary-color"
+												htmlFor={fieldId("brand-primary-color")}
 											>
-												Primary brand color
+													Color principal
 											</label>
 											<Input
-												id="brand-primary-color"
+												id={fieldId("brand-primary-color")}
 												type="color"
 												value={brand.primaryColorHex ?? "#0f172a"}
 												onChange={(event) =>
@@ -1124,13 +1161,13 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 										<div className="sm:col-span-2">
 											<label
 												className="text-sm font-medium text-foreground"
-												htmlFor="brand-notes"
-											>
-												Notes for our team
-											</label>
-											<Textarea
-												id="brand-notes"
-												placeholder="Share tone preferences, assets we should reference, or MLS constraints."
+												htmlFor={fieldId("brand-notes")}
+												>
+													Notas para nuestro equipo
+												</label>
+												<Textarea
+													id={fieldId("brand-notes")}
+													placeholder="Tono, referencias y límites que debamos respetar."
 												value={brand.notes ?? ""}
 												onChange={(event) =>
 													setBrand((prev) => ({
@@ -1147,13 +1184,13 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 										<div>
 											<label
 												className="text-sm font-medium text-foreground"
-												htmlFor="manual-company-name"
+												htmlFor={fieldId("manual-company-name")}
 											>
-												Company name
+												Nombre de la empresa
 											</label>
 											<Input
-												id="manual-company-name"
-												placeholder="Casedra Realty"
+												id={fieldId("manual-company-name")}
+												placeholder="Inmobiliaria Casedra"
 												value={brand.companyName}
 												onChange={(event) =>
 													setBrand((prev) => ({
@@ -1168,13 +1205,13 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 										<div>
 											<label
 												className="text-sm font-medium text-foreground"
-												htmlFor="manual-tagline"
+												htmlFor={fieldId("manual-tagline")}
 											>
-												Tagline
+												Eslogan
 											</label>
 											<Input
-												id="manual-tagline"
-												placeholder="Boutique marketing for every listing"
+												id={fieldId("manual-tagline")}
+												placeholder="Marketing boutique para cada inmueble"
 												value={brand.tagline ?? ""}
 												onChange={(event) =>
 													setBrand((prev) => ({
@@ -1189,13 +1226,13 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 										<div>
 											<label
 												className="text-sm font-medium text-foreground"
-												htmlFor="manual-website"
+												htmlFor={fieldId("manual-website")}
 											>
-												Website (optional)
+												Sitio web (opcional)
 											</label>
 											<Input
-												id="manual-website"
-												placeholder="https://www.yourbrokerage.com"
+												id={fieldId("manual-website")}
+												placeholder="https://www.tuagencia.com"
 												value={brand.website ?? ""}
 												onChange={(event) =>
 													setBrand((prev) => ({
@@ -1209,12 +1246,12 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 										<div>
 											<label
 												className="text-sm font-medium text-foreground"
-												htmlFor="manual-color"
+												htmlFor={fieldId("manual-color")}
 											>
-												Primary brand color
+													Color principal
 											</label>
 											<Input
-												id="manual-color"
+												id={fieldId("manual-color")}
 												type="color"
 												value={brand.primaryColorHex ?? "#0f172a"}
 												onChange={(event) =>
@@ -1229,13 +1266,13 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 										<div className="sm:col-span-2">
 											<label
 												className="text-sm font-medium text-foreground"
-												htmlFor="manual-voice"
+												htmlFor={fieldId("manual-voice")}
 											>
-												Brand voice
+												Voz de marca
 											</label>
 											<Textarea
-												id="manual-voice"
-												placeholder="Confident, knowledgeable, and concierge-level support for luxury buyers."
+												id={fieldId("manual-voice")}
+												placeholder="Seguro, experto y con atención de alto nivel para compradores de lujo."
 												value={brand.voice ?? ""}
 												onChange={(event) =>
 													setBrand((prev) => ({
@@ -1250,13 +1287,13 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 										<div className="sm:col-span-2">
 											<label
 												className="text-sm font-medium text-foreground"
-												htmlFor="manual-notes"
+												htmlFor={fieldId("manual-notes")}
 											>
-												Notes for our team
+												Notas para nuestro equipo
 											</label>
-											<Textarea
-												id="manual-notes"
-												placeholder="MLS rules, brand guardrails, required disclosures, etc."
+												<Textarea
+													id={fieldId("manual-notes")}
+													placeholder="Límites de marca, avisos obligatorios o referencias que debamos seguir."
 												value={brand.notes ?? ""}
 												onChange={(event) =>
 													setBrand((prev) => ({
@@ -1276,14 +1313,14 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 							<div className="grid gap-6">
 								<div className="rounded-lg border border-border/70 bg-muted/30 p-4">
 									<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-										<div>
-											<h3 className="text-base font-semibold">
-												Add listings to populate the studio
-											</h3>
-											<p className="text-sm text-muted-foreground">
-												Each listing unlocks a tailored media plan. Start from
-												an Idealista link, another public URL, or manual entry.
-											</p>
+											<div>
+												<h3 className="text-base font-semibold">
+													Añade tus inmuebles
+												</h3>
+												<p className="text-sm text-muted-foreground">
+													Pega un enlace o escribe los datos a mano. Todo se puede
+													revisar antes de guardar.
+												</p>
 										</div>
 										<div className="flex flex-wrap gap-2">
 											{listingSourceOptions.map((source) => (
@@ -1317,13 +1354,13 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 									<div>
 										<label
 											className="text-sm font-medium text-foreground"
-											htmlFor="listing-title"
+											htmlFor={fieldId("listing-title")}
 										>
-											Listing name
+											Nombre del inmueble
 										</label>
 										<Input
-											id="listing-title"
-											placeholder="Prospect Heights Brownstone"
+											id={fieldId("listing-title")}
+											placeholder="Ático en Chamberí"
 											value={listingDraft.title}
 											onChange={(event) =>
 												handleListingDraftChange("title", event.target.value)
@@ -1338,7 +1375,7 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 												<div className="flex-1">
 													<label
 														className="text-sm font-medium text-foreground"
-														htmlFor="listing-source-url"
+														htmlFor={fieldId("listing-source-url")}
 													>
 														{
 															listingSourceCopy[listingDraft.sourceType]
@@ -1346,7 +1383,7 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 														}
 													</label>
 													<Input
-														id="listing-source-url"
+														id={fieldId("listing-source-url")}
 														placeholder={
 															listingSourceCopy[listingDraft.sourceType]
 																.urlPlaceholder
@@ -1366,17 +1403,18 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 															void handleResolveIdealistaLocation()
 														}
 														disabled={
-															resolveIdealistaLocation.isPending ||
+															!hasConfiguredLocalizaStrategy ||
+															isLocalizaResolving ||
 															listingDraft.sourceUrl.trim().length === 0
 														}
 													>
-														{resolveIdealistaLocation.isPending ? (
+														{isLocalizaResolving ? (
 															<LoaderCircle
 																className="mr-2 h-4 w-4 animate-spin"
 																aria-hidden="true"
 															/>
 														) : null}
-														Find exact location
+														Buscar ubicación exacta
 													</Button>
 												) : null}
 											</div>
@@ -1387,37 +1425,49 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 											) : null}
 											{listingDraft.sourceType === "idealista" ? (
 												<div className="mt-4 space-y-2">
-													<div className="flex items-center justify-between gap-3">
-														<span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-															Acquisition strategy
-														</span>
-														<span className="text-xs text-muted-foreground">
-															Default: Auto
-														</span>
-													</div>
-													<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-														{localizaStrategyOptions.map((strategy) => (
-															<button
-																key={strategy.value}
-																type="button"
-																onClick={() =>
-																	handleLocalizaStrategyChange(strategy.value)
-																}
-																className={`rounded-lg border p-3 text-left transition-colors ${
-																	localizaStrategy === strategy.value
-																		? "border-primary bg-primary/10 text-foreground"
-																		: "border-border bg-background text-muted-foreground hover:text-foreground"
-																}`}
-															>
-																<p className="text-sm font-medium text-foreground">
-																	{strategy.label}
-																</p>
-																<p className="mt-1 text-xs">
-																	{strategy.description}
-																</p>
-															</button>
-														))}
-													</div>
+													{hasConfiguredLocalizaStrategy ? (
+														<>
+															<div className="flex items-center justify-between gap-3">
+																<span className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+																		Cómo buscar
+																	</span>
+																	<span className="text-xs text-muted-foreground">
+																		Normal: Automático
+																	</span>
+															</div>
+															<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+																{localizaStrategyOptions.map((strategy) => (
+																	<button
+																		key={strategy.value}
+																		type="button"
+																		onClick={() =>
+																			handleLocalizaStrategyChange(
+																				strategy.value,
+																			)
+																		}
+																		className={`rounded-lg border p-3 text-left transition-colors ${
+																			localizaStrategy === strategy.value
+																				? "border-primary bg-primary/10 text-foreground"
+																				: "border-border bg-background text-muted-foreground hover:text-foreground"
+																		}`}
+																	>
+																		<p className="text-sm font-medium text-foreground">
+																			{strategy.label}
+																		</p>
+																		<p className="mt-1 text-xs">
+																			{strategy.description}
+																		</p>
+																	</button>
+																))}
+															</div>
+														</>
+													) : (
+															<p className="text-sm text-muted-foreground">
+																La búsqueda de ubicación exacta no está disponible
+																aquí. Deja la URL como referencia y escribe la
+																dirección a mano.
+															</p>
+													)}
 												</div>
 											) : null}
 										</div>
@@ -1425,29 +1475,46 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 
 									{listingDraft.sourceType === "idealista" ? (
 										<div className="rounded-lg border border-border/60 bg-muted/20 p-4">
-											{resolveIdealistaLocation.isPending ? (
+											{!hasConfiguredLocalizaStrategy ? (
+												<div className="flex items-start gap-3 text-sm">
+													<AlertCircle
+														className="mt-0.5 h-4 w-4 text-muted-foreground"
+														aria-hidden="true"
+													/>
+													<div className="space-y-1">
+															<p className="font-medium text-foreground">
+																La búsqueda de ubicación exacta no está disponible
+																aquí
+															</p>
+															<p className="text-muted-foreground">
+																Deja la URL de Idealista como referencia y escribe la
+																dirección a mano.
+															</p>
+													</div>
+												</div>
+											) : null}
+
+											{hasConfiguredLocalizaStrategy && isLocalizaResolving ? (
 												<div className="flex items-start gap-3 text-sm">
 													<LoaderCircle
 														className="mt-0.5 h-4 w-4 animate-spin text-primary"
 														aria-hidden="true"
 													/>
-													<div className="space-y-1">
-														<p className="font-medium text-foreground">
-															Parsing the Idealista URL, extracting listing
-															signals, and routing the request to the matching
-															official cadastre
-														</p>
-														<p className="text-muted-foreground">
-															Data comes from the pasted Idealista listing plus
-															the official Spanish cadastral services for the
-															detected territory. Duplicate lookups are disabled
-															while this request is in flight.
-														</p>
+														<div className="space-y-1">
+															<p className="font-medium text-foreground">
+																Buscando la dirección del anuncio
+															</p>
+															<p className="text-muted-foreground">
+																Estamos leyendo el enlace y comprobando la ubicación.
+																Mientras tanto, no hace falta pulsar de nuevo.
+															</p>
 													</div>
 												</div>
 											) : null}
 
-											{!resolveIdealistaLocation.isPending && localizaError ? (
+											{hasConfiguredLocalizaStrategy &&
+											!isLocalizaResolving &&
+											localizaError ? (
 												<div className="flex items-start gap-3 text-sm">
 													<AlertCircle
 														className="mt-0.5 h-4 w-4 text-destructive"
@@ -1455,7 +1522,7 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 													/>
 													<div className="space-y-1">
 														<p className="font-medium text-foreground">
-															Exact-location lookup could not start
+															La búsqueda de ubicación exacta no pudo empezar
 														</p>
 														<p className="text-muted-foreground">
 															{localizaError}
@@ -1464,7 +1531,8 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 												</div>
 											) : null}
 
-											{!resolveIdealistaLocation.isPending &&
+											{hasConfiguredLocalizaStrategy &&
+											!isLocalizaResolving &&
 											!localizaError &&
 											listingDraft.locationResolution?.status ===
 												"manual_override" ? (
@@ -1478,52 +1546,21 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 												</div>
 											) : null}
 
-											{!resolveIdealistaLocation.isPending &&
+											{hasConfiguredLocalizaStrategy &&
+											!isLocalizaResolving &&
 											!localizaError &&
 											localizaResult ? (
 												<div className="space-y-3 text-sm">
-													<div className="flex flex-wrap items-center gap-2">
-														<span className="rounded-full border border-border px-2.5 py-1 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-															{localizaStatusCopy[localizaResult.status].label}
-														</span>
-														<span className="text-xs text-muted-foreground">
-															Source: {localizaResult.officialSource}
-														</span>
-														{localizaResult.territoryAdapter ? (
-															<span className="text-xs text-muted-foreground">
-																Territory:{" "}
-																{
-																	localizaTerritoryLabel[
-																		localizaResult.territoryAdapter
-																	]
-																}
+														<div className="flex flex-wrap items-center gap-2">
+															<span className="rounded-full border border-border px-2.5 py-1 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+																{localizaStatusCopy[localizaResult.status].label}
 															</span>
-														) : null}
-														<span className="text-xs text-muted-foreground">
-															Confidence:{" "}
-															{Math.round(localizaResult.confidenceScore * 100)}
-															%
-														</span>
-														<span className="text-xs text-muted-foreground">
-															Strategy:{" "}
-															{
-																localizaStrategyLabel[
-																	localizaResult.requestedStrategy
-																]
-															}
-														</span>
-														{localizaResult.evidence.actualAcquisitionMethod ? (
 															<span className="text-xs text-muted-foreground">
-																Method:{" "}
-																{
-																	localizaMethodLabel[
-																		localizaResult.evidence
-																			.actualAcquisitionMethod
-																	]
-																}
+																Seguridad:{" "}
+																{Math.round(localizaResult.confidenceScore * 100)}
+																%
 															</span>
-														) : null}
-													</div>
+														</div>
 													<p className="text-muted-foreground">
 														{
 															localizaStatusCopy[localizaResult.status]
@@ -1531,79 +1568,65 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 														}
 													</p>
 													{localizaResult.status === "unresolved" ? (
-														<p className="text-muted-foreground">
-															{localizaResult.requestedStrategy === "auto"
-																? "Auto did not finish with a verified result yet. Try a specific method above or keep entering the address manually."
-																: "This method did not finish with a verified result yet. Try another method above or keep entering the address manually."}
-														</p>
+															<p className="text-muted-foreground">
+																{localizaResult.requestedStrategy === "auto"
+																	? availableLocalizaStrategies.length > 1
+																		? "Todavía no encontramos una dirección segura. Prueba otro modo arriba o escribe la dirección a mano."
+																		: "Todavía no encontramos una dirección segura. Escribe la dirección a mano."
+																	: availableLocalizaStrategies.length > 1
+																		? "Todavía no encontramos una dirección segura. Prueba otro modo arriba o escribe la dirección a mano."
+																		: "Todavía no encontramos una dirección segura. Escribe la dirección a mano."}
+															</p>
 													) : null}
 													{localizaResult.resolvedAddressLabel ? (
 														<p className="font-medium text-foreground">
 															{localizaResult.resolvedAddressLabel}
 														</p>
 													) : null}
-													{localizaResult.sourceMetadata.externalListingId ? (
-														<p className="text-muted-foreground">
-															Idealista ID:{" "}
-															{localizaResult.sourceMetadata.externalListingId}
-														</p>
-													) : null}
-													{localizaResult.officialSourceUrl ? (
-														<p className="text-muted-foreground">
-															Official service:{" "}
+														{localizaResult.sourceMetadata.externalListingId ? (
+															<p className="text-muted-foreground">
+																Referencia de Idealista:{" "}
+																{localizaResult.sourceMetadata.externalListingId}
+															</p>
+														) : null}
+														{localizaResult.officialSourceUrl ? (
+															<p className="text-muted-foreground">
+																Registro oficial:{" "}
 															<a
 																href={localizaResult.officialSourceUrl}
 																target="_blank"
 																rel="noreferrer"
-																className="text-primary underline underline-offset-4"
-															>
-																{localizaResult.officialSourceUrl}
-															</a>
-														</p>
-													) : null}
-													{localizaResult.evidence.reasonCodes.length > 0 ? (
-														<p className="text-muted-foreground">
-															Reason codes:{" "}
-															{localizaResult.evidence.reasonCodes.join(", ")}
-														</p>
-													) : null}
-													{localizaResult.status === "building_match" ? (
-														<div className="flex flex-wrap gap-3 pt-1">
+																	className="text-primary underline underline-offset-4"
+																>
+																	Abrir registro
+																</a>
+															</p>
+														) : null}
+														{localizaResult.status === "building_match" ? (
+															<div className="flex flex-wrap gap-3 pt-1">
 															<Button
 																type="button"
 																onClick={handleApplyBuildingMatch}
 																disabled={!localizaResult.prefillLocation}
 															>
-																Use this building
+																Usar este edificio
 															</Button>
-															<p className="max-w-xl text-muted-foreground">
-																We only apply this address after you confirm it
-																because unit-level precision is not proven yet.
-															</p>
-														</div>
-													) : null}
+																<p className="max-w-xl text-muted-foreground">
+																	Usaremos el edificio. Revisa el piso o puerta antes
+																	de guardar.
+																</p>
+															</div>
+														) : null}
 													{localizaResult.status === "needs_confirmation" &&
 													localizaResult.candidates.length > 0 ? (
 														<div className="space-y-3 pt-1">
-															<div
-																role="radiogroup"
-																aria-label="Official location candidates"
-																className="grid gap-3 sm:grid-cols-2"
-															>
+																<fieldset className="grid gap-3 sm:grid-cols-2">
+																	<legend className="sr-only">
+																		Opciones de dirección
+																	</legend>
 																{localizaResult.candidates.map((candidate) => (
-																	<button
+																	<label
 																		key={candidate.id}
-																		type="button"
-																		role="radio"
-																		aria-checked={
-																			selectedLocalizaCandidateId ===
-																			candidate.id
-																		}
-																		onClick={() =>
-																			handleSelectLocalizaCandidate(
-																				candidate.id,
-																			)
-																		}
 																		className={`rounded-md border p-3 text-left transition-colors ${
 																			selectedLocalizaCandidateId ===
 																			candidate.id
@@ -1611,38 +1634,48 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 																				: "border-border/70 bg-background"
 																		}`}
 																	>
+																		<input
+																			type="radio"
+																			name="localiza-candidate"
+																			value={candidate.id}
+																			checked={
+																				selectedLocalizaCandidateId ===
+																				candidate.id
+																			}
+																			onChange={() =>
+																				handleSelectLocalizaCandidate(
+																					candidate.id,
+																				)
+																			}
+																			className="sr-only"
+																		/>
 																		<p className="font-medium text-foreground">
 																			{candidate.label}
-																		</p>
-																		<p className="text-muted-foreground">
-																			Score: {Math.round(candidate.score * 100)}
-																			%
-																		</p>
-																		{candidate.parcelRef14 ? (
-																			<p className="text-muted-foreground">
-																				Parcel: {candidate.parcelRef14}
 																			</p>
-																		) : null}
-																		{candidate.officialUrl ? (
-																			<p>
-																				<a
+																			<p className="text-muted-foreground">
+																				Seguridad:{" "}
+																				{Math.round(candidate.score * 100)}%
+																			</p>
+																			{candidate.officialUrl ? (
+																				<p>
+																					<a
 																					href={candidate.officialUrl}
 																					target="_blank"
 																					rel="noreferrer"
 																					className="text-primary underline underline-offset-4"
 																				>
-																					Open official record
-																				</a>
-																			</p>
+																						Abrir registro
+																					</a>
+																				</p>
 																		) : null}
 																		{candidate.reasonCodes.length > 0 ? (
 																			<p className="text-muted-foreground">
 																				{candidate.reasonCodes.join(", ")}
 																			</p>
 																		) : null}
-																	</button>
+																	</label>
 																))}
-															</div>
+															</fieldset>
 															<div className="flex flex-wrap gap-3">
 																<Button
 																	type="button"
@@ -1655,18 +1688,18 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 																				selectedLocalizaCandidateId,
 																		)?.prefillLocation
 																	}
-																>
-																	Use selected candidate
-																</Button>
-																<p className="max-w-xl text-muted-foreground">
-																	{localizaResult.candidates.find(
+																	>
+																		Usar dirección seleccionada
+																	</Button>
+																	<p className="max-w-xl text-muted-foreground">
+																		{localizaResult.candidates.find(
 																		(candidate) =>
 																			candidate.id ===
 																			selectedLocalizaCandidateId,
-																	)?.prefillLocation
-																		? "Candidate selection still requires a manual confirmation step before we apply the address fields."
-																		: "This official candidate still needs viewer-backed confirmation. Open the official record above and keep filling the address manually below if we cannot prefill every field yet."}
-																</p>
+																		)?.prefillLocation
+																			? "Revisa la selección antes de aplicar la dirección."
+																			: "Abre el registro oficial y escribe la dirección a mano si no estás seguro."}
+																	</p>
 															</div>
 														</div>
 													) : null}
@@ -1679,12 +1712,12 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 										<div>
 											<label
 												className="text-sm font-medium text-foreground"
-												htmlFor="listing-street"
+												htmlFor={fieldId("listing-street")}
 											>
-												Street address
+												Dirección
 											</label>
 											<Input
-												id="listing-street"
+												id={fieldId("listing-street")}
 												placeholder="Calle de Alcalá 123"
 												value={listingDraft.location.street}
 												onChange={(event) =>
@@ -1699,12 +1732,12 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 										<div>
 											<label
 												className="text-sm font-medium text-foreground"
-												htmlFor="listing-city"
+												htmlFor={fieldId("listing-city")}
 											>
-												City
+												Ciudad
 											</label>
 											<Input
-												id="listing-city"
+												id={fieldId("listing-city")}
 												placeholder="Madrid"
 												value={listingDraft.location.city}
 												onChange={(event) =>
@@ -1716,12 +1749,12 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 										<div>
 											<label
 												className="text-sm font-medium text-foreground"
-												htmlFor="listing-state"
+												htmlFor={fieldId("listing-state")}
 											>
-												State / Province
+												Comunidad / Provincia
 											</label>
 											<Input
-												id="listing-state"
+												id={fieldId("listing-state")}
 												placeholder="Madrid"
 												value={listingDraft.location.stateOrProvince}
 												onChange={(event) =>
@@ -1736,12 +1769,12 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 										<div>
 											<label
 												className="text-sm font-medium text-foreground"
-												htmlFor="listing-postal"
+												htmlFor={fieldId("listing-postal")}
 											>
-												Postal code
+												Código postal
 											</label>
 											<Input
-												id="listing-postal"
+												id={fieldId("listing-postal")}
 												placeholder="28009"
 												value={listingDraft.location.postalCode}
 												onChange={(event) =>
@@ -1758,22 +1791,23 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 									<div>
 										<label
 											className="text-sm font-medium text-foreground"
-											htmlFor="listing-price"
+											htmlFor={fieldId("listing-price")}
 										>
-											Listing price
+											Precio del inmueble (EUR)
 										</label>
 										<Input
-											id="listing-price"
+											id={fieldId("listing-price")}
 											type="number"
 											min="0"
 											placeholder="2350000"
-											value={listingDraft.details.priceUsd}
+											value={listingDraft.details.priceAmount}
 											onChange={(event) =>
 												setListingDraft((prev) => ({
 													...prev,
 													details: {
 														...prev.details,
-														priceUsd: event.target.value,
+														priceAmount: event.target.value,
+														currencyCode: "EUR",
 													},
 												}))
 											}
@@ -1785,12 +1819,12 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 										<div>
 											<label
 												className="text-sm font-medium text-foreground"
-												htmlFor="listing-beds"
+												htmlFor={fieldId("listing-beds")}
 											>
-												Beds
+												Dormitorios
 											</label>
 											<Input
-												id="listing-beds"
+												id={fieldId("listing-beds")}
 												type="number"
 												min="0"
 												placeholder="4"
@@ -1810,12 +1844,12 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 										<div>
 											<label
 												className="text-sm font-medium text-foreground"
-												htmlFor="listing-baths"
+												htmlFor={fieldId("listing-baths")}
 											>
-												Baths
+												Baños
 											</label>
 											<Input
-												id="listing-baths"
+												id={fieldId("listing-baths")}
 												type="number"
 												min="0"
 												placeholder="3"
@@ -1835,22 +1869,25 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 										<div>
 											<label
 												className="text-sm font-medium text-foreground"
-												htmlFor="listing-sqft"
+												htmlFor={fieldId("listing-interior-area")}
 											>
-												Interior size (optional)
+												Superficie interior en m² (opcional)
 											</label>
 											<Input
-												id="listing-sqft"
+												id={fieldId("listing-interior-area")}
 												type="number"
-												min="0"
-												placeholder="3200"
-												value={listingDraft.details.squareFeet ?? ""}
+												min="1"
+												step="1"
+												placeholder="110"
+												value={
+													listingDraft.details.interiorAreaSquareMeters ?? ""
+												}
 												onChange={(event) =>
 													setListingDraft((prev) => ({
 														...prev,
 														details: {
 															...prev.details,
-															squareFeet: event.target.value,
+															interiorAreaSquareMeters: event.target.value,
 														},
 													}))
 												}
@@ -1862,12 +1899,12 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 									<div>
 										<label
 											className="text-sm font-medium text-foreground"
-											htmlFor="listing-property-type"
+											htmlFor={fieldId("listing-property-type")}
 										>
-											Property type
+											Tipo de inmueble
 										</label>
 										<select
-											id="listing-property-type"
+											id={fieldId("listing-property-type")}
 											value={listingDraft.details.propertyType}
 											onChange={(event) =>
 												setListingDraft((prev) => ({
@@ -1892,13 +1929,13 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 									<div>
 										<label
 											className="text-sm font-medium text-foreground"
-											htmlFor="listing-description"
+											htmlFor={fieldId("listing-description")}
 										>
-											Marketing highlights
+											Puntos destacados de marketing
 										</label>
 										<Textarea
-											id="listing-description"
-											placeholder="Exterior corner flat with balcony, lift access, and strong natural light."
+											id={fieldId("listing-description")}
+											placeholder="Piso exterior en esquina con balcón, ascensor y mucha luz natural."
 											value={listingDraft.details.description}
 											onChange={(event) =>
 												setListingDraft((prev) => ({
@@ -1919,7 +1956,7 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 											onClick={handleAddListing}
 											disabled={!canAddListing}
 										>
-											Add listing
+											Añadir inmueble
 										</Button>
 									</div>
 								</div>
@@ -1927,7 +1964,7 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 								{listings.length > 0 ? (
 									<div className="grid gap-4">
 										<h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-											Listings queued for the studio
+											Inmuebles en cola para el estudio
 										</h3>
 										<div className="grid gap-4 md:grid-cols-2">
 											{listings.map((listing) => (
@@ -1955,7 +1992,7 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 															{listing.location.stateOrProvince}
 														</p>
 														<p className="font-medium text-foreground">
-															{numberFormatter.format(listing.details.priceUsd)}
+															{formatListingPrice(listing.details)}
 														</p>
 														{listing.sourceUrl ? (
 															<p className="truncate text-xs">
@@ -1971,38 +2008,14 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 																		].label
 																	}
 																</p>
-																<p className="text-xs">
-																	Source:{" "}
-																	{listing.locationResolution.officialSource}
-																</p>
-																{listing.locationResolution.territoryAdapter ? (
-																	<p className="text-xs">
-																		Territory:{" "}
-																		{
-																			localizaTerritoryLabel[
-																				listing.locationResolution
-																					.territoryAdapter
-																			]
-																		}
-																	</p>
-																) : null}
-																{listing.locationResolution
-																	.requestedStrategy ? (
-																	<p className="text-xs">
-																		Strategy:{" "}
-																		{
-																			localizaStrategyLabel[
-																				listing.locationResolution
-																					.requestedStrategy
-																			]
-																		}
-																	</p>
-																) : null}
-															</>
-														) : null}
+															<p className="text-xs">
+																Dirección revisada
+															</p>
+														</>
+													) : null}
 														<p>
-															{listing.details.bedrooms} bd ·{" "}
-															{listing.details.bathrooms} ba
+															{listing.details.bedrooms} hab ·{" "}
+															{listing.details.bathrooms} baños
 														</p>
 													</CardContent>
 												</Card>
@@ -2016,45 +2029,44 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 						{currentStep === "review" ? (
 							<div className="grid gap-6">
 								<div className="grid gap-4 rounded-lg border border-primary/40 bg-primary/5 p-6 sm:grid-cols-[1.5fr_1fr]">
-									<div className="space-y-2">
-										<h3 className="text-lg font-semibold">Brand snapshot</h3>
-										<p className="text-sm text-muted-foreground">
-											We will sync these settings to every media prompt and
-											campaign workflow.
-										</p>
+										<div className="space-y-2">
+											<h3 className="text-lg font-semibold">Resumen de marca</h3>
+											<p className="text-sm text-muted-foreground">
+												Usaremos estos datos en cada pieza que prepare Casedra.
+											</p>
 										<ul className="space-y-1 text-sm text-muted-foreground">
 											<li>
 												<span className="font-medium text-foreground">
-													Company:
+													Empresa:
 												</span>{" "}
-												{brand.companyName || "Pending Firecrawl"}
+													{brand.companyName || "Pendiente"}
 											</li>
 											<li>
 												<span className="font-medium text-foreground">
-													Website:
+													Sitio web:
 												</span>{" "}
 												{brand.website || "—"}
 											</li>
 											<li>
 												<span className="font-medium text-foreground">
-													Tagline:
+													Eslogan:
 												</span>{" "}
 												{brand.tagline || "—"}
 											</li>
 											<li>
 												<span className="font-medium text-foreground">
-													Voice:
+													Voz:
 												</span>{" "}
 												{brand.voice ||
 													(brandSource === "firecrawl"
-														? "Will derive from site"
+														? "Se derivará del sitio"
 														: "—")}
 											</li>
 										</ul>
 									</div>
 									<div className="flex flex-col gap-3 rounded-md border border-primary/40 bg-background p-4 text-sm">
 										<span className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-											Brand color
+											Color de marca
 										</span>
 										<div
 											className="h-16 w-full rounded-md border"
@@ -2062,20 +2074,21 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 												backgroundColor: brand.primaryColorHex || "#0f172a",
 											}}
 										/>
-										<p className="text-xs text-muted-foreground">
-											We will apply this across graphics, type treatments, and
-											UI accents.
-										</p>
+											<p className="text-xs text-muted-foreground">
+												Lo aplicaremos en piezas, textos y acentos visuales.
+											</p>
 									</div>
 								</div>
 
 								<div className="grid gap-4 rounded-lg border border-border/60 bg-background p-6">
 									<div className="flex flex-col gap-1">
-										<h3 className="text-lg font-semibold">Listings in scope</h3>
+										<h3 className="text-lg font-semibold">
+											Inmuebles incluidos
+										</h3>
 										<p className="text-sm text-muted-foreground">
 											{listings.length > 0
-												? `${listings.length} listing${listings.length > 1 ? "s" : ""} ready for generation`
-												: "Add listings to generate tailored media."}
+												? `${listings.length} inmueble${listings.length > 1 ? "s" : ""} listo${listings.length > 1 ? "s" : ""} para generar`
+												: "Añade inmuebles para generar medios a medida."}
 										</p>
 									</div>
 									<div className="grid gap-3 md:grid-cols-2">
@@ -2088,10 +2101,10 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 													{listing.title}
 												</p>
 												<p className="text-muted-foreground">
-													{numberFormatter.format(listing.details.priceUsd)}
+													{formatListingPrice(listing.details)}
 													{" · "}
-													{listing.details.bedrooms} bd ·{" "}
-													{listing.details.bathrooms} ba
+													{listing.details.bedrooms} hab ·{" "}
+													{listing.details.bathrooms} baños
 												</p>
 												<p className="text-muted-foreground">
 													{listing.location.city},{" "}
@@ -2111,45 +2124,24 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 																].label
 															}
 														</p>
-														<p className="text-xs text-muted-foreground">
-															Source:{" "}
-															{listing.locationResolution.officialSource}
-														</p>
-														{listing.locationResolution.territoryAdapter ? (
 															<p className="text-xs text-muted-foreground">
-																Territory:{" "}
-																{
-																	localizaTerritoryLabel[
-																		listing.locationResolution
-																			.territoryAdapter
-																	]
-																}
+																Dirección revisada
 															</p>
-														) : null}
-														{listing.locationResolution.requestedStrategy ? (
-															<p className="text-xs text-muted-foreground">
-																Strategy:{" "}
-																{
-																	localizaStrategyLabel[
-																		listing.locationResolution.requestedStrategy
-																	]
-																}
-															</p>
-														) : null}
-													</>
-												) : null}
+														</>
+													) : null}
 											</div>
 										))}
 									</div>
 								</div>
 
 								<div className="grid gap-4 rounded-lg border border-primary/40 bg-primary/5 p-6">
-									<div className="flex flex-col gap-1">
-										<h3 className="text-lg font-semibold">AI media roadmap</h3>
-										<p className="text-sm text-muted-foreground">
-											Casedra will generate, track, and store assets using the
-											schema we designed for the studio.
-										</p>
+										<div className="flex flex-col gap-1">
+											<h3 className="text-lg font-semibold">
+												Piezas que se prepararán
+											</h3>
+											<p className="text-sm text-muted-foreground">
+												Esto queda listo para trabajar en el estudio.
+											</p>
 									</div>
 									<div className="grid gap-3 md:grid-cols-2">
 										{plannedGenerations.map((generation) => (
@@ -2157,27 +2149,16 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 												key={`${generation.listingId}-${generation.kind}`}
 												className="flex flex-col gap-2 rounded-md border border-dashed border-primary/40 bg-background p-4 text-sm"
 											>
-												<span className="font-semibold text-foreground">
-													{generation.label}
-												</span>
-												<p className="text-muted-foreground">
-													Media key:{" "}
-													<span className="font-mono text-xs">
-														{generation.mediaKey}
+													<span className="font-semibold text-foreground">
+														{generation.label}
 													</span>
-												</p>
-												<p className="text-muted-foreground">
-													Linked listing: {generation.listingId}
-												</p>
-											</div>
-										))}
+													<p className="text-muted-foreground">
+														Para {generation.listingTitle}
+													</p>
+												</div>
+											))}
+										</div>
 									</div>
-									<p className="text-xs text-muted-foreground">
-										Stored as `AIGenerationRecord` entries with status
-										transitions (queued → running → succeeded) and Fal.ai job
-										metadata.
-									</p>
-								</div>
 								{submissionError ? (
 									<div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
 										{submissionError}
@@ -2193,7 +2174,7 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 						{!isFirstStep ? (
 							<Button type="button" variant="ghost" onClick={goPrevious}>
 								<ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
-								Back
+								Volver
 							</Button>
 						) : null}
 						{currentStep !== "brand" ? (
@@ -2202,7 +2183,7 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 								variant="ghost"
 								onClick={() => goToStep("brand")}
 							>
-								Jump to brand
+								Ir a marca
 							</Button>
 						) : null}
 						{currentStep === "review" ? (
@@ -2211,7 +2192,7 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 								variant="ghost"
 								onClick={() => goToStep("listings")}
 							>
-								Jump to listings
+								Ir a inmuebles
 							</Button>
 						) : null}
 					</div>
@@ -2223,7 +2204,7 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 								onClick={goNext}
 								disabled={!canContinue}
 							>
-								Continue
+								Continuar
 								<ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
 							</Button>
 						) : (
@@ -2244,7 +2225,7 @@ export default function OnboardingFlow({ initialStep }: OnboardingFlowProps) {
 								) : (
 									<Sparkles className="h-4 w-4" aria-hidden="true" />
 								)}
-								Save listings and enter the studio
+								Guardar inmuebles y entrar al estudio
 							</Button>
 						)}
 					</div>
@@ -2258,12 +2239,12 @@ const propertyTypeCopy: Record<
 	ListingCreateInput["details"]["propertyType"],
 	string
 > = {
-	single_family: "Single family",
-	multi_family: "Multi family",
-	condo: "Condo",
-	townhouse: "Townhouse",
-	land: "Land",
-	commercial: "Commercial",
+	single_family: "Unifamiliar",
+	multi_family: "Multifamiliar",
+	condo: "Piso",
+	townhouse: "Adosado",
+	land: "Terreno",
+	commercial: "Comercial",
 };
 
 const brandSourceOptions: Array<{
@@ -2273,12 +2254,12 @@ const brandSourceOptions: Array<{
 }> = [
 	{
 		value: "firecrawl",
-		label: "Crawl my website",
+		label: "Analizar mi sitio web",
 		icon: Globe2,
 	},
 	{
 		value: "manual",
-		label: "Enter brand details",
+		label: "Introducir datos de marca",
 		icon: Building2,
 	},
 ];
@@ -2292,25 +2273,25 @@ const stepDefinitions: Record<
 		icon: typeof Building2;
 	}
 > = {
-	brand: {
-		label: "Brand",
-		title: "Capture your brand identity",
-		description:
-			"Give Casedra your brand voice, palette, and tone so we can populate prompts, templates, and approvals.",
-		icon: Building2,
-	},
-	listings: {
-		label: "Listings",
-		title: "Queue listings for automation",
-		description:
-			"Every listing you add will get a tailored AI media roadmap and collateral package.",
-		icon: ListChecks,
-	},
+		brand: {
+			label: "Marca",
+			title: "Define tu marca",
+			description:
+				"Nombre, web, color y tono. Nada más de lo necesario.",
+			icon: Building2,
+		},
+		listings: {
+			label: "Inmuebles",
+			title: "Añade inmuebles",
+			description:
+				"Cada inmueble queda listo para preparar piezas a medida.",
+			icon: ListChecks,
+		},
 	review: {
-		label: "Review",
-		title: "Review and launch",
+		label: "Revisión",
+		title: "Revisar y lanzar",
 		description:
-			"Confirm the intake and jump into the studio to start generating assets.",
+			"Confirma la captura y entra al estudio para empezar a generar recursos.",
 		icon: Sparkles,
 	},
 };

@@ -6,18 +6,26 @@ export default function App() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
       <View style={styles.hero}>
-        <Text style={styles.kicker}>Casedra Mobile</Text>
-        <Text style={styles.title}>Stay on top of listings anywhere.</Text>
+        <Text style={styles.kicker}>Casedra móvil</Text>
+        <Text style={styles.title}>
+          Mantente al día de tus inmuebles desde cualquier lugar.
+        </Text>
         <Text style={styles.subtitle}>
-          Review media runs, approve assets generated with fal.ai, and respond to
-          new leads without leaving the field.
+          Revisa piezas nuevas, aprueba materiales y responde a nuevos
+          contactos sin salir de la calle.
         </Text>
       </View>
       <View style={styles.roadmap}>
-        <Text style={styles.sectionTitle}>Mobile roadmap</Text>
-        <Text style={styles.bullet}>• Instant push when new AI assets are ready.</Text>
-        <Text style={styles.bullet}>• Quick responses for buyer/seller conversations.</Text>
-        <Text style={styles.bullet}>• Offline-ready signage and open house packs.</Text>
+        <Text style={styles.sectionTitle}>Hoja de ruta móvil</Text>
+        <Text style={styles.bullet}>
+          • Aviso instantáneo cuando haya piezas nuevas listas.
+        </Text>
+        <Text style={styles.bullet}>
+          • Respuestas rápidas para conversaciones con compradores y vendedores.
+        </Text>
+        <Text style={styles.bullet}>
+          • Cartelería y packs de visita listos para usar sin conexión.
+        </Text>
       </View>
     </SafeAreaView>
   );

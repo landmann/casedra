@@ -26,6 +26,7 @@ export interface ListingLocationResolution {
 	resolvedAddressLabel?: string;
 	resolverVersion: string;
 	resolvedAt: string;
+	candidateCount?: number;
 	reasonCodes: string[];
 }
 
@@ -49,7 +50,6 @@ export type LocalizaTerritoryAdapter =
 	| "gipuzkoa_catastro";
 
 export type LocalizaErrorCode =
-	| "feature_disabled"
 	| "invalid_url"
 	| "unsupported_url"
 	| "timeout"
@@ -128,6 +128,8 @@ export interface ResolveIdealistaLocationResult {
 	cacheExpiresAt?: string;
 }
 
+export type ListingCurrencyCode = "EUR" | "USD";
+
 export interface ListingLocation {
 	street: string;
 	city: string;
@@ -137,11 +139,12 @@ export interface ListingLocation {
 }
 
 export interface ListingDetails {
-	priceUsd: number;
+	priceAmount: number;
+	currencyCode: ListingCurrencyCode;
 	bedrooms: number;
 	bathrooms: number;
-	squareFeet?: number;
-	lotSizeSqFt?: number;
+	interiorAreaSquareMeters?: number;
+	lotAreaSquareMeters?: number;
 	yearBuilt?: number;
 	propertyType:
 		| "single_family"
@@ -171,6 +174,7 @@ export interface ListingRecord {
 	sourceMetadata?: ListingSourceMetadata;
 	locationResolution?: ListingLocationResolution;
 	location: ListingLocation;
+	displayAddressLabel?: string;
 	details: ListingDetails;
 	media: ListingMediaAsset[];
 	createdAt: string;
@@ -185,8 +189,66 @@ export interface ListingCreateInput {
 	sourceMetadata?: ListingSourceMetadata;
 	locationResolution?: ListingLocationResolution;
 	location: ListingLocation;
+	displayAddressLabel?: string;
 	details: ListingDetails;
 	media: ListingMediaAsset[];
+}
+
+export interface LocalizaMetricsSnapshot {
+	generatedAt: number;
+	windowStart: number;
+	windowMs: number;
+	thresholds: {
+		unresolvedRate: number;
+		timeoutRate: number;
+	};
+	counts: Record<string, number>;
+	rates: Record<string, number>;
+	durations: {
+		medianMs: number | null;
+	};
+	statusCounts: Record<ResolveIdealistaLocationStatus, number>;
+	byAcquisitionAdapter: Record<
+		string,
+		{ total: number; statuses: Record<ResolveIdealistaLocationStatus, number> }
+	>;
+	byTerritoryAdapter: Record<
+		string,
+		{ total: number; statuses: Record<ResolveIdealistaLocationStatus, number> }
+	>;
+	notTracked: string[];
+	alerts: string[];
+}
+
+export interface LocalizaGoldenSummary {
+	fixtureCount: number;
+	territories: LocalizaTerritoryAdapter[];
+	hiddenAddressFixtureCount: number;
+	humanUnitResolvableFixtureCount: number;
+	hiddenBuildingOrBetterRate: number;
+	humanUnitExactRate: number;
+	liveFixtureCount: number;
+	liveOfficiallyValidatedFixtureCount: number;
+	livePendingValidationFixtureCount: number;
+}
+
+export interface LocalizaReadinessSnapshot {
+	generatedAt: number;
+	status: "ready" | "blocked";
+	canWidenAllowlist: boolean;
+	blockers: string[];
+	acquisitionContract: {
+		mode: "firecrawl_only_beta";
+		autoStrategyOrder: LocalizaAcquisitionStrategy[];
+		configuredStrategies: LocalizaAcquisitionStrategy[];
+		disabledStrategies: LocalizaAcquisitionStrategy[];
+		complianceApprovalRequiredForBrowserWorker: boolean;
+	};
+	goldenDataset: {
+		summary: LocalizaGoldenSummary;
+		issues: string[];
+	};
+	metrics: LocalizaMetricsSnapshot;
 }
 
 export type BrandSourceType = "firecrawl" | "manual";

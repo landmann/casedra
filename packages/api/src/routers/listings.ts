@@ -2,6 +2,7 @@ import type { LocalizaErrorCode } from "@casedra/types";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { api } from "../convex";
+import { logLocalizaListingTransitions } from "../localiza-observability";
 import {
 	listingBatchCreateInputSchema,
 	listingCreateInputSchema,
@@ -15,7 +16,6 @@ const localizaErrorCodeToTrpcCode: Record<
 	LocalizaErrorCode,
 	TRPCError["code"]
 > = {
-	feature_disabled: "FORBIDDEN",
 	invalid_url: "BAD_REQUEST",
 	unsupported_url: "BAD_REQUEST",
 	timeout: "GATEWAY_TIMEOUT",
@@ -44,18 +44,41 @@ export const listingsRouter = router({
 		.input(listingCreateInputSchema)
 		.mutation(async ({ ctx, input }) => {
 			const listingId = await ctx.convex.mutation(api.listings.create, input);
+			logLocalizaListingTransitions({
+				userId: ctx.session.userId,
+				listingId: String(listingId),
+				listing: input,
+			});
 
 			return { id: listingId };
 		}),
 	createBatch: protectedProcedure
 		.input(listingBatchCreateInputSchema)
 		.mutation(async ({ ctx, input }) => {
-			const listingIds = await ctx.convex.mutation(api.listings.createBatch, {
-				idempotencyKey: input.idempotencyKey,
-				listings: input.listings,
-			});
+			const createBatchResult = await ctx.convex.mutation(
+				api.listings.createBatch,
+				{
+					idempotencyKey: input.idempotencyKey,
+					listings: input.listings,
+				},
+			);
+			if (createBatchResult.created) {
+				for (const [
+					index,
+					listingId,
+				] of createBatchResult.listingIds.entries()) {
+					const listing = input.listings[index];
+					if (listing) {
+						logLocalizaListingTransitions({
+							userId: ctx.session.userId,
+							listingId: String(listingId),
+							listing,
+						});
+					}
+				}
+			}
 
-			return { ids: listingIds };
+			return { ids: createBatchResult.listingIds };
 		}),
 	list: protectedProcedure
 		.input(listingFiltersSchema.optional())
@@ -85,7 +108,10 @@ export const listingsRouter = router({
 		.input(resolveIdealistaLocationInputSchema)
 		.mutation(async ({ ctx, input }) => {
 			try {
-				return await ctx.localiza.resolveIdealistaLocation(input);
+				return await ctx.localiza.resolveIdealistaLocation({
+					...input,
+					userId: ctx.session.userId,
+				});
 			} catch (error) {
 				if (isLocalizaServiceError(error)) {
 					throw new TRPCError({
@@ -97,6 +123,9 @@ export const listingsRouter = router({
 				throw error;
 			}
 		}),
+	localizaReadiness: protectedProcedure.query(async ({ ctx }) =>
+		ctx.localiza.getReadinessSnapshot(),
+	),
 	generateMedia: protectedProcedure
 		.input(mediaGenerationRequestSchema)
 		.mutation(async ({ ctx, input }) => {

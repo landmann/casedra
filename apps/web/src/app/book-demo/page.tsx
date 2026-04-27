@@ -11,7 +11,14 @@ import {
   Workflow,
 } from "lucide-react";
 
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@casedra/ui";
+import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@casedra/ui";
 import {
   calendarHref,
   emailHref,
@@ -22,7 +29,7 @@ import {
 
 const agenda = [
   {
-    title: "Dónde se enfrían los leads",
+    title: "Dónde se enfrían los contactos",
     description:
       "Miramos por dónde entran, cuánto tardáis en responder y dónde se pierde seguimiento hoy.",
     icon: TimerReset,
@@ -43,15 +50,15 @@ const agenda = [
 
 const prepChecklist = [
   "Qué canales usáis hoy: WhatsApp, portales, formularios",
-  "Quién responde ahora y cómo se reparten los leads",
-  "Volumen aproximado de leads por semana",
+  "Quién responde ahora y cómo se reparten los contactos",
+  "Volumen aproximado de contactos por semana",
   "Qué os preocupa más: tiempo de respuesta, seguimiento o control",
 ] as const;
 
 export const metadata: Metadata = {
-  title: "Reservar demo | Casedra",
+  title: "Reservar demostración | Casedra",
   description:
-    "Reserva una demo de Casedra y revisamos cómo entran, se responden y se reparten vuestros leads.",
+    "Reserva una demostración de Casedra y revisamos cómo entran, se responden y se reparten vuestros contactos.",
 };
 
 export default function BookDemoPage() {
@@ -79,16 +86,19 @@ export default function BookDemoPage() {
           <section className="grid gap-8 lg:gap-10 xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] xl:items-start">
             <div className="max-w-3xl">
               <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-background/85 px-3 py-2 text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground sm:px-4 sm:text-[11px] sm:tracking-[0.28em]">
-                <CalendarClock className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                Demo de 20 min
+                <CalendarClock
+                  className="h-3.5 w-3.5 text-primary"
+                  aria-hidden="true"
+                />
+                Demostración de 20 min
               </div>
               <h1 className="mt-6 max-w-4xl text-balance font-serif text-[3rem] font-normal leading-[1.02] text-foreground sm:text-[4.15rem] xl:text-[4.75rem]">
-                Te enseñamos Casedra sobre el flujo real de tu oficina.
+                Te enseñamos Casedra sobre cómo trabaja tu oficina.
               </h1>
               <p className="mt-6 max-w-2xl text-base leading-8 text-muted-foreground sm:text-lg">
-                No hacemos una demo genérica. Miramos cómo entran hoy vuestros leads, quién
-                responde, dónde se pierde seguimiento y cómo sería una primera implantación si
-                tuviera sentido empezar.
+                No hacemos una demostración genérica. Miramos cómo entran hoy vuestros
+                contactos, quién responde, dónde se pierde seguimiento y cómo sería
+                una primera implantación si tuviera sentido empezar.
               </p>
 
               <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -103,7 +113,9 @@ export default function BookDemoPage() {
                       <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
                         <Icon className="h-5 w-5" aria-hidden="true" />
                       </div>
-                      <p className="mt-4 text-lg font-semibold text-foreground">{item.title}</p>
+                      <p className="mt-4 text-lg font-semibold text-foreground">
+                        {item.title}
+                      </p>
                       <p className="mt-2 text-sm leading-6 text-muted-foreground">
                         {item.description}
                       </p>
@@ -124,8 +136,8 @@ export default function BookDemoPage() {
                     Traed vuestro contexto real.
                   </CardTitle>
                   <CardDescription className="mt-3 text-sm leading-6">
-                    No hace falta una preparación pesada. Solo una imagen honesta de cómo trabajáis
-                    hoy.
+                    No hace falta una preparación pesada. Solo una imagen
+                    honesta de cómo trabajáis hoy.
                   </CardDescription>
                 </div>
               </CardHeader>
@@ -148,8 +160,8 @@ export default function BookDemoPage() {
                         Control visible antes que autonomía ciega
                       </p>
                       <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                        Te enseñaremos exactamente cuándo responde Casedra y cuándo entra una
-                        persona del equipo.
+                        Te enseñaremos exactamente cuándo responde Casedra y
+                        cuándo entra una persona del equipo.
                       </p>
                     </div>
                   </div>
@@ -162,19 +174,19 @@ export default function BookDemoPage() {
             <Card className="rounded-[28px] border-border/80 bg-background/92 shadow-[0_24px_70px_rgba(31,26,20,0.07)] sm:rounded-[30px]">
               <CardHeader>
                 <CardTitle className="font-serif text-[2rem] font-normal leading-tight sm:text-3xl">
-                  Reserva una demo de 20 min
+                  Reserva una demostración de 20 min
                 </CardTitle>
                 <CardDescription className="mt-2 text-sm leading-6">
-                  El camino más rápido es elegir hueco en calendario. Si prefieres escribir antes,
-                  habla con uno de los fundadores.
+                  El camino más rápido es elegir hueco en calendario. Si
+                  prefieres escribir antes, habla con uno de los fundadores.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-3">
                   {[
                     { label: "Duración", value: "20 min" },
-                    { label: "Formato", value: "Online" },
-                    { label: "Foco", value: "Vuestro flujo real" },
+                    { label: "Formato", value: "En línea" },
+                    { label: "Foco", value: "Vuestra forma de trabajar" },
                   ].map((item) => (
                     <div
                       key={item.label}
@@ -183,19 +195,31 @@ export default function BookDemoPage() {
                       <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
                         {item.label}
                       </p>
-                      <p className="mt-3 text-lg font-semibold text-foreground">{item.value}</p>
+                      <p className="mt-3 text-lg font-semibold text-foreground">
+                        {item.value}
+                      </p>
                     </div>
                   ))}
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap xl:flex-nowrap">
                   <Button asChild size="lg" className="rounded-full px-7">
-                    <Link href={calendarHref} className="inline-flex items-center gap-2">
-                      Reservar demo
+                    <Link
+                      href={calendarHref}
+                      className="inline-flex items-center gap-2"
+                    >
+                      Reservar demostración
                       <ArrowRight className="h-4 w-4" aria-hidden="true" />
                     </Link>
                   </Button>
-                  <Button asChild variant="outline" size="lg" className="rounded-full px-7">
-                    <Link href={`#${founderSectionId}`}>Hablar con un fundador</Link>
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="lg"
+                    className="rounded-full px-7"
+                  >
+                    <Link href={`#${founderSectionId}`}>
+                      Hablar con un fundador
+                    </Link>
                   </Button>
                 </div>
                 <p className="text-xs leading-6 text-muted-foreground">
@@ -211,15 +235,16 @@ export default function BookDemoPage() {
             <Card className="rounded-[28px] border-primary/25 bg-primary/10 sm:rounded-[30px]">
               <CardHeader>
                 <CardTitle className="font-serif text-[2rem] font-normal leading-tight sm:text-3xl">
-                  Qué os lleváis de la demo
+                  Qué os lleváis de la demostración
                 </CardTitle>
                 <CardDescription className="mt-2 text-sm leading-6 text-foreground/75">
-                  Una conversación más concreta y más útil que una demo proptech al uso.
+                  Una conversación más concreta y más útil que una demostración de software inmobiliario
+                  al uso.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {[
-                  "Un mapa claro de dónde se os enfrían los leads hoy.",
+                  "Un mapa claro de dónde se os enfrían los contactos hoy.",
                   "Cómo encajaría Casedra sin cambiar toda la oficina de golpe.",
                   "Qué tocaríamos primero y qué dejaríamos para después.",
                   "Una respuesta honesta sobre si tiene sentido empezar o no.",
@@ -231,8 +256,15 @@ export default function BookDemoPage() {
                     {item}
                   </div>
                 ))}
-                <Button asChild variant="secondary" className="rounded-full px-6">
-                  <Link href={`#${founderSectionId}`} className="inline-flex items-center gap-2">
+                <Button
+                  asChild
+                  variant="secondary"
+                  className="rounded-full px-6"
+                >
+                  <Link
+                    href={`#${founderSectionId}`}
+                    className="inline-flex items-center gap-2"
+                  >
                     Hablar con un fundador
                     <MessageCircle className="h-4 w-4" aria-hidden="true" />
                   </Link>
@@ -250,12 +282,13 @@ export default function BookDemoPage() {
                 Fundadores
               </p>
               <h2 className="mt-4 font-serif text-4xl font-normal leading-tight text-foreground">
-                Si prefieres coordinarlo por correo, aquí tienes contacto directo.
+                Si prefieres coordinarlo por correo, aquí tienes contacto
+                directo.
               </h2>
               <p className="mt-4 text-base leading-8 text-muted-foreground">
-                Estamos abriendo las primeras oficinas y preferimos conversaciones directas. Escríbenos
-                con vuestro flujo actual y te diremos si encaja, cómo empezar y qué veríamos en la
-                demo.
+                Estamos abriendo las primeras oficinas y preferimos
+                conversaciones directas. Escríbenos con cómo trabajáis hoy y
+                te diremos si encaja, cómo empezar y qué veríamos en la demostración.
               </p>
             </div>
 
@@ -276,15 +309,26 @@ export default function BookDemoPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-5">
-                    <p className="text-sm leading-6 text-muted-foreground">{contact.summary}</p>
+                    <p className="text-sm leading-6 text-muted-foreground">
+                      {contact.summary}
+                    </p>
                     <div className="rounded-2xl border border-border/80 bg-background px-4 py-4">
                       <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
-                        Email directo
+                        Correo directo
                       </p>
-                      <p className="mt-2 text-base font-semibold text-foreground">{contact.email}</p>
+                      <p className="mt-2 text-base font-semibold text-foreground">
+                        {contact.email}
+                      </p>
                     </div>
-                    <Button asChild variant="outline" className="rounded-full px-6">
-                      <Link href={contact.href} className="inline-flex items-center gap-2">
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="rounded-full px-6"
+                    >
+                      <Link
+                        href={contact.href}
+                        className="inline-flex items-center gap-2"
+                      >
                         Escribir a {contact.firstName}
                         <ArrowRight className="h-4 w-4" aria-hidden="true" />
                       </Link>

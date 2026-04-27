@@ -16,6 +16,8 @@ import type {
 import type * as agencies from "../agencies.js";
 import type * as auth from "../auth.js";
 import type * as listings from "../listings.js";
+import type * as localizaMetrics from "../localizaMetrics.js";
+import type * as locationResolutionLease from "../locationResolutionLease.js";
 import type * as locationResolutions from "../locationResolutions.js";
 import type * as media from "../media.js";
 import type * as workflow from "../workflow.js";
@@ -33,6 +35,8 @@ declare const fullApi: ApiFromModules<{
   agencies: typeof agencies;
   auth: typeof auth;
   listings: typeof listings;
+  localizaMetrics: typeof localizaMetrics;
+  locationResolutionLease: typeof locationResolutionLease;
   locationResolutions: typeof locationResolutions;
   media: typeof media;
   workflow: typeof workflow;

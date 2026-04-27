@@ -7,6 +7,7 @@ import type {
 import {
 	buildListingSignalCorpus,
 	buildSearchRadii,
+	classifyLocalizaCandidateOutcome,
 	convertWgs84ToWebMercator,
 	corpusIncludesDesignator,
 	corpusIncludesPhrase,
@@ -17,6 +18,7 @@ import {
 	getProvinceNameFromCode,
 	humanizePlaceName,
 	humanizeStreetName,
+	LOCALIZA_MIN_VIABLE_SCORE,
 	normalizeLocalizaText,
 	provinceMatchesHint,
 } from "./score";
@@ -35,9 +37,7 @@ const REGIONAL_OFFICIAL_SOURCES: Record<string, string> = {
 	gipuzkoa_catastro: "Catastro de Gipuzkoa",
 };
 const MAX_RESULTS_PER_REQUEST = 60;
-const MIN_VIABLE_SCORE = 0.45;
-const BUILDING_MATCH_THRESHOLD = 0.75;
-const EXACT_MATCH_THRESHOLD = 0.9;
+const MIN_VIABLE_SCORE = LOCALIZA_MIN_VIABLE_SCORE;
 
 interface CatastroComponentMaps {
 	thoroughfares: Map<string, string>;
@@ -696,36 +696,32 @@ export const resolveStateCatastro = async (input: {
 	}
 
 	const [topCandidate, secondCandidate] = viableCandidates;
-	const scoreGap = Number(
-		(
-			topCandidate.candidate.score - (secondCandidate?.candidate.score ?? 0)
-		).toFixed(2),
-	);
 	const hasStreetLevelProof =
 		topCandidate.matchedSignals.includes("street_name_match");
 	const hasDesignatorProof =
 		topCandidate.matchedSignals.includes("portal_hint_match") ||
 		topCandidate.matchedSignals.includes("designator_match");
+	const outcome = classifyLocalizaCandidateOutcome({
+		topScore: topCandidate.candidate.score,
+		secondScore: secondCandidate?.candidate.score,
+		hasStreetLevelProof,
+		hasDesignatorProof,
+	});
 
-	if (
-		topCandidate.candidate.score >= EXACT_MATCH_THRESHOLD &&
-		scoreGap >= 0.12 &&
-		hasStreetLevelProof &&
-		hasDesignatorProof
-	) {
+	if (outcome.status === "exact_match") {
 		return buildResolvedOfficialResolution({
 			status: "exact_match",
 			selected: topCandidate,
 			candidates: viableCandidates,
 			territoryAdapter: "state_catastro",
-			extraReasonCodes: ["state_catastro_exact_match", `score_gap_${scoreGap}`],
+			extraReasonCodes: [
+				"state_catastro_exact_match",
+				`score_gap_${outcome.scoreGap}`,
+			],
 		});
 	}
 
-	if (
-		topCandidate.candidate.score >= BUILDING_MATCH_THRESHOLD &&
-		scoreGap >= 0.12
-	) {
+	if (outcome.status === "building_match") {
 		return buildResolvedOfficialResolution({
 			status: "building_match",
 			selected: topCandidate,
@@ -733,7 +729,7 @@ export const resolveStateCatastro = async (input: {
 			territoryAdapter: "state_catastro",
 			extraReasonCodes: [
 				"state_catastro_building_match",
-				`score_gap_${scoreGap}`,
+				`score_gap_${outcome.scoreGap}`,
 			],
 		});
 	}
@@ -745,7 +741,7 @@ export const resolveStateCatastro = async (input: {
 		territoryAdapter: "state_catastro",
 		extraReasonCodes: [
 			"state_catastro_confirmation_required",
-			`score_gap_${scoreGap}`,
+			`score_gap_${outcome.scoreGap}`,
 		],
 	});
 };

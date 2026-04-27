@@ -29,6 +29,16 @@ const listingCreateArgs = {
 			),
 			confidenceScore: v.number(),
 			officialSource: v.string(),
+			officialSourceUrl: v.optional(v.string()),
+			territoryAdapter: v.optional(
+				v.union(
+					v.literal("state_catastro"),
+					v.literal("navarra_rtn"),
+					v.literal("alava_catastro"),
+					v.literal("bizkaia_catastro"),
+					v.literal("gipuzkoa_catastro"),
+				),
+			),
 			requestedStrategy: v.optional(
 				v.union(
 					v.literal("auto"),
@@ -50,6 +60,7 @@ const listingCreateArgs = {
 			resolvedAddressLabel: v.optional(v.string()),
 			resolverVersion: v.string(),
 			resolvedAt: v.string(),
+			candidateCount: v.optional(v.number()),
 			reasonCodes: v.array(v.string()),
 		}),
 	),
@@ -60,12 +71,14 @@ const listingCreateArgs = {
 		postalCode: v.string(),
 		country: v.string(),
 	}),
+	displayAddressLabel: v.optional(v.string()),
 	details: v.object({
-		priceUsd: v.number(),
+		priceAmount: v.number(),
+		currencyCode: v.union(v.literal("EUR"), v.literal("USD")),
 		bedrooms: v.number(),
 		bathrooms: v.number(),
-		squareFeet: v.optional(v.number()),
-		lotSizeSqFt: v.optional(v.number()),
+		interiorAreaSquareMeters: v.optional(v.number()),
+		lotAreaSquareMeters: v.optional(v.number()),
 		yearBuilt: v.optional(v.number()),
 		propertyType: v.string(),
 		description: v.string(),
@@ -105,6 +118,13 @@ type ListingCreateRecordInput = {
 			| "manual_override";
 		confidenceScore: number;
 		officialSource: string;
+		officialSourceUrl?: string;
+		territoryAdapter?:
+			| "state_catastro"
+			| "navarra_rtn"
+			| "alava_catastro"
+			| "bizkaia_catastro"
+			| "gipuzkoa_catastro";
 		requestedStrategy?:
 			| "auto"
 			| "idealista_api"
@@ -120,6 +140,7 @@ type ListingCreateRecordInput = {
 		resolvedAddressLabel?: string;
 		resolverVersion: string;
 		resolvedAt: string;
+		candidateCount?: number;
 		reasonCodes: string[];
 	};
 	location: {
@@ -129,12 +150,14 @@ type ListingCreateRecordInput = {
 		postalCode: string;
 		country: string;
 	};
+	displayAddressLabel?: string;
 	details: {
-		priceUsd: number;
+		priceAmount: number;
+		currencyCode: "EUR" | "USD";
 		bedrooms: number;
 		bathrooms: number;
-		squareFeet?: number;
-		lotSizeSqFt?: number;
+		interiorAreaSquareMeters?: number;
+		lotAreaSquareMeters?: number;
 		yearBuilt?: number;
 		propertyType: string;
 		description: string;
@@ -209,6 +232,9 @@ const buildListingInsert = (
 			.replace(/(^-|-$)+/g, "")
 			.concat(`-${now + index}`);
 
+	const displayAddressLabel =
+		args.displayAddressLabel ?? args.locationResolution?.resolvedAddressLabel;
+
 	return {
 		agentId,
 		title: args.title,
@@ -219,6 +245,7 @@ const buildListingInsert = (
 		sourceMetadata: args.sourceMetadata,
 		locationResolution: args.locationResolution,
 		location: args.location,
+		displayAddressLabel,
 		details: args.details,
 		media: args.media,
 		createdAt: now,
@@ -251,6 +278,7 @@ export const createBatch = mutation({
 				sourceMetadata: listingCreateArgs.sourceMetadata,
 				locationResolution: listingCreateArgs.locationResolution,
 				location: listingCreateArgs.location,
+				displayAddressLabel: listingCreateArgs.displayAddressLabel,
 				details: listingCreateArgs.details,
 				media: listingCreateArgs.media,
 			}),
@@ -266,7 +294,10 @@ export const createBatch = mutation({
 			.first();
 
 		if (existingRequest) {
-			return existingRequest.listingIds;
+			return {
+				listingIds: existingRequest.listingIds,
+				created: false,
+			};
 		}
 
 		const now = Date.now();
@@ -290,7 +321,10 @@ export const createBatch = mutation({
 			updatedAt: now,
 		});
 
-		return ids;
+		return {
+			listingIds: ids,
+			created: true,
+		};
 	},
 });
 

@@ -12,6 +12,16 @@
     }
   },
   "resources": {
+    "clerk-auth": {
+      "name": "clerk-auth",
+      "providerName": "Clerk",
+      "serviceId": "auth"
+    },
+    "clerk-plan": {
+      "name": "clerk-plan",
+      "providerName": "Clerk",
+      "serviceId": "hobby"
+    },
     "firecrawl-api": {
       "name": "firecrawl-api",
       "providerName": "Firecrawl",

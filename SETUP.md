@@ -46,7 +46,9 @@ pnpm install
 | `CLERK_SECRET_KEY` | Clerk | From Clerk dashboard → API Keys (`sk_...`); server-only |
 | `CLERK_JWT_ISSUER_DOMAIN` | Clerk + Convex | Frontend API URL from Clerk dashboard (e.g. `https://<slug>.clerk.accounts.dev`); used by `convex/auth.config.ts` |
 | `FAL_KEY` | Fal.ai | Server-side only; never expose publicly |
-| `FIRECRAWL_API_KEY` | Firecrawl | Needed for listing ingestion via crawl |
+| `FIRECRAWL_API_KEY` | Firecrawl | Required for the current Firecrawl-only Localiza beta path. `FIRECRAWL_API_API_KEY` and `FIRECRAWL_PLAN_API_KEY` are accepted as Stripe Projects-generated aliases. |
+| `IDEALISTA_API_KEY`, `IDEALISTA_API_SECRET` | Idealista | Reserved for a future Localiza acquisition path; leave unset until official API access is approved and implemented |
+| `BROWSERBASE_API_KEY`, `BROWSERBASE_PROJECT_ID` | Browserbase | Reserved for a future fallback path; leave unset unless Firecrawl is insufficient and browser automation has compliance approval |
 | `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` | Stripe | Follow the Stripe section below |
 | `POSTHOG_API_KEY`, `NEXT_PUBLIC_POSTHOG_KEY`, `POSTHOG_HOST`, `NEXT_PUBLIC_POSTHOG_HOST` | PostHog | Host defaults to `https://app.posthog.com` |
 
@@ -64,7 +66,7 @@ pnpm install
    ```bash
    pnpm convex dev
    ```
-5. The current schema defines two tables (`listings`, `mediaJobs`); functions live in `convex/listings.ts` and `convex/media.ts`.
+5. Core data functions live in `convex/listings.ts`, `convex/media.ts`, and `convex/locationResolutions.ts`. Localiza operators can inspect aggregate resolver health through the authenticated `locationResolutions:getMetricsSnapshot` Convex query or the `/app/localiza` readiness page.
 6. `convex/auth.config.ts` trusts JWTs from Clerk via `CLERK_JWT_ISSUER_DOMAIN` (set this in your Convex deployment env too: `pnpm dlx convex env set CLERK_JWT_ISSUER_DOMAIN <url>`).
 
 ## Clerk
@@ -84,8 +86,8 @@ pnpm install
 
 ## Firecrawl
 
-- Grab an API key from [https://www.firecrawl.dev](https://www.firecrawl.dev) and set `FIRECRAWL_API_KEY`.
-- Media ingestion mutations will invoke Firecrawl when a URL source is provided (implementation pending).
+- Grab an API key from [https://www.firecrawl.dev](https://www.firecrawl.dev) and set `FIRECRAWL_API_KEY`. If Stripe Projects generated `FIRECRAWL_API_API_KEY` or `FIRECRAWL_PLAN_API_KEY`, the Localiza adapter will also accept those names.
+- Localiza invokes Firecrawl for Idealista signal acquisition when configured. During beta, `Auto` only attempts Firecrawl; the official Idealista API and Browserbase worker are intentionally disabled until approved and implemented.
 
 ## Stripe
 

@@ -1,5 +1,6 @@
 import type {
 	LocalizaAcquisitionStrategy,
+	LocalizaReadinessSnapshot,
 	MediaGenerationRequest,
 	MediaGenerationResult,
 	ResolveIdealistaLocationResult,
@@ -15,7 +16,12 @@ export interface LocalizaService {
 	resolveIdealistaLocation: (request: {
 		url: string;
 		strategy: LocalizaAcquisitionStrategy;
+		userId?: string;
 	}) => Promise<ResolveIdealistaLocationResult>;
+	getReadinessSnapshot: (request?: {
+		now?: number;
+		sinceMs?: number;
+	}) => Promise<LocalizaReadinessSnapshot>;
 }
 
 export interface CasedraContext {

@@ -11,9 +11,9 @@ import {
 } from "@/lib/app-access";
 
 export const metadata: Metadata = {
-	title: "Access Restricted | Casedra",
+	title: "Acceso restringido | Casedra",
 	description:
-		"Casedra workspace access is currently limited to approved accounts.",
+		"El acceso al espacio de trabajo de Casedra está limitado por ahora a cuentas aprobadas.",
 };
 
 export default async function AccessRestrictedPage() {
@@ -30,21 +30,24 @@ export default async function AccessRestrictedPage() {
 			<div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col justify-center px-6 py-16 sm:px-10">
 				<div className="rounded-[32px] border border-border/70 bg-background/90 p-8 shadow-[0_24px_80px_rgba(31,26,20,0.08)] sm:p-10">
 					<div className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-						<LockKeyhole className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-						Private rollout
+						<LockKeyhole
+							className="h-3.5 w-3.5 text-primary"
+							aria-hidden="true"
+						/>
+						Acceso limitado
 					</div>
 					<h1 className="mt-6 font-serif text-4xl leading-tight text-foreground sm:text-5xl">
-						This workspace is currently limited to approved accounts.
+						Este espacio de trabajo está limitado por ahora a cuentas aprobadas.
 					</h1>
 					<p className="mt-4 max-w-2xl text-base leading-8 text-muted-foreground">
-						Casedra is in a tightly controlled rollout. You can sign in, but only
-						pre-approved email addresses can enter the app for now.
+						Puedes iniciar sesión, pero solo los correos aprobados pueden
+						entrar en la app por ahora.
 					</p>
 					{primaryEmailAddress ? (
 						<div className="mt-6 rounded-2xl border border-border/70 bg-muted/25 p-4 text-sm text-muted-foreground">
 							<div className="flex items-center gap-2 text-foreground">
 								<Mail className="h-4 w-4 text-primary" aria-hidden="true" />
-								Signed in as {primaryEmailAddress}
+								Sesión iniciada como {primaryEmailAddress}
 							</div>
 						</div>
 					) : null}
@@ -55,7 +58,7 @@ export default async function AccessRestrictedPage() {
 									type="button"
 									className="inline-flex items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
 								>
-									Sign out
+									Cerrar sesión
 								</button>
 							</SignOutButton>
 						) : (
@@ -63,21 +66,24 @@ export default async function AccessRestrictedPage() {
 								href="/sign-in"
 								className="inline-flex items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
 							>
-								Go to sign in
+								Ir a iniciar sesión
 							</Link>
 						)}
 						<Link
 							href="/"
 							className="inline-flex items-center justify-center rounded-full border border-border px-5 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted/35"
 						>
-							Back to site
+							Volver al sitio
 						</Link>
 					</div>
 					<div className="mt-8 flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
-						<ShieldAlert className="mt-0.5 h-4 w-4 text-primary" aria-hidden="true" />
+						<ShieldAlert
+							className="mt-0.5 h-4 w-4 text-primary"
+							aria-hidden="true"
+						/>
 						<p>
-							Access is currently managed manually while the workspace rolls out to
-							a very small set of accounts.
+							El acceso se gestiona manualmente mientras el espacio se abre a un
+							grupo muy pequeño de cuentas.
 						</p>
 					</div>
 				</div>

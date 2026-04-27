@@ -17,11 +17,12 @@ export const listingLocationSchema = z.object({
 });
 
 export const listingDetailsSchema = z.object({
-	priceUsd: z.number().nonnegative(),
+	priceAmount: z.number().nonnegative(),
+	currencyCode: z.enum(["EUR", "USD"]).default("EUR"),
 	bedrooms: z.number().int().min(0),
 	bathrooms: z.number().int().min(0),
-	squareFeet: z.number().int().positive().optional(),
-	lotSizeSqFt: z.number().int().positive().optional(),
+	interiorAreaSquareMeters: z.number().int().positive().optional(),
+	lotAreaSquareMeters: z.number().int().positive().optional(),
 	yearBuilt: z
 		.number()
 		.int()
@@ -77,6 +78,7 @@ export const listingLocationResolutionSchema = z.object({
 	resolvedAddressLabel: z.string().min(1).optional(),
 	resolverVersion: z.string().min(1, "Resolver version is required"),
 	resolvedAt: z.string().datetime("Resolved date must be a valid ISO datetime"),
+	candidateCount: z.number().int().nonnegative().optional(),
 	reasonCodes: z.array(z.string().min(1)).default([]),
 });
 
@@ -89,6 +91,7 @@ export const listingCreateInputSchema = z
 		sourceMetadata: listingSourceMetadataSchema.optional(),
 		locationResolution: listingLocationResolutionSchema.optional(),
 		location: listingLocationSchema,
+		displayAddressLabel: z.string().min(1).optional(),
 		details: listingDetailsSchema,
 		media: z.array(listingMediaAssetSchema).default([]),
 	})

@@ -33,28 +33,34 @@ import { trpc } from "@/trpc/shared";
 
 const queueFilters: Array<{ value: "all" | ConversationState; label: string }> =
 	[
-		{ value: "all", label: "All" },
-		{ value: "new", label: "New" },
-		{ value: "awaiting_human", label: "Awaiting human" },
-		{ value: "human_active", label: "Human active" },
-		{ value: "closed", label: "Closed" },
-	];
+			{ value: "all", label: "Todos" },
+			{ value: "new", label: "Nuevo" },
+			{ value: "awaiting_human", label: "Necesita persona" },
+			{ value: "human_active", label: "Con persona" },
+			{ value: "closed", label: "Cerrado" },
+		];
 
 const stateLabel: Record<ConversationState, string> = {
-	new: "New",
-	bot_active: "Bot active",
-	awaiting_human: "Awaiting human",
-	human_active: "Human active",
-	closed: "Closed",
+	new: "Nuevo",
+	bot_active: "Casedra responde",
+	awaiting_human: "Necesita persona",
+	human_active: "Con persona",
+	closed: "Cerrado",
 };
 
 const handoffTriggerLabel: Record<string, string> = {
-	low_confidence: "Low confidence",
-	lead_requested_human: "Lead requested human",
-	manual_takeover: "Manual takeover",
-	routing_rule: "Routing rule",
-	manager_reassign: "Manager reassign",
-	other: "Other",
+	low_confidence: "Necesita revisión",
+	lead_requested_human: "El contacto pidió una persona",
+	manual_takeover: "Toma manual",
+	routing_rule: "Regla de reparto",
+	manager_reassign: "Reasignación de responsable",
+	other: "Otro",
+};
+
+const messageDirectionLabel: Record<string, string> = {
+	inbound: "Entrante",
+	outbound: "Saliente",
+	internal: "Interno",
 };
 
 const nextStateOptions = (conversation: {
@@ -74,10 +80,10 @@ const nextStateOptions = (conversation: {
 
 const formatTimestamp = (value: number | null | undefined) => {
 	if (!value) {
-		return "Not yet";
+		return "Todavía no";
 	}
 
-	return new Intl.DateTimeFormat("en-US", {
+	return new Intl.DateTimeFormat("es-ES", {
 		month: "short",
 		day: "numeric",
 		hour: "numeric",
@@ -87,11 +93,11 @@ const formatTimestamp = (value: number | null | undefined) => {
 
 const formatRelativeTime = (value: number | null | undefined) => {
 	if (!value) {
-		return "No activity";
+		return "Sin actividad";
 	}
 
 	const deltaMinutes = Math.round((value - Date.now()) / (60 * 1000));
-	const formatter = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+	const formatter = new Intl.RelativeTimeFormat("es-ES", { numeric: "auto" });
 
 	if (Math.abs(deltaMinutes) < 60) {
 		return formatter.format(deltaMinutes, "minute");
@@ -107,11 +113,11 @@ const formatRelativeTime = (value: number | null | undefined) => {
 };
 
 const feedbackFromError = (error: unknown) =>
-	error instanceof Error ? error.message : "Workflow action failed";
+	error instanceof Error ? error.message : "La acción del flujo ha fallado";
 
 const formatPercent = (value: number | null | undefined) => {
 	if (value === null || value === undefined) {
-		return "Not yet";
+		return "Todavía no";
 	}
 
 	return `${value.toFixed(value % 1 === 0 ? 0 : 1)}%`;
@@ -119,7 +125,7 @@ const formatPercent = (value: number | null | undefined) => {
 
 const formatDuration = (value: number | null | undefined) => {
 	if (value === null || value === undefined) {
-		return "Not yet";
+		return "Todavía no";
 	}
 
 	if (value < 60) {
@@ -328,7 +334,8 @@ export default function InboxScreen() {
 	const reassignMutation = trpc.conversations.reassign.useMutation();
 	const setStateMutation = trpc.conversations.setState.useMutation();
 	const createOutboundMutation = trpc.messages.createOutbound.useMutation();
-	const createInternalNoteMutation = trpc.messages.createInternalNote.useMutation();
+	const createInternalNoteMutation =
+		trpc.messages.createInternalNote.useMutation();
 
 	const handleTakeOver = async () => {
 		if (!conversationDetail) {
@@ -342,7 +349,7 @@ export default function InboxScreen() {
 				expectedVersion: conversationDetail.version,
 			});
 			await invalidateWorkflow(conversationDetail.id);
-			setFeedback("Conversation is now assigned to you.");
+			setFeedback("La conversación está ahora asignada a ti.");
 		} catch (error) {
 			await invalidateWorkflow(conversationDetail.id);
 			setFeedback(feedbackFromError(error));
@@ -362,7 +369,7 @@ export default function InboxScreen() {
 				expectedVersion: conversationDetail.version,
 			});
 			await invalidateWorkflow(conversationDetail.id);
-			setFeedback("Conversation reassigned.");
+			setFeedback("Conversación reasignada.");
 		} catch (error) {
 			await invalidateWorkflow(conversationDetail.id);
 			setFeedback(feedbackFromError(error));
@@ -382,7 +389,7 @@ export default function InboxScreen() {
 				expectedVersion: conversationDetail.version,
 			});
 			await invalidateWorkflow(conversationDetail.id);
-			setFeedback(`Conversation moved to ${stateLabel[pendingState]}.`);
+			setFeedback(`Conversación movida a ${stateLabel[pendingState]}.`);
 		} catch (error) {
 			await invalidateWorkflow(conversationDetail.id);
 			setFeedback(feedbackFromError(error));
@@ -405,13 +412,15 @@ export default function InboxScreen() {
 					id: conversationDetail.id,
 					body: composerBody.trim(),
 				});
-				setFeedback("Reply recorded and conversation ownership updated.");
+				setFeedback(
+					"Respuesta registrada y responsable de conversación actualizado.",
+				);
 			} else {
 				await createInternalNoteMutation.mutateAsync({
 					id: conversationDetail.id,
 					body: composerBody.trim(),
 				});
-				setFeedback("Internal note added.");
+				setFeedback("Nota interna añadida.");
 			}
 			setComposerBody("");
 			await invalidateWorkflow(conversationDetail.id);
@@ -461,8 +470,12 @@ export default function InboxScreen() {
 			conversationDetail.ownerUserId !== currentUserId);
 
 	const showBackButtonOnMobile = Boolean(selectedConversationId);
+	const agencyErrorMessage = agencyQuery.error?.message ?? "";
+	const agencyErrorCode = agencyQuery.error?.data?.code;
 	const missingMembership =
-		agencyQuery.error?.message === "No agency membership is available for this user";
+		agencyErrorCode === "FORBIDDEN" ||
+		agencyErrorCode === "NOT_FOUND" ||
+		/agency.*membership/i.test(agencyErrorMessage);
 	const replyBlockedByOwnership =
 		conversationDetail?.ownerType === "human" &&
 		conversationDetail.ownerUserId !== currentUserId;
@@ -486,7 +499,7 @@ export default function InboxScreen() {
 				<Card className="rounded-[28px] border-border/80 bg-background/95">
 					<CardHeader>
 						<CardTitle className="font-serif text-3xl font-normal">
-							Inbox unavailable
+							Bandeja no disponible
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="space-y-4">
@@ -501,7 +514,7 @@ export default function InboxScreen() {
 											await createWorkspaceMutation.mutateAsync();
 											await agencyQuery.refetch();
 										} catch {
-											// Surface the mutation error below without interrupting the retry flow.
+											// Muestra el error de la mutación abajo sin cortar el reintento.
 										}
 									}}
 									className="rounded-full px-5"
@@ -513,17 +526,17 @@ export default function InboxScreen() {
 											aria-hidden="true"
 										/>
 									) : null}
-									Create workspace
+									Crear espacio de trabajo
 								</Button>
 							) : null}
 							<Button
 								onClick={() => agencyQuery.refetch()}
 								className="rounded-full px-5"
 							>
-								Retry
+								Reintentar
 							</Button>
 							<Button asChild variant="outline" className="rounded-full px-5">
-								<Link href="/app/studio">Back to studio</Link>
+								<Link href="/app/studio">Volver al estudio</Link>
 							</Button>
 						</div>
 						{createWorkspaceMutation.error ? (
@@ -558,16 +571,15 @@ export default function InboxScreen() {
 									className="h-3.5 w-3.5 text-primary"
 									aria-hidden="true"
 								/>
-								Live workflow
+									Bandeja en directo
 							</div>
 							<div>
 								<h1 className="font-serif text-[2.6rem] font-normal leading-tight sm:text-[4.2rem]">
-									Inbox
+									Bandeja
 								</h1>
 								<p className="mt-3 max-w-3xl text-base leading-7 text-muted-foreground">
-									{agency.agency.name} is now running on real workflow records
-									with explicit ownership, handoff history, and transcript
-									state.
+										{agency.agency.name} ya trabaja con conversaciones reales,
+										responsables claros e historial completo.
 								</p>
 							</div>
 						</div>
@@ -575,12 +587,12 @@ export default function InboxScreen() {
 						<div className="flex flex-col gap-4 lg:items-end">
 							<div className="flex items-center gap-3">
 								<Button asChild variant="outline" className="rounded-full px-5">
-									<Link href="/app/studio">Studio preview</Link>
+									<Link href="/app/studio">Vista del estudio</Link>
 								</Button>
 								<UserButton />
 							</div>
 							<p className="text-sm text-muted-foreground">
-								Timezone: {agency.agency.timezone}
+								Zona horaria: {agency.agency.timezone}
 							</p>
 						</div>
 					</div>
@@ -594,7 +606,7 @@ export default function InboxScreen() {
 							</div>
 							<div>
 								<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-									Total queue
+									Cola total
 								</p>
 								<p className="mt-1 text-2xl font-semibold text-foreground">
 									{totalCounts.all}
@@ -609,7 +621,7 @@ export default function InboxScreen() {
 							</div>
 							<div>
 								<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-									Awaiting human
+									Esperando humano
 								</p>
 								<p className="mt-1 text-2xl font-semibold text-foreground">
 									{totalCounts.awaiting_human}
@@ -622,10 +634,10 @@ export default function InboxScreen() {
 							<div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
 								<Users className="h-5 w-5" aria-hidden="true" />
 							</div>
-							<div>
-								<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-									Human active
-								</p>
+								<div>
+									<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+										Con persona
+									</p>
 								<p className="mt-1 text-2xl font-semibold text-foreground">
 									{totalCounts.human_active}
 								</p>
@@ -639,7 +651,7 @@ export default function InboxScreen() {
 							</div>
 							<div>
 								<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-									Closed cleanly
+									Cerradas correctamente
 								</p>
 								<p className="mt-1 text-2xl font-semibold text-foreground">
 									{totalCounts.closed}
@@ -657,7 +669,7 @@ export default function InboxScreen() {
 							</div>
 							<div>
 								<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-									Median first response
+									Mediana primera respuesta
 								</p>
 								<p className="mt-1 text-2xl font-semibold text-foreground">
 									{formatDuration(
@@ -675,7 +687,7 @@ export default function InboxScreen() {
 							</div>
 							<div>
 								<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-									Response coverage
+									Cobertura de respuesta
 								</p>
 								<p className="mt-1 text-2xl font-semibold text-foreground">
 									{formatPercent(
@@ -693,7 +705,7 @@ export default function InboxScreen() {
 							</div>
 							<div>
 								<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-									Handoff rate
+									Tasa de traspaso
 								</p>
 								<p className="mt-1 text-2xl font-semibold text-foreground">
 									{formatPercent(
@@ -711,7 +723,7 @@ export default function InboxScreen() {
 							</div>
 							<div>
 								<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-									Reopened after close
+									Reabiertas tras cierre
 								</p>
 								<p className="mt-1 text-2xl font-semibold text-foreground">
 									{formatPercent(
@@ -738,11 +750,11 @@ export default function InboxScreen() {
 							<div className="flex items-center justify-between gap-3">
 								<div>
 									<CardTitle className="font-serif text-[2rem] font-normal leading-tight">
-										Queue
+										Cola
 									</CardTitle>
 									<p className="mt-2 text-sm leading-6 text-muted-foreground">
-										Every inbound conversation with explicit state and
-										ownership.
+										Cada conversación entrante con estado y responsable
+										explícitos.
 									</p>
 								</div>
 								<Button
@@ -750,7 +762,7 @@ export default function InboxScreen() {
 									size="icon"
 									className="rounded-full"
 									onClick={() => conversationsQuery.refetch()}
-									aria-label="Refresh queue"
+									aria-label="Actualizar cola"
 								>
 									<RefreshCcw className="h-4 w-4" aria-hidden="true" />
 								</Button>
@@ -795,7 +807,7 @@ export default function InboxScreen() {
 												className="rounded-full px-4"
 												onClick={() => conversationsQuery.refetch()}
 											>
-												Retry queue
+												Reintentar cola
 											</Button>
 										</div>
 									</div>
@@ -803,12 +815,12 @@ export default function InboxScreen() {
 							) : !visibleConversations.length ? (
 								<div className="rounded-[24px] border border-border/80 bg-secondary/55 p-6">
 									<p className="text-sm font-medium text-foreground">
-										No conversations here yet.
+										Todavía no hay conversaciones aquí.
 									</p>
 									<p className="mt-2 text-sm leading-6 text-muted-foreground">
 										{filterState === "all"
-											? "Bootstrap data or live ingestion will show up here."
-											: `There are no conversations in ${queueFilters.find((filter) => filter.value === filterState)?.label.toLowerCase()}.`}
+											? "Los datos iniciales o la ingestión en directo aparecerán aquí."
+											: `No hay conversaciones en ${queueFilters.find((filter) => filter.value === filterState)?.label.toLowerCase()}.`}
 									</p>
 								</div>
 							) : (
@@ -840,7 +852,7 @@ export default function InboxScreen() {
 
 											<p className="text-sm leading-6 text-foreground/90">
 												{conversation.summary ??
-													"No summary yet. Open the thread to review context."}
+													"Todavía no hay resumen. Abre el hilo para revisar el contexto."}
 											</p>
 
 											<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -878,11 +890,12 @@ export default function InboxScreen() {
 									/>
 									<div className="space-y-2">
 										<p className="font-serif text-3xl font-normal">
-											Select a conversation
+											Selecciona una conversación
 										</p>
 										<p className="max-w-md text-sm leading-6 text-muted-foreground">
-											Pick any queue item to inspect the transcript, see
-											ownership history, and act on the thread.
+											Elige cualquier elemento de la cola para revisar la
+											transcripción, ver el historial de responsables y actuar
+											sobre el hilo.
 										</p>
 									</div>
 								</CardContent>
@@ -899,7 +912,7 @@ export default function InboxScreen() {
 										/>
 										<div>
 											<p className="text-sm font-medium text-foreground">
-												Thread failed to load
+												No se pudo cargar el hilo
 											</p>
 											<p className="mt-2 text-sm leading-6 text-muted-foreground">
 												{conversationDetailQuery.error?.message ??
@@ -915,7 +928,7 @@ export default function InboxScreen() {
 											void messagesQuery.refetch();
 										}}
 									>
-										Retry thread
+										Reintentar hilo
 									</Button>
 								</CardContent>
 							</Card>
@@ -935,7 +948,7 @@ export default function InboxScreen() {
 															className="mr-2 h-4 w-4"
 															aria-hidden="true"
 														/>
-														Back
+														Volver
 													</Button>
 												) : null}
 												<div>
@@ -954,36 +967,36 @@ export default function InboxScreen() {
 										<div className="grid gap-3 md:grid-cols-3">
 											<div className="rounded-[22px] border border-border/80 bg-secondary/45 p-4">
 												<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-													Owner
+													Responsable
 												</p>
 												<p className="mt-2 text-base font-semibold text-foreground">
 													{conversationDetail.ownerLabel}
 												</p>
 												<p className="mt-1 text-sm text-muted-foreground">
 													{conversationDetail.activeAssignment?.reason ??
-														"Current owner comes from conversation state."}
+														"El responsable actual viene del estado de la conversación."}
 												</p>
 											</div>
 											<div className="rounded-[22px] border border-border/80 bg-secondary/45 p-4">
 												<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-													Last activity
+													Última actividad
 												</p>
 												<p className="mt-2 text-base font-semibold text-foreground">
 													{formatRelativeTime(conversationDetail.lastMessageAt)}
 												</p>
 												<p className="mt-1 text-sm text-muted-foreground">
-													Updated{" "}
+													Actualizado{" "}
 													{formatTimestamp(conversationDetail.lastMessageAt)}
 												</p>
 											</div>
 											<div className="rounded-[22px] border border-border/80 bg-secondary/45 p-4">
 												<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-													First response
+													Primera respuesta
 												</p>
 												<p className="mt-2 text-base font-semibold text-foreground">
 													{conversationDetail.firstResponseAt
-														? "Recorded"
-														: "Pending"}
+														? "Registrada"
+														: "Pendiente"}
 												</p>
 												<p className="mt-1 text-sm text-muted-foreground">
 													{formatTimestamp(conversationDetail.firstResponseAt)}
@@ -997,20 +1010,20 @@ export default function InboxScreen() {
 											<div className="space-y-4">
 												<div className="rounded-[24px] border border-border/80 bg-background p-5">
 													<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-														Summary
+														Resumen
 													</p>
 													<p className="mt-3 text-sm leading-7 text-foreground/90">
 														{conversationDetail.summary ??
-															"No summary yet. The transcript is still the source of truth."}
+															"Todavía no hay resumen. La transcripción sigue siendo la fuente de verdad."}
 													</p>
 												</div>
 												<div className="rounded-[24px] border border-border/80 bg-background p-5">
 													<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-														Next recommended step
+														Siguiente paso recomendado
 													</p>
 													<p className="mt-3 text-sm leading-7 text-foreground/90">
 														{conversationDetail.nextRecommendedStep ??
-															"No recommendation has been stored yet."}
+															"Todavía no hay ninguna recomendación guardada."}
 													</p>
 												</div>
 											</div>
@@ -1018,34 +1031,34 @@ export default function InboxScreen() {
 											<div className="space-y-4">
 												<div className="rounded-[24px] border border-border/80 bg-background p-5">
 													<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-														Contact
+														Contacto
 													</p>
 													<div className="mt-3 space-y-2 text-sm text-foreground/90">
 														<p>
 															{conversationDetail.contact?.email ??
-																"No email recorded"}
+																"No hay correo registrado"}
 														</p>
 														<p>
 															{conversationDetail.contact?.phone ??
-																"No phone recorded"}
+																"No hay teléfono registrado"}
 														</p>
 														<p>
-															Lead type:{" "}
+															Tipo de contacto:{" "}
 															{conversationDetail.lead?.kind.replaceAll(
 																"_",
 																" ",
-															) ?? "Unknown"}
+															) ?? "Desconocido"}
 														</p>
 													</div>
 												</div>
 												<div className="rounded-[24px] border border-border/80 bg-background p-5">
 													<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-														Latest handoff
+														Último traspaso
 													</p>
 													<p className="mt-3 text-sm leading-7 text-foreground/90">
 														{conversationDetail.latestHandoff
-															? `${handoffTriggerLabel[conversationDetail.latestHandoff.trigger] ?? conversationDetail.latestHandoff.trigger} moved this thread from ${conversationDetail.latestHandoff.fromLabel} to ${conversationDetail.latestHandoff.toLabel}.`
-															: "No handoff event recorded yet."}
+															? `${handoffTriggerLabel[conversationDetail.latestHandoff.trigger] ?? conversationDetail.latestHandoff.trigger} movió este hilo de ${conversationDetail.latestHandoff.fromLabel} a ${conversationDetail.latestHandoff.toLabel}.`
+															: "Todavía no hay traspasos registrados."}
 													</p>
 												</div>
 											</div>
@@ -1054,7 +1067,7 @@ export default function InboxScreen() {
 										<div className="grid gap-4 rounded-[24px] border border-border/80 bg-secondary/45 p-5 lg:grid-cols-[auto_auto_1fr]">
 											<div className="space-y-2">
 												<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-													Takeover
+													Toma de control
 												</p>
 												<Button
 													className="rounded-full px-5"
@@ -1073,14 +1086,14 @@ export default function InboxScreen() {
 													)}
 													{conversationDetail.ownerUserId === currentUserId &&
 													conversationDetail.state === "human_active"
-														? "You own this thread"
-														: "Take over"}
+														? "Este hilo es tuyo"
+														: "Tomar control"}
 												</Button>
 											</div>
 
 											<div className="space-y-2">
 												<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-													Reassign
+													Reasignar
 												</p>
 												<div className="flex flex-wrap gap-2">
 													<select
@@ -1127,14 +1140,14 @@ export default function InboxScreen() {
 																aria-hidden="true"
 															/>
 														)}
-														Reassign
+														Reasignar
 													</Button>
 												</div>
 											</div>
 
 											<div className="space-y-2">
 												<p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-													State
+													Estado
 												</p>
 												<div className="flex flex-wrap gap-2">
 													<select
@@ -1158,7 +1171,7 @@ export default function InboxScreen() {
 																),
 															)
 														) : (
-															<option value="">No valid transition</option>
+															<option value="">Sin transición válida</option>
 														)}
 													</select>
 													<Button
@@ -1180,7 +1193,7 @@ export default function InboxScreen() {
 																aria-hidden="true"
 															/>
 														)}
-														Update state
+														Actualizar estado
 													</Button>
 												</div>
 											</div>
@@ -1192,7 +1205,7 @@ export default function InboxScreen() {
 									<CardHeader className="space-y-4">
 										<div className="flex flex-wrap items-center justify-between gap-3">
 											<CardTitle className="font-serif text-[2rem] font-normal leading-tight">
-												Write
+												Escribir
 											</CardTitle>
 											<div className="flex flex-wrap gap-2">
 												<button
@@ -1205,7 +1218,7 @@ export default function InboxScreen() {
 															: "border-border bg-background text-muted-foreground hover:text-foreground",
 													)}
 												>
-													Reply
+													Respuesta
 												</button>
 												<button
 													type="button"
@@ -1217,14 +1230,14 @@ export default function InboxScreen() {
 															: "border-border bg-background text-muted-foreground hover:text-foreground",
 													)}
 												>
-													Internal note
+													Nota interna
 												</button>
 											</div>
 										</div>
 										<p className="text-sm leading-6 text-muted-foreground">
 											{composerMode === "reply"
-												? "A human reply records first response timing when needed and claims ownership of the thread."
-												: "Internal notes stay in the transcript without counting as a customer response."}
+												? "Una respuesta humana registra el tiempo de primera respuesta cuando hace falta y toma la responsabilidad del hilo."
+												: "Las notas internas quedan en la transcripción sin contar como respuesta al cliente."}
 										</p>
 									</CardHeader>
 									<CardContent className="space-y-4">
@@ -1233,22 +1246,21 @@ export default function InboxScreen() {
 											onChange={(event) => setComposerBody(event.target.value)}
 											placeholder={
 												composerMode === "reply"
-													? "Write the reply you want this lead to receive."
-													: "Add context for the next teammate."
+													? "Escribe la respuesta que quieres que reciba este contacto."
+													: "Añade contexto para la siguiente persona del equipo."
 											}
 											className="min-h-[140px] rounded-[24px] border-border/80 px-4 py-4"
 										/>
 										<div className="flex flex-wrap items-center justify-between gap-3">
 											<p className="text-sm text-muted-foreground">
-												{replyBlockedByOwnership &&
-												composerMode === "reply"
-													? "Replies are blocked until the current owner hands this thread off or a manager reassigns it."
-													: conversationDetail.state === "closed" &&
-															composerMode === "reply"
-													? "Closed conversations need to be reopened by new inbound activity before replying."
-													: composerMode === "reply"
-														? "Replying from here marks the thread as human active."
-														: "Notes are visible to your agency only."}
+												{replyBlockedByOwnership && composerMode === "reply"
+													? "Las respuestas están bloqueadas hasta que el responsable actual traspase este hilo o un responsable lo reasigne."
+														: conversationDetail.state === "closed" &&
+																composerMode === "reply"
+															? "Las conversaciones cerradas necesitan una nueva actividad entrante antes de poder responder."
+															: composerMode === "reply"
+																? "Responder desde aquí deja el hilo en manos del equipo."
+																: "Las notas solo son visibles para tu agencia."}
 											</p>
 											<Button
 												className="rounded-full px-5"
@@ -1266,7 +1278,9 @@ export default function InboxScreen() {
 														aria-hidden="true"
 													/>
 												) : null}
-												{composerMode === "reply" ? "Send reply" : "Save note"}
+												{composerMode === "reply"
+													? "Enviar respuesta"
+													: "Guardar nota"}
 											</Button>
 										</div>
 									</CardContent>
@@ -1275,7 +1289,7 @@ export default function InboxScreen() {
 								<Card className="rounded-[30px] border-border/80 bg-background/95 shadow-[0_24px_70px_rgba(31,26,20,0.06)]">
 									<CardHeader>
 										<CardTitle className="font-serif text-[2rem] font-normal leading-tight">
-											Transcript
+											Transcripción
 										</CardTitle>
 									</CardHeader>
 									<CardContent className="space-y-4">
@@ -1298,7 +1312,8 @@ export default function InboxScreen() {
 															{message.senderLabel}
 														</p>
 														<p className="mt-1 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-															{message.direction}
+															{messageDirectionLabel[message.direction] ??
+																message.direction}
 														</p>
 													</div>
 													<p className="text-xs text-muted-foreground">

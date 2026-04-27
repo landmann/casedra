@@ -16,9 +16,12 @@ type ConvexListing = {
 	_id: string;
 	title: string;
 	details: {
-		priceUsd: number;
+		priceAmount?: number;
+		currencyCode?: "EUR" | "USD";
+		priceUsd?: number;
 		bedrooms: number;
 		bathrooms: number;
+		interiorAreaSquareMeters?: number;
 		squareFeet?: number;
 		description: string;
 	};
@@ -65,7 +68,12 @@ const buildPrompt = (
 	listing: ConvexListing,
 	kind: MediaGenerationRequest["kind"],
 ) => {
-	const base = `${listing.title} located in ${listing.location.city}, ${listing.location.stateOrProvince}. ${listing.details.bedrooms} bedrooms, ${listing.details.bathrooms} bathrooms, ${listing.details.squareFeet ?? "unknown"} interior size. ${listing.details.description}`;
+	const interiorSize = listing.details.interiorAreaSquareMeters
+		? `${listing.details.interiorAreaSquareMeters} square meters`
+		: listing.details.squareFeet
+			? `${listing.details.squareFeet} square feet`
+			: "unknown interior size";
+	const base = `${listing.title} located in ${listing.location.city}, ${listing.location.stateOrProvince}. ${listing.details.bedrooms} bedrooms, ${listing.details.bathrooms} bathrooms, ${interiorSize}. ${listing.details.description}`;
 
 	switch (kind) {
 		case "social_graphic":

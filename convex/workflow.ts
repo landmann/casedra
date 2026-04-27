@@ -254,6 +254,57 @@ const getPortalEmailChannelId = async (
 	});
 };
 
+const getWhatsAppChannelId = async (
+	ctx: MutationCtx,
+	agencyId: Id<"agencies">,
+	args: {
+		externalChannelId: string;
+		label?: string;
+		provider?: string;
+	},
+): Promise<Id<"channels">> => {
+	const channels = await ctx.db
+		.query("channels")
+		.withIndex("by_agency_and_external_id", (q) =>
+			q.eq("agencyId", agencyId).eq("externalChannelId", args.externalChannelId),
+		)
+		.collect();
+
+	const existingChannel = channels.find(
+		(channel) => channel.type === "whatsapp",
+	);
+
+	if (existingChannel) {
+		const updates: Partial<Doc<"channels">> = {};
+		if (args.label && existingChannel.label !== args.label) {
+			updates.label = args.label;
+		}
+		if (args.provider && existingChannel.provider !== args.provider) {
+			updates.provider = args.provider;
+		}
+		if (Object.keys(updates).length > 0) {
+			await ctx.db.patch(existingChannel._id, {
+				...updates,
+				updatedAt: Date.now(),
+			});
+		}
+
+		return existingChannel._id;
+	}
+
+	const now = Date.now();
+	return ctx.db.insert("channels", {
+		agencyId,
+		type: "whatsapp",
+		label: args.label ?? `WhatsApp ${args.externalChannelId}`,
+		status: "active",
+		provider: args.provider ?? "twilio_whatsapp",
+		externalChannelId: args.externalChannelId,
+		createdAt: now,
+		updatedAt: now,
+	});
+};
+
 const findOrCreateContact = async (
 	ctx: MutationCtx,
 	agencyId: Id<"agencies">,
@@ -359,6 +410,44 @@ const findPortalEmailConversation = async (
 				}
 
 				return true;
+			})
+			.sort((a, b) => {
+				if (a.state === "closed" && b.state !== "closed") {
+					return 1;
+				}
+
+				if (a.state !== "closed" && b.state === "closed") {
+					return -1;
+				}
+
+				return byNewestMessage(a, b);
+			})[0] ?? null
+	);
+};
+
+const findWhatsAppConversation = async (
+	ctx: MutationCtx,
+	args: {
+		agencyId: Id<"agencies">;
+		channelId: Id<"channels">;
+		contactId: Id<"contacts">;
+	},
+) => {
+	const channelConversations = await ctx.db
+		.query("conversations")
+		.withIndex("by_channel", (q) =>
+			q.eq("agencyId", args.agencyId).eq("channelId", args.channelId),
+		)
+		.collect();
+
+	return (
+		channelConversations
+			.filter((conversation) => {
+				if (conversation.sourceType !== "whatsapp") {
+					return false;
+				}
+
+				return conversation.contactId === args.contactId;
 			})
 			.sort((a, b) => {
 				if (a.state === "closed" && b.state !== "closed") {
@@ -1226,6 +1315,179 @@ export const ingestPortalEmail = mutation({
 			body: args.message.subject
 				? `${args.message.subject}\n\n${args.message.body}`.trim()
 				: args.message.body,
+			bodyFormat: "plain_text",
+			providerMessageId: args.message.providerMessageId,
+			externalEventId: args.message.externalEventId,
+			dedupeKey: args.message.dedupeKey,
+			sentAt: args.message.sentAt,
+			metadata: args.message.metadata,
+			createdAt: now,
+		});
+
+		return {
+			deduped: false,
+			conversationId: conversation._id,
+			messageId,
+		};
+	},
+});
+
+export const ingestWhatsAppMessage = mutation({
+	args: {
+		agencySlug: v.string(),
+		channel: v.object({
+			externalChannelId: v.string(),
+			label: v.string(),
+			provider: v.string(),
+		}),
+		contact: v.object({
+			kind: contactKindValidator,
+			fullName: v.optional(v.string()),
+			phone: v.string(),
+			preferredLanguage: v.optional(v.string()),
+			notes: v.optional(v.string()),
+		}),
+		lead: v.object({
+			kind: leadKindValidator,
+			sourceLabel: v.string(),
+			rawPayload: v.optional(v.any()),
+		}),
+		message: v.object({
+			body: v.string(),
+			sentAt: v.number(),
+			dedupeKey: v.string(),
+			providerMessageId: v.string(),
+			externalEventId: v.optional(v.string()),
+			metadata: v.optional(v.any()),
+		}),
+	},
+	handler: async (ctx, args) => {
+		const agency = await ctx.db
+			.query("agencies")
+			.withIndex("by_slug", (q) => q.eq("slug", args.agencySlug))
+			.unique();
+		if (!agency) {
+			raiseWorkflowError("NOT_FOUND", "Agency not found for WhatsApp ingestion");
+		}
+
+		const agencyId = agency!._id;
+		const existingMessage = await ctx.db
+			.query("messages")
+			.withIndex("by_dedupe_key", (q) =>
+				q.eq("agencyId", agencyId).eq("dedupeKey", args.message.dedupeKey),
+			)
+			.unique();
+
+		if (existingMessage) {
+			return {
+				deduped: true,
+				conversationId: existingMessage.conversationId,
+				messageId: existingMessage._id,
+			};
+		}
+
+		const now = Date.now();
+		const channelId = await getWhatsAppChannelId(ctx, agencyId, {
+			externalChannelId: args.channel.externalChannelId,
+			label: args.channel.label,
+			provider: args.channel.provider,
+		});
+		const contactId = await findOrCreateContact(ctx, agencyId, args.contact);
+		let conversation = await findWhatsAppConversation(ctx, {
+			agencyId,
+			channelId,
+			contactId,
+		});
+		let lead = conversation ? await ctx.db.get(conversation.leadId) : null;
+
+		if (!lead) {
+			const leadId = await ctx.db.insert("leads", {
+				agencyId,
+				contactId,
+				channelId,
+				kind: args.lead.kind,
+				sourceType: "whatsapp",
+				sourceLabel: args.lead.sourceLabel,
+				status: "new",
+				receivedAt: args.message.sentAt,
+				rawPayload: args.lead.rawPayload,
+				createdAt: now,
+				updatedAt: now,
+			});
+
+			const conversationId = await ctx.db.insert("conversations", {
+				agencyId,
+				leadId,
+				contactId,
+				channelId,
+				state: "new",
+				ownerType: "unassigned",
+				version: 1,
+				sourceType: "whatsapp",
+				sourceLabel: args.lead.sourceLabel,
+				lastInboundAt: args.message.sentAt,
+				lastMessageAt: args.message.sentAt,
+				createdAt: now,
+				updatedAt: now,
+			});
+			conversation = await getConversationDocOrThrow(ctx, conversationId);
+			lead = await ctx.db.get(leadId);
+		} else {
+			await ctx.db.patch(lead._id, {
+				contactId,
+				channelId,
+				status: "active",
+				rawPayload: args.lead.rawPayload ?? lead.rawPayload,
+				updatedAt: now,
+			});
+
+			const updates: Partial<Doc<"conversations">> = {
+				contactId,
+				channelId,
+				sourceLabel: args.lead.sourceLabel,
+				lastInboundAt: Math.max(
+					conversation?.lastInboundAt ?? 0,
+					args.message.sentAt,
+				),
+				lastMessageAt: Math.max(
+					conversation?.lastMessageAt ?? 0,
+					args.message.sentAt,
+				),
+				updatedAt: now,
+				version: (conversation?.version ?? 0) + 1,
+			};
+
+			if (conversation?.state === "closed") {
+				await closeActiveAssignments(ctx, conversation._id, now);
+				await ctx.db.insert("messages", {
+					agencyId,
+					conversationId: conversation._id,
+					direction: "internal",
+					senderType: "system",
+					body: "Conversation reopened after new inbound WhatsApp activity.",
+					bodyFormat: "plain_text",
+					sentAt: Math.max(args.message.sentAt - 1, 0),
+					createdAt: now,
+				});
+				updates.state = "new";
+				updates.ownerType = "unassigned";
+				updates.ownerUserId = undefined;
+				updates.reopenedAt = args.message.sentAt;
+				updates.closedAt = undefined;
+			}
+
+			if (conversation) {
+				await ctx.db.patch(conversation._id, updates);
+				conversation = await getConversationDocOrThrow(ctx, conversation._id);
+			}
+		}
+
+		const messageId = await ctx.db.insert("messages", {
+			agencyId,
+			conversationId: conversation._id,
+			direction: "inbound",
+			senderType: "lead",
+			body: args.message.body,
 			bodyFormat: "plain_text",
 			providerMessageId: args.message.providerMessageId,
 			externalEventId: args.message.externalEventId,

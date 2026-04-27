@@ -2,11 +2,10 @@ import type { IdealistaSignals } from "@casedra/types";
 
 import {
 	buildSearchRadii,
+	classifyLocalizaCandidateOutcome,
 	convertWgs84ToWebMercator,
 } from "./score";
 import {
-	BUILDING_MATCH_THRESHOLD,
-	EXACT_MATCH_THRESHOLD,
 	MIN_VIABLE_SCORE,
 	buildPrefillLocation,
 	buildResolvedOfficialResolution,
@@ -544,23 +543,19 @@ export const resolveBizkaiaCatastro = async (input: {
 	}
 
 	const [topCandidate, secondCandidate] = viableCandidates;
-	const scoreGap = Number(
-		(
-			topCandidate.candidate.score - (secondCandidate?.candidate.score ?? 0)
-		).toFixed(2),
-	);
 	const hasStreetLevelProof =
 		topCandidate.matchedSignals.includes("street_name_match");
 	const hasDesignatorProof =
 		topCandidate.matchedSignals.includes("portal_hint_match") ||
 		topCandidate.matchedSignals.includes("designator_match");
+	const outcome = classifyLocalizaCandidateOutcome({
+		topScore: topCandidate.candidate.score,
+		secondScore: secondCandidate?.candidate.score,
+		hasStreetLevelProof,
+		hasDesignatorProof,
+	});
 
-	if (
-		topCandidate.candidate.score >= EXACT_MATCH_THRESHOLD &&
-		scoreGap >= 0.12 &&
-		hasStreetLevelProof &&
-		hasDesignatorProof
-	) {
+	if (outcome.status === "exact_match") {
 		return buildResolvedOfficialResolution({
 			status: "exact_match",
 			territoryAdapter: "bizkaia_catastro",
@@ -569,15 +564,12 @@ export const resolveBizkaiaCatastro = async (input: {
 			candidates: viableCandidates,
 			extraReasonCodes: [
 				"bizkaia_catastro_exact_match",
-				`score_gap_${scoreGap}`,
+				`score_gap_${outcome.scoreGap}`,
 			],
 		});
 	}
 
-	if (
-		topCandidate.candidate.score >= BUILDING_MATCH_THRESHOLD &&
-		scoreGap >= 0.12
-	) {
+	if (outcome.status === "building_match") {
 		return buildResolvedOfficialResolution({
 			status: "building_match",
 			territoryAdapter: "bizkaia_catastro",
@@ -586,7 +578,7 @@ export const resolveBizkaiaCatastro = async (input: {
 			candidates: viableCandidates,
 			extraReasonCodes: [
 				"bizkaia_catastro_building_match",
-				`score_gap_${scoreGap}`,
+				`score_gap_${outcome.scoreGap}`,
 			],
 		});
 	}
@@ -599,7 +591,7 @@ export const resolveBizkaiaCatastro = async (input: {
 		candidates: viableCandidates,
 		extraReasonCodes: [
 			"bizkaia_catastro_confirmation_required",
-			`score_gap_${scoreGap}`,
+			`score_gap_${outcome.scoreGap}`,
 		],
 	});
 };

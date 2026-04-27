@@ -541,7 +541,7 @@ const seedDefaultWorkspace = async (
 export const getCurrentAgencyForUser = query({
 	args: {},
 	handler: async (ctx) => {
-		const { userId } = await requireCurrentMembership(ctx);
+		const userId = await requireAuthenticatedUserId(ctx);
 		return loadCurrentAgencyForUser(ctx, userId);
 	},
 });

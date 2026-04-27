@@ -1,4 +1,5 @@
 import { ClerkProvider } from "@clerk/nextjs";
+import { esES } from "@clerk/localizations";
 import { cn } from "@casedra/ui";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
@@ -26,7 +27,7 @@ const fontSerif = Instrument_Serif({
 export const metadata: Metadata = {
 	title: "Casedra",
 	description:
-		"Casedra is the independent revenue OS for real-estate agencies: response control, live workflow, and seller-side proof.",
+		"Casedra ayuda a agencias inmobiliarias a responder antes, repartir mejor y demostrar el trabajo hecho.",
 	icons: {
 		icon: "/favicon.svg",
 		shortcut: "/favicon.svg",
@@ -40,8 +41,9 @@ export default function RootLayout({
 	children: React.ReactNode;
 }>) {
 	return (
-		<html lang="en" suppressHydrationWarning>
+		<html lang="es" suppressHydrationWarning>
 			<body
+				suppressHydrationWarning
 				className={cn(
 					"min-h-screen bg-background font-sans text-foreground",
 					fontSans.variable,
@@ -49,7 +51,7 @@ export default function RootLayout({
 					fontSerif.variable,
 				)}
 			>
-				<ClerkProvider signInUrl="/sign-in">
+				<ClerkProvider signInUrl="/sign-in" localization={esES}>
 					<Providers>{children}</Providers>
 				</ClerkProvider>
 			</body>

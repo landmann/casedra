@@ -37,6 +37,28 @@
     }
   },
   "resources": {
+    "clerk-auth": {
+      "configuration": {},
+      "createdAt": "2026-04-17T11:00:13.541Z",
+      "lastRevealedAt": null,
+      "lastStatus": "complete",
+      "name": "clerk-auth",
+      "providerId": "prvdr_61UGOeSW4e0T9Etwn537w",
+      "providerName": "Clerk",
+      "resourceId": "fres_61UWY5VyVcJrPm2Lo16UWII2PVFIRKdrcCTDbnJA08gi",
+      "serviceId": "auth"
+    },
+    "clerk-plan": {
+      "name": "clerk-plan",
+      "providerId": "prvdr_61UGOeSW4e0T9Etwn537w",
+      "providerName": "Clerk",
+      "serviceId": "hobby",
+      "resourceId": "fres_61UWY5S5N33k8IfFa16UWII2PVFIRKdrcCTDbnJA0NOq",
+      "createdAt": "2026-04-17T11:00:10.422Z",
+      "lastStatus": "complete",
+      "lastRevealedAt": null,
+      "configuration": {}
+    },
     "firecrawl-api": {
       "configuration": {},
       "createdAt": "2026-04-23T14:05:34.236Z",

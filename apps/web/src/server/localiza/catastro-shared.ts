@@ -12,13 +12,17 @@ import {
 	distanceBetweenPoints,
 	formatPostalCode,
 	humanizeStreetName,
+	LOCALIZA_BUILDING_MATCH_THRESHOLD,
+	LOCALIZA_EXACT_MATCH_THRESHOLD,
+	LOCALIZA_MIN_VIABLE_SCORE,
 	normalizeLocalizaText,
+	provinceNamesMatch,
 } from "./score";
 import type { LocalizaOfficialResolution } from "./types";
 
-export const MIN_VIABLE_SCORE = 0.45;
-export const BUILDING_MATCH_THRESHOLD = 0.75;
-export const EXACT_MATCH_THRESHOLD = 0.9;
+export const MIN_VIABLE_SCORE = LOCALIZA_MIN_VIABLE_SCORE;
+export const BUILDING_MATCH_THRESHOLD = LOCALIZA_BUILDING_MATCH_THRESHOLD;
+export const EXACT_MATCH_THRESHOLD = LOCALIZA_EXACT_MATCH_THRESHOLD;
 
 export interface OfficialCandidateRecord {
 	id: string;
@@ -127,14 +131,7 @@ const provinceMatchesHint = (
 		return true;
 	}
 
-	const normalizedProvince = normalizeLocalizaText(provinceName);
-	const normalizedHint = normalizeLocalizaText(provinceHint);
-
-	if (!normalizedProvince || !normalizedHint) {
-		return false;
-	}
-
-	return normalizedProvince === normalizedHint;
+	return provinceNamesMatch(provinceName, provinceHint);
 };
 
 export const scoreOfficialCandidate = (input: {

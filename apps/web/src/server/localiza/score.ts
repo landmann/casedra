@@ -224,13 +224,19 @@ export const buildListingSignalCorpus = (signals: IdealistaSignals) =>
   );
 
 export const buildSearchRadii = (mapPrecisionMeters?: number) => {
-  const base = Math.min(Math.max(mapPrecisionMeters ?? 35, 20), 120);
+  const base = Math.min(Math.max(mapPrecisionMeters ?? 35, 20), 350);
   return dedupeNumbers([
     Math.round(base * 0.8),
     Math.round(base * 1.6),
     Math.round(base * 3.2),
+    Math.min(Math.max(Math.round(base * 6.4), 600), 1500),
   ]).filter((radius) => radius > 0);
 };
+
+export const hasStreetNameHint = (value?: string) =>
+  /\b(calle|avenida|avda|paseo|plaza|camino|carretera|ronda|travesia|carrer|rua|kale|etorbidea)\s+[a-z0-9]/.test(
+    normalizeLocalizaText(value)
+  );
 
 const dedupeNumbers = (values: number[]) => Array.from(new Set(values));
 

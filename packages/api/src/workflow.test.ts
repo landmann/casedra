@@ -62,7 +62,7 @@ const buildListingCreateInput = (overrides: Record<string, unknown> = {}) => ({
 		status: "exact_match",
 		confidenceScore: 0.96,
 		officialSource: "Direccion General del Catastro",
-		resolverVersion: "localiza-bootstrap-2026-04-23.2",
+		resolverVersion: "localiza-bootstrap-2026-04-23.3",
 		resolvedAt: "2026-04-24T00:00:00.000Z",
 		reasonCodes: ["listing_id_parsed", "state_catastro_exact_match"],
 	},
@@ -99,7 +99,7 @@ const buildReadyListingDraft = (overrides: Record<string, unknown> = {}) => ({
 		status: "exact_match",
 		confidenceScore: 0.96,
 		officialSource: "Direccion General del Catastro",
-		resolverVersion: "localiza-bootstrap-2026-04-23.2",
+		resolverVersion: "localiza-bootstrap-2026-04-23.3",
 		resolvedAt: "2026-04-24T00:00:00.000Z",
 		reasonCodes: ["listing_id_parsed", "state_catastro_exact_match"],
 	},
@@ -300,7 +300,7 @@ test("clearLocationAfterFailedResolve preserves manual overrides after a failed 
 				status: "manual_override",
 				confidenceScore: 0.96,
 				officialSource: "Direccion General del Catastro",
-				resolverVersion: "localiza-bootstrap-2026-04-23.2",
+				resolverVersion: "localiza-bootstrap-2026-04-23.3",
 				resolvedAt: "2026-04-24T00:00:00.000Z",
 				reasonCodes: ["manual_address_override"],
 			},
@@ -338,19 +338,19 @@ test("buildLocalizaStrategyOptions includes Auto plus configured explicit strate
 		[
 			{
 				value: "auto",
-				label: "Auto",
+				label: "Automático",
 				description:
-					"Use the best available method first, then let the user retry explicitly if needed.",
+					"Usa el mejor camino disponible para encontrar la dirección.",
 			},
 			{
 				value: "firecrawl",
-				label: "Firecrawl",
-				description: "Rendered extraction path for user-submitted URLs.",
+				label: "Leer enlace",
+				description: "Lee la URL que pegues y rellena lo que pueda confirmar.",
 			},
 			{
 				value: "browser_worker",
-				label: "Browser worker",
-				description: "Browserbase-backed fallback for tough pages.",
+				label: "Segundo intento",
+				description: "Prueba otra lectura cuando el primer intento no basta.",
 			},
 		],
 	);
@@ -490,7 +490,7 @@ test("canCompleteLocationResolutionLease rejects stale resolver completions", ()
 });
 
 test("Localiza golden fixture registry covers all supported cadastral territories", () => {
-	assert.equal(LOCALIZA_RESOLVER_VERSION, "localiza-bootstrap-2026-04-23.2");
+	assert.equal(LOCALIZA_RESOLVER_VERSION, "localiza-bootstrap-2026-04-23.7");
 	assert.equal(
 		LOCALIZA_RESOLVER_VERSION_POLICY,
 		"stable-bootstrap-date-plus-patch",
@@ -571,6 +571,20 @@ test("Localiza metrics snapshot aggregates operator health and false-positive in
 					evidence: {
 						actualAcquisitionMethod: "firecrawl",
 						reasonCodes: ["outside_window"],
+					},
+				},
+			},
+			{
+				updatedAt: now - 90_000,
+				lastAttemptAt: now - 95_000,
+				lastCompletedAt: now - 90_000,
+				errorCode: "state_catastro_timeout",
+				result: {
+					status: "unresolved",
+					territoryAdapter: "state_catastro",
+					evidence: {
+						actualAcquisitionMethod: "firecrawl",
+						reasonCodes: ["state_catastro_timeout"],
 					},
 				},
 			},

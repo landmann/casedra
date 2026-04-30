@@ -10,13 +10,20 @@ type ListingDraftLike = {
 	sourceUrl: string;
 	sourceMetadata?: ListingCreateInput["sourceMetadata"];
 	locationResolution?: ListingLocationResolution;
+	propertyDossier?: ListingCreateInput["propertyDossier"];
 	location: ListingCreateInput["location"];
 	details: Pick<ListingCreateInput["details"], "description">;
 };
 
 export const hasLocalizaLinkedDraftState = (
-	draft: Pick<ListingDraftLike, "sourceMetadata" | "locationResolution">,
-) => Boolean(draft.sourceMetadata) || Boolean(draft.locationResolution);
+	draft: Pick<
+		ListingDraftLike,
+		"sourceMetadata" | "locationResolution" | "propertyDossier"
+	>,
+) =>
+	Boolean(draft.sourceMetadata) ||
+	Boolean(draft.locationResolution) ||
+	Boolean(draft.propertyDossier);
 
 export const buildClearedLocationDraft = (
 	sourceType: ListingSourceType,
@@ -26,7 +33,7 @@ export const buildClearedLocationDraft = (
 	city: "",
 	stateOrProvince: "",
 	postalCode: "",
-	country: sourceType === "idealista" ? "España" : previousCountry?.trim() || "",
+	country: sourceType === "idealista" ? "Spain" : previousCountry?.trim() || "",
 });
 
 const shouldClearLocalizaOwnedLocation = (

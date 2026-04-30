@@ -18,3 +18,14 @@ export const usePosthog = () => {
     });
   }, []);
 };
+
+export const capturePosthogEvent = (
+  event: string,
+  properties: Record<string, unknown>,
+) => {
+  if (!env.NEXT_PUBLIC_POSTHOG_KEY) {
+    return;
+  }
+
+  posthog.capture(event, properties);
+};

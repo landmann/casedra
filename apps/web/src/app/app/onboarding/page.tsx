@@ -4,6 +4,7 @@ import OnboardingFlow, { type OnboardingStepKey } from "./OnboardingFlow";
 type OnboardingPageProps = {
 	searchParams?: Promise<{
 		step?: string;
+		sourceUrl?: string;
 	}>;
 };
 
@@ -18,6 +19,7 @@ export default async function OnboardingPage({
 	return (
 		<OnboardingFlow
 			initialStep={initialStep}
+			initialSourceUrl={resolvedSearchParams?.sourceUrl ?? ""}
 			availableLocalizaStrategies={availableLocalizaStrategies}
 		/>
 	);

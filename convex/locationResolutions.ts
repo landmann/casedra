@@ -47,6 +47,92 @@ const sourceMetadataValidator = v.object({
 	sourceUrl: v.string(),
 });
 
+const localizaDossierImageValidator = v.object({
+	imageUrl: v.string(),
+	thumbnailUrl: v.optional(v.string()),
+	sourcePortal: v.string(),
+	sourceUrl: v.string(),
+	observedAt: v.string(),
+	lastVerifiedAt: v.optional(v.string()),
+	sourcePublishedAt: v.optional(v.string()),
+	caption: v.optional(v.string()),
+});
+
+const localizaPropertyDossierValidator = v.object({
+	listingSnapshot: v.object({
+		title: v.optional(v.string()),
+		leadImageUrl: v.optional(v.string()),
+		askingPrice: v.optional(v.number()),
+		currencyCode: v.optional(v.literal("EUR")),
+		priceIncludesParking: v.optional(v.boolean()),
+		areaM2: v.optional(v.number()),
+		bedrooms: v.optional(v.number()),
+		bathrooms: v.optional(v.number()),
+		floorText: v.optional(v.string()),
+		isExterior: v.optional(v.boolean()),
+		hasElevator: v.optional(v.boolean()),
+		sourcePortal: v.literal("idealista"),
+		sourceUrl: v.string(),
+	}),
+	imageGallery: v.array(localizaDossierImageValidator),
+	officialIdentity: v.object({
+		proposedAddressLabel: v.optional(v.string()),
+		street: v.optional(v.string()),
+		number: v.optional(v.string()),
+		staircase: v.optional(v.string()),
+		floor: v.optional(v.string()),
+		door: v.optional(v.string()),
+		postalCode: v.optional(v.string()),
+		municipality: v.optional(v.string()),
+		province: v.optional(v.string()),
+		parcelRef14: v.optional(v.string()),
+		unitRef20: v.optional(v.string()),
+		officialSource: v.string(),
+		officialSourceUrl: v.optional(v.string()),
+	}),
+	publicHistory: v.array(
+		v.object({
+			observedAt: v.string(),
+			askingPrice: v.optional(v.number()),
+			currencyCode: v.optional(v.literal("EUR")),
+			portal: v.string(),
+			advertiserName: v.optional(v.string()),
+			agencyName: v.optional(v.string()),
+			sourceUrl: v.optional(v.string()),
+			daysPublished: v.optional(v.number()),
+		}),
+	),
+	duplicateGroup: v.object({
+		count: v.number(),
+		records: v.array(
+			v.object({
+				portal: v.string(),
+				sourceUrl: v.optional(v.string()),
+				advertiserName: v.optional(v.string()),
+				agencyName: v.optional(v.string()),
+				firstSeenAt: v.optional(v.string()),
+				lastSeenAt: v.optional(v.string()),
+				askingPrice: v.optional(v.number()),
+			}),
+		),
+	}),
+	publicationDurations: v.array(
+		v.object({
+			label: v.string(),
+			kind: v.union(
+				v.literal("advertiser"),
+				v.literal("agency"),
+				v.literal("portal"),
+			),
+			daysPublished: v.number(),
+		}),
+	),
+	actions: v.object({
+		reportDownloadUrl: v.optional(v.string()),
+		valuationUrl: v.optional(v.string()),
+	}),
+});
+
 const resolutionEvidenceValidator = v.object({
 	reasonCodes: v.array(v.string()),
 	matchedSignals: v.array(v.string()),
@@ -87,6 +173,7 @@ const resolveIdealistaLocationResultValidator = v.object({
 	candidates: v.array(resolutionCandidateValidator),
 	evidence: resolutionEvidenceValidator,
 	sourceMetadata: sourceMetadataValidator,
+	propertyDossier: v.optional(localizaPropertyDossierValidator),
 	cacheExpiresAt: v.optional(v.string()),
 });
 
@@ -311,13 +398,14 @@ export const reportFalsePositiveIncident = mutation({
 				v.literal("manual_override"),
 			),
 		),
+		territoryAdapter: v.optional(territoryAdapterValidator),
 		notes: v.optional(v.string()),
 		now: v.optional(v.number()),
 	},
 	handler: async (ctx, args) => {
 		const userId = await requireAuthenticatedUserId(ctx);
 		const now = args.now ?? Date.now();
-		const id = await ctx.db.insert("localizaIncidents", {
+		const incidentId = await ctx.db.insert("localizaIncidents", {
 			kind: "false_positive_autofill",
 			severity: "sev1",
 			status: "open",
@@ -332,7 +420,47 @@ export const reportFalsePositiveIncident = mutation({
 			updatedAt: now,
 		});
 
-		return { id };
+		const territoryAdapter = args.territoryAdapter ?? "state_catastro";
+		const validationNotes = args.notes
+			? `Auto-added from sev1 incident: ${args.notes}`
+			: "Auto-added from confirmed wrong-address incident; widening blocked until officially validated.";
+
+		const existingFixture = await ctx.db
+			.query("localizaGoldenLiveFixtures")
+			.withIndex("by_source_url", (q) => q.eq("sourceUrl", args.sourceUrl))
+			.first();
+
+		if (existingFixture) {
+			await ctx.db.patch(existingFixture._id, {
+				incidentId,
+				validationStatus: "pending_official_validation",
+				validationNotes,
+				updatedAt: now,
+			});
+		} else {
+			await ctx.db.insert("localizaGoldenLiveFixtures", {
+				fixtureId: `incident-${incidentId}`,
+				sourceUrl: args.sourceUrl,
+				expectedStatus: "unresolved",
+				territoryAdapter,
+				humanUnitResolvable: false,
+				expectedLocation: {
+					street: "",
+					city: "",
+					stateOrProvince: "",
+					country: "Spain",
+				},
+				validationStatus: "pending_official_validation",
+				observedAt: new Date(now).toISOString(),
+				validationNotes,
+				source: "incident_auto_added",
+				incidentId,
+				createdAt: now,
+				updatedAt: now,
+			});
+		}
+
+		return { id: incidentId };
 	},
 });
 
@@ -355,6 +483,31 @@ export const resolveFalsePositiveIncident = mutation({
 		});
 
 		return { id: args.id };
+	},
+});
+
+export const listFalsePositiveIncidents = query({
+	args: {
+		status: v.optional(v.union(v.literal("open"), v.literal("resolved"))),
+	},
+	handler: async (ctx, args) => {
+		await requireAuthenticatedUserId(ctx);
+		const status = args.status;
+
+		const incidents = status
+			? await ctx.db
+					.query("localizaIncidents")
+					.withIndex("by_status_and_kind", (q) =>
+						q
+							.eq("status", status)
+							.eq("kind", "false_positive_autofill"),
+					)
+					.collect()
+			: await ctx.db.query("localizaIncidents").collect();
+
+		return incidents
+			.filter((incident) => incident.kind === "false_positive_autofill")
+			.sort((left, right) => right.updatedAt - left.updatedAt);
 	},
 });
 

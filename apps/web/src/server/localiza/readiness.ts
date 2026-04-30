@@ -12,7 +12,22 @@ import { getAvailableLocalizaStrategies } from "./availability";
 import {
 	getLocalizaGoldenFrozenSummary,
 	getLocalizaGoldenReadinessIssues,
+	localizaGoldenLiveFixtures as staticLocalizaGoldenLiveFixtures,
 } from "./golden-dataset";
+
+type LocalizaLiveFixtureValidationStatus =
+	| "pending_official_validation"
+	| "officially_validated";
+
+type LocalizaLiveFixtureRecord = {
+	validationStatus: LocalizaLiveFixtureValidationStatus;
+};
+
+const listLiveFixturesRef = makeFunctionReference<
+	"query",
+	Record<string, never>,
+	LocalizaLiveFixtureRecord[]
+>("localizaGoldenLiveFixtures:list");
 
 const getMetricsSnapshotRef = makeFunctionReference<
 	"query",
@@ -92,6 +107,20 @@ const getMetricsSnapshot = async (input: {
 	}
 };
 
+const loadLiveFixtures = async (
+	convex: ConvexHttpClient,
+): Promise<LocalizaLiveFixtureRecord[]> => {
+	try {
+		const fixtures = await convex.query(listLiveFixturesRef, {});
+		if (fixtures.length === 0) {
+			return staticLocalizaGoldenLiveFixtures;
+		}
+		return fixtures;
+	} catch {
+		return staticLocalizaGoldenLiveFixtures;
+	}
+};
+
 export const getLocalizaReadinessSnapshot = async (input: {
 	convex: ConvexHttpClient;
 	now?: number;
@@ -99,12 +128,15 @@ export const getLocalizaReadinessSnapshot = async (input: {
 }): Promise<LocalizaReadinessSnapshot> => {
 	const now = input.now ?? Date.now();
 	const configuredStrategies = getAvailableLocalizaStrategies();
-	const metrics = await getMetricsSnapshot({
-		convex: input.convex,
-		now,
-		sinceMs: input.sinceMs,
-	});
-	const goldenIssues = getLocalizaGoldenReadinessIssues();
+	const [metrics, liveFixtures] = await Promise.all([
+		getMetricsSnapshot({
+			convex: input.convex,
+			now,
+			sinceMs: input.sinceMs,
+		}),
+		loadLiveFixtures(input.convex),
+	]);
+	const goldenIssues = getLocalizaGoldenReadinessIssues(liveFixtures);
 	const missingRequiredStrategies = LOCALIZA_BETA_AUTO_STRATEGY_ORDER.filter(
 		(strategy) => !configuredStrategies.includes(strategy),
 	).map((strategy) => `localiza_${strategy}_not_configured`);
@@ -120,7 +152,7 @@ export const getLocalizaReadinessSnapshot = async (input: {
 		acquisitionContract:
 			getLocalizaBetaAcquisitionContract(configuredStrategies),
 		goldenDataset: {
-			summary: getLocalizaGoldenFrozenSummary(),
+			summary: getLocalizaGoldenFrozenSummary(liveFixtures),
 			issues: goldenIssues,
 		},
 		metrics,

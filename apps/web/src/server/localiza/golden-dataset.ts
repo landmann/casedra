@@ -72,6 +72,10 @@ export type LocalizaGoldenLiveFixture = {
 	humanUnitResolvable: boolean;
 	expectedLocationHint: LocalizaLiveLocationHint;
 	validationStatus: "pending_official_validation" | "officially_validated";
+	lastValidationRunAt?: string;
+	lastObservedStatus?: ResolveIdealistaLocationStatus;
+	lastObservedTerritoryAdapter?: LocalizaTerritoryAdapter;
+	lastObservedReasonCodes?: string[];
 	observedAt: string;
 	validationNotes: string;
 };
@@ -570,9 +574,13 @@ export const localizaGoldenLiveFixtures: LocalizaGoldenLiveFixture[] = [
 			country: "Spain",
 		},
 		validationStatus: "pending_official_validation",
+		lastValidationRunAt: "2026-04-28T00:00:00.000Z",
+		lastObservedStatus: "unresolved",
+		lastObservedTerritoryAdapter: "state_catastro",
+		lastObservedReasonCodes: ["state_catastro_no_candidates_found"],
 		observedAt: "2026-04-25T00:00:00.000Z",
 		validationNotes:
-			"Live Idealista candidate captured for operator validation against official Catastro before rollout widening.",
+			"Last live run (2026-04-28) returned unresolved before Firecrawl stealth + Catastro callejero shipped on 2026-04-29; rerun the live regression action from /app/localiza/readiness and only mark validated if the result matches the expected status.",
 	},
 	{
 		fixtureId: "live-valencia-pintor-stolz-110604052",
@@ -588,9 +596,13 @@ export const localizaGoldenLiveFixtures: LocalizaGoldenLiveFixture[] = [
 			country: "Spain",
 		},
 		validationStatus: "pending_official_validation",
+		lastValidationRunAt: "2026-04-28T00:00:00.000Z",
+		lastObservedStatus: "unresolved",
+		lastObservedTerritoryAdapter: "state_catastro",
+		lastObservedReasonCodes: ["state_catastro_no_candidates_found"],
 		observedAt: "2026-04-25T00:00:00.000Z",
 		validationNotes:
-			"Live Idealista candidate captured for operator validation against official Catastro before rollout widening.",
+			"Last live run (2026-04-28) returned unresolved before Firecrawl stealth + Catastro callejero shipped on 2026-04-29; rerun the live regression action from /app/localiza/readiness and only mark validated if the result matches the expected status.",
 	},
 	{
 		fixtureId: "live-getxo-rojo-aldapa-110383879",
@@ -606,9 +618,13 @@ export const localizaGoldenLiveFixtures: LocalizaGoldenLiveFixture[] = [
 			country: "Spain",
 		},
 		validationStatus: "pending_official_validation",
+		lastValidationRunAt: "2026-04-28T00:00:00.000Z",
+		lastObservedStatus: "unresolved",
+		lastObservedTerritoryAdapter: "state_catastro",
+		lastObservedReasonCodes: ["state_catastro_no_candidates_found"],
 		observedAt: "2026-04-25T00:00:00.000Z",
 		validationNotes:
-			"Live Idealista candidate captured for operator validation against official Bizkaia cadastre before rollout widening.",
+			"Last live run (2026-04-28) routed to state Catastro and returned unresolved before Firecrawl stealth + Catastro callejero shipped on 2026-04-29; rerun the live regression action from /app/localiza/readiness and only mark validated if Bizkaia routing produces the expected confirmation flow.",
 	},
 ];
 
@@ -618,7 +634,14 @@ const isBuildingOrBetter = (status: ResolveIdealistaLocationStatus) =>
 const roundRate = (numerator: number, denominator: number) =>
 	denominator > 0 ? Math.round((numerator / denominator) * 10_000) / 10_000 : 0;
 
-export const getLocalizaGoldenFrozenSummary = () => {
+type LocalizaLiveFixtureSummaryInput = Pick<
+	LocalizaGoldenLiveFixture,
+	"validationStatus"
+>;
+
+export const getLocalizaGoldenFrozenSummary = (
+	liveFixtures: ReadonlyArray<LocalizaLiveFixtureSummaryInput> = localizaGoldenLiveFixtures,
+) => {
 	const hiddenAddressFixtures = localizaGoldenFrozenFixtures.filter(
 		(fixture) => fixture.hiddenAddress,
 	);
@@ -651,18 +674,20 @@ export const getLocalizaGoldenFrozenSummary = () => {
 			humanUnitExactCount,
 			humanUnitResolvableFixtures.length,
 		),
-		liveFixtureCount: localizaGoldenLiveFixtures.length,
-		liveOfficiallyValidatedFixtureCount: localizaGoldenLiveFixtures.filter(
+		liveFixtureCount: liveFixtures.length,
+		liveOfficiallyValidatedFixtureCount: liveFixtures.filter(
 			(fixture) => fixture.validationStatus === "officially_validated",
 		).length,
-		livePendingValidationFixtureCount: localizaGoldenLiveFixtures.filter(
+		livePendingValidationFixtureCount: liveFixtures.filter(
 			(fixture) => fixture.validationStatus === "pending_official_validation",
 		).length,
 	};
 };
 
-export const getLocalizaGoldenFrozenContractIssues = () => {
-	const summary = getLocalizaGoldenFrozenSummary();
+export const getLocalizaGoldenFrozenContractIssues = (
+	liveFixtures: ReadonlyArray<LocalizaLiveFixtureSummaryInput> = localizaGoldenLiveFixtures,
+) => {
+	const summary = getLocalizaGoldenFrozenSummary(liveFixtures);
 	const issues: string[] = [];
 
 	if (summary.fixtureCount < LOCALIZA_GOLDEN_MIN_FIXTURE_COUNT) {
@@ -682,15 +707,17 @@ export const getLocalizaGoldenFrozenContractIssues = () => {
 	return issues;
 };
 
-export const getLocalizaGoldenReadinessIssues = () => {
-	const issues = [...getLocalizaGoldenFrozenContractIssues()];
+export const getLocalizaGoldenReadinessIssues = (
+	liveFixtures: ReadonlyArray<LocalizaLiveFixtureSummaryInput> = localizaGoldenLiveFixtures,
+) => {
+	const issues = [...getLocalizaGoldenFrozenContractIssues(liveFixtures)];
 
-	if (localizaGoldenLiveFixtures.length === 0) {
+	if (liveFixtures.length === 0) {
 		issues.push("localiza_live_regression_set_missing");
 	}
 
 	if (
-		localizaGoldenLiveFixtures.some(
+		liveFixtures.some(
 			(fixture) => fixture.validationStatus !== "officially_validated",
 		)
 	) {

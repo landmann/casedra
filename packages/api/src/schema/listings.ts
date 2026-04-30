@@ -53,6 +53,92 @@ export const listingSourceMetadataSchema = z.object({
 	sourceUrl: z.string().url("Source URL must be a valid URL"),
 });
 
+export const localizaDossierImageSchema = z.object({
+	imageUrl: z.string().url(),
+	thumbnailUrl: z.string().url().optional(),
+	sourcePortal: z.string().min(1),
+	sourceUrl: z.string().url(),
+	observedAt: z.string().datetime(),
+	lastVerifiedAt: z.string().datetime().optional(),
+	sourcePublishedAt: z.string().datetime().optional(),
+	caption: z.string().min(1).optional(),
+});
+
+export const localizaPropertyDossierSchema = z.object({
+	listingSnapshot: z.object({
+		title: z.string().min(1).optional(),
+		leadImageUrl: z.string().url().optional(),
+		askingPrice: z.number().nonnegative().optional(),
+		currencyCode: z.literal("EUR").optional(),
+		priceIncludesParking: z.boolean().optional(),
+		areaM2: z.number().positive().optional(),
+		bedrooms: z.number().int().nonnegative().optional(),
+		bathrooms: z.number().int().nonnegative().optional(),
+		floorText: z.string().min(1).optional(),
+		isExterior: z.boolean().optional(),
+		hasElevator: z.boolean().optional(),
+		sourcePortal: z.literal("idealista"),
+		sourceUrl: z.string().url(),
+	}),
+	imageGallery: z.array(localizaDossierImageSchema).default([]),
+	officialIdentity: z.object({
+		proposedAddressLabel: z.string().min(1).optional(),
+		street: z.string().min(1).optional(),
+		number: z.string().min(1).optional(),
+		staircase: z.string().min(1).optional(),
+		floor: z.string().min(1).optional(),
+		door: z.string().min(1).optional(),
+		postalCode: z.string().min(1).optional(),
+		municipality: z.string().min(1).optional(),
+		province: z.string().min(1).optional(),
+		parcelRef14: z.string().min(1).optional(),
+		unitRef20: z.string().min(1).optional(),
+		officialSource: z.string().min(1),
+		officialSourceUrl: z.string().url().optional(),
+	}),
+	publicHistory: z
+		.array(
+			z.object({
+				observedAt: z.string().datetime(),
+				askingPrice: z.number().nonnegative().optional(),
+				currencyCode: z.literal("EUR").optional(),
+				portal: z.string().min(1),
+				advertiserName: z.string().min(1).optional(),
+				agencyName: z.string().min(1).optional(),
+				sourceUrl: z.string().url().optional(),
+				daysPublished: z.number().int().positive().optional(),
+			}),
+		)
+		.default([]),
+	duplicateGroup: z.object({
+		count: z.number().int().nonnegative(),
+		records: z.array(
+			z.object({
+				portal: z.string().min(1),
+				sourceUrl: z.string().url().optional(),
+				advertiserName: z.string().min(1).optional(),
+				agencyName: z.string().min(1).optional(),
+				firstSeenAt: z.string().datetime().optional(),
+				lastSeenAt: z.string().datetime().optional(),
+				askingPrice: z.number().nonnegative().optional(),
+			}),
+		),
+	}),
+	publicationDurations: z
+		.array(
+			z.object({
+				label: z.string().min(1),
+				kind: z.enum(["advertiser", "agency", "portal"]),
+				daysPublished: z.number().int().positive(),
+			}),
+		)
+		.default([]),
+	actions: z.object({
+		reportDownloadUrl: z.string().min(1).optional(),
+		valuationUrl: z.string().min(1).optional(),
+	}),
+});
+
 export const listingLocationResolutionSchema = z.object({
 	status: locationResolutionStatusSchema,
 	confidenceScore: z.number().min(0).max(1),
@@ -90,6 +176,7 @@ export const listingCreateInputSchema = z
 		sourceUrl: z.string().url().optional(),
 		sourceMetadata: listingSourceMetadataSchema.optional(),
 		locationResolution: listingLocationResolutionSchema.optional(),
+		propertyDossier: localizaPropertyDossierSchema.optional(),
 		location: listingLocationSchema,
 		displayAddressLabel: z.string().min(1).optional(),
 		details: listingDetailsSchema,
@@ -119,6 +206,14 @@ export const listingCreateInputSchema = z
 					path: ["locationResolution"],
 					message:
 						"Manual listings cannot include location resolution metadata",
+				});
+			}
+
+			if (input.propertyDossier) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ["propertyDossier"],
+					message: "Manual listings cannot include Localiza property reports",
 				});
 			}
 
@@ -152,14 +247,25 @@ export const listingCreateInputSchema = z
 				});
 			}
 
+			if (input.propertyDossier) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ["propertyDossier"],
+					message: "Only Idealista listings can include Localiza property reports",
+				});
+			}
+
 			return;
 		}
 
-		if (input.locationResolution && !input.sourceMetadata) {
+		if (
+			(input.locationResolution || input.propertyDossier) &&
+			!input.sourceMetadata
+		) {
 			ctx.addIssue({
 				code: z.ZodIssueCode.custom,
 				path: ["sourceMetadata"],
-				message: "Idealista location resolution requires source metadata",
+				message: "Idealista Localiza metadata requires source metadata",
 			});
 		}
 
@@ -172,6 +278,18 @@ export const listingCreateInputSchema = z
 				code: z.ZodIssueCode.custom,
 				path: ["sourceMetadata", "sourceUrl"],
 				message: "Idealista source metadata must match the listing source URL",
+			});
+		}
+
+		if (
+			input.propertyDossier &&
+			input.sourceUrl &&
+			input.propertyDossier.listingSnapshot.sourceUrl !== input.sourceUrl
+		) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["propertyDossier", "listingSnapshot", "sourceUrl"],
+				message: "Localiza property report must match the listing source URL",
 			});
 		}
 	});

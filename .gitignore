@@ -17,3 +17,4 @@ ios
 .projects/vault
 .env
 .env.local
+.env*.local

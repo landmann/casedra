@@ -89,13 +89,11 @@ export const officialSourceUrlByTerritory: Record<
 	LocalizaTerritoryAdapter,
 	string
 > = {
-	state_catastro: "https://ovc.catastro.meh.es/INSPIRE/wfsAD.aspx",
-	navarra_rtn: "https://inspire.navarra.es/services/AD/wfs",
-	alava_catastro:
-		"https://geo.araba.eus/geoaraba/services/OGC_ARABA/WFS_Katastroa/MapServer/WFSServer",
-	bizkaia_catastro:
-		"https://geo.bizkaia.eus/arcgisserverinspire/rest/services/Catastro/Annex1/MapServer",
-	gipuzkoa_catastro: "https://b5m.gipuzkoa.eus/ogc/wfs/gipuzkoa_wfs",
+	state_catastro: "https://www.sedecatastro.gob.es/",
+	navarra_rtn: "https://www.navarra.es/es/hacienda/riqueza-territorial",
+	alava_catastro: "https://web.araba.eus/es/hacienda/catastro",
+	bizkaia_catastro: "https://www.bizkaia.eus/catastro",
+	gipuzkoa_catastro: "https://www.gipuzkoa.eus/es/web/ogasuna/catastro",
 };
 
 export interface LocalizaOfficialResolution {

@@ -1,5 +1,6 @@
 import type {
 	IdealistaSignals,
+	LocalizaPropertyDossier,
 	LocalizaAcquisitionStrategy,
 	ResolveIdealistaLocationResult,
 } from "@casedra/types";
@@ -28,10 +29,10 @@ import {
 import { parseIdealistaListingUrl } from "./url";
 import { LOCALIZA_RESOLVER_VERSION } from "./version";
 
-const OVERALL_DEADLINE_MS = 10_000;
+const OVERALL_DEADLINE_MS = 35_000;
 const IN_FLIGHT_POLL_INTERVAL_MS = 300;
-const LEASE_DURATION_MS = 12_000;
-const UNRESOLVED_CACHE_TTL_MS = 30 * 1000;
+const LEASE_DURATION_MS = 35_000;
+const UNRESOLVED_CACHE_TTL_MS = 10 * 1000;
 const SUCCESS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAPS_VERIFY_TIMEOUT_MS = 2_000;
 const MAPS_VERIFY_MIN_REMAINING_MS = 600;
@@ -301,6 +302,192 @@ const buildSourceMetadata = (input: {
 	sourceUrl: input.sourceUrl,
 });
 
+const cleanDossierText = (value?: string) => {
+	const trimmed = value?.replace(/\s+/g, " ").trim();
+	return trimmed ? trimmed : undefined;
+};
+
+const parseOfficialAddressComponents = (
+	label?: string,
+	prefillLocation?: ResolveIdealistaLocationResult["prefillLocation"],
+) => {
+	const parts = label
+		?.split(",")
+		.map((part) => cleanDossierText(part))
+		.filter((part): part is string => Boolean(part));
+	const streetPart = parts?.[0];
+	const streetMatch = streetPart?.match(/^(.+?)\s+(\d+[A-Z]?)$/i);
+	const staircase = parts
+		?.find((part) => /^Escalera\s+/i.test(part))
+		?.replace(/^Escalera\s+/i, "");
+	const floor = parts
+		?.find((part) => /^(Planta|Piso)\s+/i.test(part))
+		?.replace(/^(Planta|Piso)\s+/i, "");
+	const door = parts
+		?.find((part) => /^Puerta\s+/i.test(part))
+		?.replace(/^Puerta\s+/i, "");
+	const postalCode =
+		prefillLocation?.postalCode ??
+		parts?.find((part) => /^\d{5}$/.test(part));
+	const municipality =
+		prefillLocation?.city ??
+		[...(parts ?? [])]
+			.reverse()
+			.find((part) => !/^\d{5}$/.test(part) && part !== streetPart);
+
+	return {
+		street: cleanDossierText(streetMatch?.[1] ?? prefillLocation?.street),
+		number: cleanDossierText(streetMatch?.[2]),
+		staircase: cleanDossierText(staircase),
+		floor: cleanDossierText(floor),
+		door: cleanDossierText(door),
+		postalCode: cleanDossierText(postalCode),
+		municipality: cleanDossierText(municipality),
+		province: cleanDossierText(prefillLocation?.stateOrProvince),
+	};
+};
+
+const buildRecentImageGallery = (signals: IdealistaSignals) => {
+	const fallbackObservations: LocalizaPropertyDossier["imageGallery"] =
+		signals.imageUrls?.map((imageUrl, index) => ({
+			imageUrl,
+			sourcePortal: "idealista",
+			sourceUrl: signals.sourceUrl,
+			observedAt: signals.acquiredAt,
+			lastVerifiedAt: signals.acquiredAt,
+			caption: index === 0 ? "Imagen principal del anuncio" : undefined,
+		})) ?? [];
+	const observations: LocalizaPropertyDossier["imageGallery"] =
+		signals.imageObservations ??
+		fallbackObservations;
+
+	const seen = new Set<string>();
+
+	return observations
+		.filter((image) => {
+			if (seen.has(image.imageUrl)) {
+				return false;
+			}
+			seen.add(image.imageUrl);
+			return Boolean(image.observedAt && image.sourceUrl);
+		})
+		.slice(0, 12);
+};
+
+const buildPropertyDossier = (input: {
+	context: LocalizaResolutionContext;
+	signals: IdealistaSignals;
+	resolvedAt: string;
+	officialSource: string;
+	officialSourceUrl?: string;
+	resolvedAddressLabel?: string;
+	parcelRef14?: string;
+	unitRef20?: string;
+	prefillLocation?: ResolveIdealistaLocationResult["prefillLocation"];
+	candidates?: ResolveIdealistaLocationResult["candidates"];
+}): LocalizaPropertyDossier => {
+	const imageGallery = buildRecentImageGallery(input.signals);
+	const leadImageUrl =
+		input.signals.primaryImageUrl ??
+		imageGallery[0]?.imageUrl ??
+		input.signals.imageUrls?.[0];
+	const proposedAddressLabel =
+		input.resolvedAddressLabel ?? input.candidates?.[0]?.label;
+	const officialComponents = parseOfficialAddressComponents(
+		proposedAddressLabel,
+		input.prefillLocation,
+	);
+	const observedAt = input.signals.acquiredAt || input.resolvedAt;
+	const daysPublished = Math.max(
+		1,
+		Math.round(input.signals.daysPublished ?? 1),
+	);
+	const publicHistory = [
+		{
+			observedAt,
+			askingPrice: input.signals.price,
+			currencyCode: "EUR" as const,
+			portal: "IDEALISTA",
+			advertiserName: input.signals.advertiserName,
+			agencyName: input.signals.agencyName,
+			sourceUrl: input.context.sourceMetadata.sourceUrl,
+			daysPublished,
+		},
+	];
+	const publicationDurations: LocalizaPropertyDossier["publicationDurations"] =
+		[];
+	const durationLabels = new Set<string>();
+	const addDuration = (
+		label: string | undefined,
+		kind: LocalizaPropertyDossier["publicationDurations"][number]["kind"],
+	) => {
+		const normalizedLabel = cleanDossierText(label);
+		if (!normalizedLabel || durationLabels.has(`${kind}:${normalizedLabel}`)) {
+			return;
+		}
+		durationLabels.add(`${kind}:${normalizedLabel}`);
+		publicationDurations.push({
+			label: normalizedLabel,
+			kind,
+			daysPublished,
+		});
+	};
+
+	addDuration(input.signals.advertiserName, "advertiser");
+	addDuration(input.signals.agencyName, "agency");
+	addDuration("IDEALISTA", "portal");
+
+	return {
+		listingSnapshot: {
+			title: input.signals.title,
+			leadImageUrl,
+			askingPrice: input.signals.price,
+			currencyCode: input.signals.price !== undefined ? "EUR" : undefined,
+			priceIncludesParking: input.signals.priceIncludesParking,
+			areaM2: input.signals.areaM2,
+			bedrooms: input.signals.bedrooms,
+			bathrooms: input.signals.bathrooms,
+			floorText: input.signals.floorText,
+			isExterior: input.signals.isExterior,
+			hasElevator: input.signals.hasElevator,
+			sourcePortal: "idealista",
+			sourceUrl: input.context.sourceMetadata.sourceUrl,
+		},
+		imageGallery,
+		officialIdentity: {
+			proposedAddressLabel,
+			...officialComponents,
+			municipality:
+				officialComponents.municipality ?? cleanDossierText(input.signals.municipality),
+			province:
+				officialComponents.province ?? cleanDossierText(input.signals.province),
+			parcelRef14: input.parcelRef14,
+			unitRef20: input.unitRef20,
+			officialSource: input.officialSource,
+			officialSourceUrl: input.officialSourceUrl,
+		},
+		publicHistory,
+		duplicateGroup: {
+			count: publicHistory.length,
+			records: publicHistory.map((entry) => ({
+				portal: entry.portal,
+				sourceUrl: entry.sourceUrl,
+				advertiserName: entry.advertiserName,
+				agencyName: entry.agencyName,
+				firstSeenAt: entry.observedAt,
+				lastSeenAt: entry.observedAt,
+				askingPrice: entry.askingPrice,
+			})),
+		},
+		publicationDurations,
+		actions: {
+			valuationUrl: `/app/studio?source=localiza&sourceUrl=${encodeURIComponent(
+				input.context.sourceMetadata.sourceUrl,
+			)}`,
+		},
+	};
+};
+
 const buildUnresolvedResult = (input: {
 	context: LocalizaResolutionContext;
 	reasonCodes: string[];
@@ -317,6 +504,7 @@ const buildUnresolvedResult = (input: {
 	parcelRef14?: string;
 	unitRef20?: string;
 	prefillLocation?: ResolveIdealistaLocationResult["prefillLocation"];
+	propertyDossier?: LocalizaPropertyDossier;
 }): ResolveIdealistaLocationResult => ({
 	status: "unresolved",
 	requestedStrategy: input.context.requestedStrategy,
@@ -345,10 +533,12 @@ const buildUnresolvedResult = (input: {
 		territoryAdapter: input.territoryAdapter,
 	},
 	sourceMetadata: input.context.sourceMetadata,
+	propertyDossier: input.propertyDossier,
 });
 
 const buildResultFromOfficialResolution = (input: {
 	context: LocalizaResolutionContext;
+	signals: IdealistaSignals;
 	officialResolution: LocalizaOfficialResolution;
 	actualAcquisitionMethod: ResolveIdealistaLocationResult["evidence"]["actualAcquisitionMethod"];
 	adapterReasonCodes: string[];
@@ -373,6 +563,18 @@ const buildResultFromOfficialResolution = (input: {
 		...input.adapterDiscardedSignals,
 		...input.officialResolution.discardedSignals,
 	]);
+	const propertyDossier = buildPropertyDossier({
+		context: input.context,
+		signals: input.signals,
+		resolvedAt: input.resolvedAt,
+		officialSource: input.officialResolution.officialSource,
+		officialSourceUrl: officialSourceDetails.officialSourceUrl,
+		resolvedAddressLabel: input.officialResolution.resolvedAddressLabel,
+		parcelRef14: input.officialResolution.parcelRef14,
+		unitRef20: input.officialResolution.unitRef20,
+		prefillLocation: input.officialResolution.prefillLocation,
+		candidates: input.officialResolution.candidates,
+	});
 
 	if (input.officialResolution.status === "unresolved") {
 		return buildUnresolvedResult({
@@ -391,6 +593,7 @@ const buildResultFromOfficialResolution = (input: {
 			parcelRef14: input.officialResolution.parcelRef14,
 			unitRef20: input.officialResolution.unitRef20,
 			prefillLocation: input.officialResolution.prefillLocation,
+			propertyDossier,
 		});
 	}
 
@@ -420,6 +623,7 @@ const buildResultFromOfficialResolution = (input: {
 			territoryAdapter: input.officialResolution.territoryAdapter,
 		},
 		sourceMetadata: input.context.sourceMetadata,
+		propertyDossier,
 	};
 };
 
@@ -443,6 +647,13 @@ const buildCadastreFailureResult = (input: {
 	resolvedAt: string;
 }) => {
 	const cadastreFailure = getCadastreFailureDetails(input.error);
+	const propertyDossier = buildPropertyDossier({
+		context: input.context,
+		signals: input.adapterOutput.signals,
+		resolvedAt: input.resolvedAt,
+		officialSource: cadastreFailure.officialSource,
+		officialSourceUrl: cadastreFailure.officialSourceUrl,
+	});
 
 	return {
 		result: buildUnresolvedResult({
@@ -468,6 +679,7 @@ const buildCadastreFailureResult = (input: {
 			officialSource: cadastreFailure.officialSource,
 			officialSourceUrl: cadastreFailure.officialSourceUrl,
 			territoryAdapter: cadastreFailure.territoryAdapter,
+			propertyDossier,
 		}),
 		normalizedSignals: input.adapterOutput.signals,
 		errorCode: "official_cadastre_failed",
@@ -653,6 +865,8 @@ const resolveSignalsViaAdapters = async (input: {
 		const remainingDeadlineMs = input.deadlineAt - Date.now();
 
 		if (remainingDeadlineMs <= 0) {
+			const resolvedAt = new Date().toISOString();
+			const pendingSourceDetails = getOfficialSourceDetails();
 			return {
 				result: buildUnresolvedResult({
 					context: input.context,
@@ -664,7 +878,14 @@ const resolveSignalsViaAdapters = async (input: {
 					matchedSignals: adapterOutput.matchedSignals,
 					discardedSignals: adapterOutput.discardedSignals,
 					actualAcquisitionMethod: adapterOutput.signals.acquisitionMethod,
-					resolvedAt: new Date().toISOString(),
+					resolvedAt,
+					propertyDossier: buildPropertyDossier({
+						context: input.context,
+						signals: adapterOutput.signals,
+						resolvedAt,
+						officialSource: pendingSourceDetails.officialSource,
+						officialSourceUrl: pendingSourceDetails.officialSourceUrl,
+					}),
 				}),
 				normalizedSignals: adapterOutput.signals,
 				errorCode: "resolver_deadline_exceeded",
@@ -719,6 +940,7 @@ const resolveSignalsViaAdapters = async (input: {
 		const resolvedAt = new Date().toISOString();
 		const result = buildResultFromOfficialResolution({
 			context: input.context,
+			signals: adapterOutput.signals,
 			officialResolution,
 			actualAcquisitionMethod: adapterOutput.signals.acquisitionMethod,
 			adapterReasonCodes: adapterOutput.reasonCodes,

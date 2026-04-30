@@ -74,6 +74,49 @@ const hasTimeoutSignal = (record: {
 		...(record.result?.evidence?.reasonCodes ?? []),
 	].some((value) => value?.toLowerCase().includes("timeout"));
 
+const getWindowResolutionStats = (
+	resolutions: MetricsResolutionRecord[],
+	windowStart: number,
+	windowEnd: number,
+) => {
+	const completedResolutions = resolutions.filter((record) => {
+		const completedAt = record.lastCompletedAt ?? record.updatedAt;
+		return Boolean(record.result) && completedAt >= windowStart && completedAt < windowEnd;
+	});
+	const statusCounts = emptyStatusCounts();
+
+	for (const record of completedResolutions) {
+		incrementStatus(statusCounts, record.result?.status);
+	}
+
+	const unresolvedRate = roundRate(
+		statusCounts.unresolved,
+		completedResolutions.length,
+	);
+	const timeoutRate = roundRate(
+		completedResolutions.filter(hasTimeoutSignal).length,
+		completedResolutions.length,
+	);
+
+	return {
+		completedCount: completedResolutions.length,
+		unresolvedRate,
+		timeoutRate,
+	};
+};
+
+const rateBreachedInBothWindows = (input: {
+	currentCompletedCount: number;
+	previousCompletedCount: number;
+	currentRate: number;
+	previousRate: number;
+	threshold: number;
+}) =>
+	input.currentCompletedCount > 0 &&
+	input.previousCompletedCount > 0 &&
+	input.currentRate >= input.threshold &&
+	input.previousRate >= input.threshold;
+
 type MetricsResolutionRecord = {
 	result?: {
 		status: (typeof statusKeys)[number];
@@ -197,6 +240,26 @@ export const buildLocalizaMetricsSnapshot = (input: {
 		completedResolutions.length,
 	);
 	const timeoutRate = roundRate(timeoutCount, completedResolutions.length);
+	const previousWindowStart = windowStart - windowMs;
+	const previousWindowStats = getWindowResolutionStats(
+		input.resolutions,
+		previousWindowStart,
+		windowStart,
+	);
+	const shouldAlertOnUnresolvedRate = rateBreachedInBothWindows({
+		currentCompletedCount: completedResolutions.length,
+		previousCompletedCount: previousWindowStats.completedCount,
+		currentRate: unresolvedRate,
+		previousRate: previousWindowStats.unresolvedRate,
+		threshold: UNRESOLVED_ALERT_RATE,
+	});
+	const shouldAlertOnTimeoutRate = rateBreachedInBothWindows({
+		currentCompletedCount: completedResolutions.length,
+		previousCompletedCount: previousWindowStats.completedCount,
+		currentRate: timeoutRate,
+		previousRate: previousWindowStats.timeoutRate,
+		threshold: TIMEOUT_ALERT_RATE,
+	});
 
 	return {
 		generatedAt: input.now,
@@ -237,10 +300,10 @@ export const buildLocalizaMetricsSnapshot = (input: {
 			falsePositiveIncidents.length > 0
 				? ["localiza_false_positive_incident_reported"]
 				: []),
-			...(unresolvedRate >= UNRESOLVED_ALERT_RATE
+			...(shouldAlertOnUnresolvedRate
 				? ["localiza_unresolved_rate_threshold_breached"]
 				: []),
-			...(timeoutRate >= TIMEOUT_ALERT_RATE
+			...(shouldAlertOnTimeoutRate
 				? ["localiza_timeout_rate_threshold_breached"]
 				: []),
 		],

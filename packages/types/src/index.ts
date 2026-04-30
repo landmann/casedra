@@ -60,6 +60,82 @@ export type ResolveIdealistaLocationStatus = Exclude<
 	"manual_override"
 >;
 
+export interface LocalizaDossierImage {
+	imageUrl: string;
+	thumbnailUrl?: string;
+	sourcePortal: string;
+	sourceUrl: string;
+	observedAt: string;
+	lastVerifiedAt?: string;
+	sourcePublishedAt?: string;
+	caption?: string;
+}
+
+export interface LocalizaPropertyDossier {
+	listingSnapshot: {
+		title?: string;
+		leadImageUrl?: string;
+		askingPrice?: number;
+		currencyCode?: "EUR";
+		priceIncludesParking?: boolean;
+		areaM2?: number;
+		bedrooms?: number;
+		bathrooms?: number;
+		floorText?: string;
+		isExterior?: boolean;
+		hasElevator?: boolean;
+		sourcePortal: "idealista";
+		sourceUrl: string;
+	};
+	imageGallery: LocalizaDossierImage[];
+	officialIdentity: {
+		proposedAddressLabel?: string;
+		street?: string;
+		number?: string;
+		staircase?: string;
+		floor?: string;
+		door?: string;
+		postalCode?: string;
+		municipality?: string;
+		province?: string;
+		parcelRef14?: string;
+		unitRef20?: string;
+		officialSource: string;
+		officialSourceUrl?: string;
+	};
+	publicHistory: Array<{
+		observedAt: string;
+		askingPrice?: number;
+		currencyCode?: "EUR";
+		portal: string;
+		advertiserName?: string;
+		agencyName?: string;
+		sourceUrl?: string;
+		daysPublished?: number;
+	}>;
+	duplicateGroup: {
+		count: number;
+		records: Array<{
+			portal: string;
+			sourceUrl?: string;
+			advertiserName?: string;
+			agencyName?: string;
+			firstSeenAt?: string;
+			lastSeenAt?: string;
+			askingPrice?: number;
+		}>;
+	};
+	publicationDurations: Array<{
+		label: string;
+		kind: "advertiser" | "agency" | "portal";
+		daysPublished: number;
+	}>;
+	actions: {
+		reportDownloadUrl?: string;
+		valuationUrl?: string;
+	};
+}
+
 export interface IdealistaSignals {
 	provider: "idealista";
 	listingId: string;
@@ -71,6 +147,13 @@ export interface IdealistaSignals {
 	bedrooms?: number;
 	bathrooms?: number;
 	floorText?: string;
+	primaryImageUrl?: string;
+	priceIncludesParking?: boolean;
+	isExterior?: boolean;
+	hasElevator?: boolean;
+	advertiserName?: string;
+	agencyName?: string;
+	daysPublished?: number;
 	portalHint?: string;
 	neighborhood?: string;
 	municipality?: string;
@@ -81,6 +164,7 @@ export interface IdealistaSignals {
 	mapPrecisionMeters?: number;
 	listingText?: string;
 	imageUrls?: string[];
+	imageObservations?: LocalizaDossierImage[];
 	acquisitionMethod: IdealistaAcquisitionMethod;
 	acquiredAt: string;
 }
@@ -125,6 +209,7 @@ export interface ResolveIdealistaLocationResult {
 	candidates: ResolveIdealistaLocationCandidate[];
 	evidence: ResolutionEvidence;
 	sourceMetadata: ListingSourceMetadata;
+	propertyDossier?: LocalizaPropertyDossier;
 	cacheExpiresAt?: string;
 }
 
@@ -173,6 +258,7 @@ export interface ListingRecord {
 	sourceUrl?: string;
 	sourceMetadata?: ListingSourceMetadata;
 	locationResolution?: ListingLocationResolution;
+	propertyDossier?: LocalizaPropertyDossier;
 	location: ListingLocation;
 	displayAddressLabel?: string;
 	details: ListingDetails;
@@ -188,6 +274,7 @@ export interface ListingCreateInput {
 	sourceUrl?: string;
 	sourceMetadata?: ListingSourceMetadata;
 	locationResolution?: ListingLocationResolution;
+	propertyDossier?: LocalizaPropertyDossier;
 	location: ListingLocation;
 	displayAddressLabel?: string;
 	details: ListingDetails;

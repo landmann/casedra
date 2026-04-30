@@ -16,6 +16,7 @@ import {
 	distanceBetweenPoints,
 	formatPostalCode,
 	getProvinceNameFromCode,
+	hasStreetNameHint,
 	humanizePlaceName,
 	humanizeStreetName,
 	LOCALIZA_MIN_VIABLE_SCORE,
@@ -24,18 +25,13 @@ import {
 } from "./score";
 import { resolveAlavaCatastro } from "./catastro-alava";
 import { resolveBizkaiaCatastro } from "./catastro-bizkaia";
+import { resolveStateCatastroByCallejero } from "./catastro-callejero";
 import { resolveGipuzkoaCatastro } from "./catastro-gipuzkoa";
 import { resolveNavarraCatastro } from "./catastro-navarra";
-import type { LocalizaOfficialResolution } from "./types";
+import type { LocalizaOfficialResolution, LocalizaTerritoryAdapter } from "./types";
+import { officialSourceLabelByTerritory } from "./types";
 
 const CATASTRO_WFS_URL = "https://ovc.catastro.meh.es/INSPIRE/wfsAD.aspx";
-const OFFICIAL_SOURCE_LABEL = "Dirección General del Catastro";
-const REGIONAL_OFFICIAL_SOURCES: Record<string, string> = {
-	navarra_rtn: "Registro de la Riqueza Territorial de Navarra",
-	alava_catastro: "Catastro de Alava",
-	bizkaia_catastro: "Catastro de Bizkaia",
-	gipuzkoa_catastro: "Catastro de Gipuzkoa",
-};
 const MAX_RESULTS_PER_REQUEST = 60;
 const MIN_VIABLE_SCORE = LOCALIZA_MIN_VIABLE_SCORE;
 
@@ -394,6 +390,16 @@ const scoreCandidate = (input: {
 		120,
 	);
 	const streetLabel = humanizeStreetName(candidate.streetName);
+	const listingHasStreetNameHint = hasStreetNameHint(signals.title);
+	const candidateMatchesStreetHint =
+		streetLabel &&
+		(corpusIncludesPhrase(listingSignalCorpus, streetLabel) ||
+			corpusIncludesPhrase(listingSignalCorpus, candidate.streetName));
+
+	if (listingHasStreetNameHint && !candidateMatchesStreetHint) {
+		return null;
+	}
+
 	const prefillLocation = buildPrefillLocation(candidate);
 	const label = buildCandidateLabel(candidate);
 
@@ -424,11 +430,7 @@ const scoreCandidate = (input: {
 		discardedSignals.push("postal_code_hint");
 	}
 
-	if (
-		streetLabel &&
-		(corpusIncludesPhrase(listingSignalCorpus, streetLabel) ||
-			corpusIncludesPhrase(listingSignalCorpus, candidate.streetName))
-	) {
+	if (candidateMatchesStreetHint) {
 		score += 0.15;
 		matchedSignals.push("street_name_match");
 	} else if (candidate.streetName) {
@@ -503,7 +505,7 @@ const dedupeByCandidateId = (candidates: ParsedCatastroAddress[]) => {
 };
 
 const buildUnresolvedOfficialResolution = (input: {
-	territoryAdapter: LocalizaOfficialResolution["territoryAdapter"];
+	territoryAdapter: LocalizaTerritoryAdapter;
 	reasonCodes: string[];
 	matchedSignals?: string[];
 	discardedSignals?: string[];
@@ -511,7 +513,8 @@ const buildUnresolvedOfficialResolution = (input: {
 }): LocalizaOfficialResolution => ({
 	status: "unresolved",
 	confidenceScore: 0,
-	officialSource: input.officialSource ?? OFFICIAL_SOURCE_LABEL,
+	officialSource:
+		input.officialSource ?? officialSourceLabelByTerritory[input.territoryAdapter],
 	candidates: [],
 	reasonCodes: dedupeStrings(input.reasonCodes),
 	matchedSignals: dedupeStrings(input.matchedSignals ?? []),
@@ -523,13 +526,13 @@ const buildResolvedOfficialResolution = (input: {
 	status: LocalizaOfficialResolution["status"];
 	selected: ScoredCatastroCandidate;
 	candidates: ScoredCatastroCandidate[];
-	territoryAdapter: LocalizaOfficialResolution["territoryAdapter"];
+	territoryAdapter: LocalizaTerritoryAdapter;
 	extraReasonCodes: string[];
 }) =>
 	({
 		status: input.status,
 		confidenceScore: input.selected.candidate.score,
-		officialSource: OFFICIAL_SOURCE_LABEL,
+		officialSource: officialSourceLabelByTerritory[input.territoryAdapter],
 		resolvedAddressLabel: input.selected.candidate.label,
 		parcelRef14: input.selected.candidate.parcelRef14,
 		prefillLocation: input.selected.candidate.prefillLocation,
@@ -577,8 +580,7 @@ export const resolveStateCatastro = async (input: {
 							matchedSignals: ["territory_routed"],
 							discardedSignals: ["state_catastro"],
 							officialSource:
-								REGIONAL_OFFICIAL_SOURCES[regionalTerritory.adapter] ??
-								OFFICIAL_SOURCE_LABEL,
+								officialSourceLabelByTerritory[regionalTerritory.adapter],
 						}),
 					);
 			}
@@ -608,6 +610,16 @@ export const resolveStateCatastro = async (input: {
 		input.signals.approximateLat === undefined ||
 		input.signals.approximateLng === undefined
 	) {
+		const callejeroFallback = await resolveStateCatastroByCallejero({
+			signals: input.signals,
+			listingCorpus: buildListingSignalCorpus(input.signals),
+			signal: input.signal,
+		});
+
+		if (callejeroFallback) {
+			return callejeroFallback;
+		}
+
 		return buildUnresolvedOfficialResolution({
 			territoryAdapter: "state_catastro",
 			reasonCodes: ["state_catastro_missing_coordinates"],
@@ -641,6 +653,16 @@ export const resolveStateCatastro = async (input: {
 	const dedupedCandidates = dedupeByCandidateId(allCandidates);
 
 	if (dedupedCandidates.length === 0) {
+		const callejeroFallback = await resolveStateCatastroByCallejero({
+			signals: input.signals,
+			listingCorpus: listingSignalCorpus,
+			signal: input.signal,
+		});
+
+		if (callejeroFallback) {
+			return callejeroFallback;
+		}
+
 		return buildUnresolvedOfficialResolution({
 			territoryAdapter: "state_catastro",
 			reasonCodes: ["state_catastro_no_candidates_found"],
@@ -671,6 +693,16 @@ export const resolveStateCatastro = async (input: {
 		});
 
 	if (scoredCandidates.length === 0) {
+		const callejeroFallback = await resolveStateCatastroByCallejero({
+			signals: input.signals,
+			listingCorpus: listingSignalCorpus,
+			signal: input.signal,
+		});
+
+		if (callejeroFallback) {
+			return callejeroFallback;
+		}
+
 		return buildUnresolvedOfficialResolution({
 			territoryAdapter: "state_catastro",
 			reasonCodes: [
@@ -687,6 +719,16 @@ export const resolveStateCatastro = async (input: {
 		.slice(0, 5);
 
 	if (viableCandidates.length === 0) {
+		const callejeroFallback = await resolveStateCatastroByCallejero({
+			signals: input.signals,
+			listingCorpus: listingSignalCorpus,
+			signal: input.signal,
+		});
+
+		if (callejeroFallback) {
+			return callejeroFallback;
+		}
+
 		return buildUnresolvedOfficialResolution({
 			territoryAdapter: "state_catastro",
 			reasonCodes: ["state_catastro_scores_below_threshold"],

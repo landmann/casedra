@@ -32,6 +32,17 @@ const listingSourceMetadataValidator = v.object({
 	sourceUrl: v.string(),
 });
 
+const localizaDossierImageValidator = v.object({
+	imageUrl: v.string(),
+	thumbnailUrl: v.optional(v.string()),
+	sourcePortal: v.string(),
+	sourceUrl: v.string(),
+	observedAt: v.string(),
+	lastVerifiedAt: v.optional(v.string()),
+	sourcePublishedAt: v.optional(v.string()),
+	caption: v.optional(v.string()),
+});
+
 const locationResolutionStatusValidator = v.union(
 	v.literal("exact_match"),
 	v.literal("building_match"),
@@ -79,6 +90,81 @@ const listingLocationResolutionValidator = v.object({
 	reasonCodes: v.array(v.string()),
 });
 
+const localizaPropertyDossierValidator = v.object({
+	listingSnapshot: v.object({
+		title: v.optional(v.string()),
+		leadImageUrl: v.optional(v.string()),
+		askingPrice: v.optional(v.number()),
+		currencyCode: v.optional(v.literal("EUR")),
+		priceIncludesParking: v.optional(v.boolean()),
+		areaM2: v.optional(v.number()),
+		bedrooms: v.optional(v.number()),
+		bathrooms: v.optional(v.number()),
+		floorText: v.optional(v.string()),
+		isExterior: v.optional(v.boolean()),
+		hasElevator: v.optional(v.boolean()),
+		sourcePortal: v.literal("idealista"),
+		sourceUrl: v.string(),
+	}),
+	imageGallery: v.array(localizaDossierImageValidator),
+	officialIdentity: v.object({
+		proposedAddressLabel: v.optional(v.string()),
+		street: v.optional(v.string()),
+		number: v.optional(v.string()),
+		staircase: v.optional(v.string()),
+		floor: v.optional(v.string()),
+		door: v.optional(v.string()),
+		postalCode: v.optional(v.string()),
+		municipality: v.optional(v.string()),
+		province: v.optional(v.string()),
+		parcelRef14: v.optional(v.string()),
+		unitRef20: v.optional(v.string()),
+		officialSource: v.string(),
+		officialSourceUrl: v.optional(v.string()),
+	}),
+	publicHistory: v.array(
+		v.object({
+			observedAt: v.string(),
+			askingPrice: v.optional(v.number()),
+			currencyCode: v.optional(v.literal("EUR")),
+			portal: v.string(),
+			advertiserName: v.optional(v.string()),
+			agencyName: v.optional(v.string()),
+			sourceUrl: v.optional(v.string()),
+			daysPublished: v.optional(v.number()),
+		}),
+	),
+	duplicateGroup: v.object({
+		count: v.number(),
+		records: v.array(
+			v.object({
+				portal: v.string(),
+				sourceUrl: v.optional(v.string()),
+				advertiserName: v.optional(v.string()),
+				agencyName: v.optional(v.string()),
+				firstSeenAt: v.optional(v.string()),
+				lastSeenAt: v.optional(v.string()),
+				askingPrice: v.optional(v.number()),
+			}),
+		),
+	}),
+	publicationDurations: v.array(
+		v.object({
+			label: v.string(),
+			kind: v.union(
+				v.literal("advertiser"),
+				v.literal("agency"),
+				v.literal("portal"),
+			),
+			daysPublished: v.number(),
+		}),
+	),
+	actions: v.object({
+		reportDownloadUrl: v.optional(v.string()),
+		valuationUrl: v.optional(v.string()),
+	}),
+});
+
 const resolveLocationCandidateValidator = v.object({
 	id: v.string(),
 	label: v.string(),
@@ -124,6 +210,7 @@ const resolveIdealistaLocationResultValidator = v.object({
 	candidates: v.array(resolveLocationCandidateValidator),
 	evidence: resolutionEvidenceValidator,
 	sourceMetadata: listingSourceMetadataValidator,
+	propertyDossier: v.optional(localizaPropertyDossierValidator),
 	cacheExpiresAt: v.optional(v.string()),
 });
 
@@ -145,6 +232,7 @@ const listings = defineTable({
 	sourceUrl: v.optional(v.string()),
 	sourceMetadata: v.optional(listingSourceMetadataValidator),
 	locationResolution: v.optional(listingLocationResolutionValidator),
+	propertyDossier: v.optional(localizaPropertyDossierValidator),
 	location: listingLocationValidator,
 	displayAddressLabel: v.optional(v.string()),
 	details: v.object({
@@ -215,6 +303,52 @@ const locationResolutions = defineTable({
 	])
 	.index("by_source_url", ["sourceUrl"])
 	.index("by_expires_at", ["expiresAt"]);
+
+const localizaLiveFixtureValidationStatus = v.union(
+	v.literal("pending_official_validation"),
+	v.literal("officially_validated"),
+);
+
+const localizaLiveFixtureExpectedStatus = v.union(
+	v.literal("exact_match"),
+	v.literal("building_match"),
+	v.literal("needs_confirmation"),
+	v.literal("unresolved"),
+);
+
+const localizaLiveFixtureSource = v.union(
+	v.literal("seed"),
+	v.literal("incident_auto_added"),
+);
+
+const localizaGoldenLiveFixtures = defineTable({
+	fixtureId: v.string(),
+	sourceUrl: v.string(),
+	expectedStatus: localizaLiveFixtureExpectedStatus,
+	territoryAdapter: territoryAdapterValidator,
+	humanUnitResolvable: v.boolean(),
+	expectedLocation: v.object({
+		street: v.string(),
+		city: v.string(),
+		stateOrProvince: v.string(),
+		country: v.string(),
+		postalCode: v.optional(v.string()),
+	}),
+	validationStatus: localizaLiveFixtureValidationStatus,
+	lastValidationRunAt: v.optional(v.string()),
+	lastObservedStatus: v.optional(localizaLiveFixtureExpectedStatus),
+	lastObservedTerritoryAdapter: v.optional(territoryAdapterValidator),
+	lastObservedReasonCodes: v.optional(v.array(v.string())),
+	observedAt: v.string(),
+	validationNotes: v.string(),
+	source: localizaLiveFixtureSource,
+	incidentId: v.optional(v.id("localizaIncidents")),
+	createdAt: v.number(),
+	updatedAt: v.number(),
+})
+	.index("by_fixture_id", ["fixtureId"])
+	.index("by_source_url", ["sourceUrl"])
+	.index("by_validation_status", ["validationStatus"]);
 
 const localizaIncidents = defineTable({
 	kind: v.literal("false_positive_autofill"),
@@ -438,6 +572,7 @@ export default defineSchema({
 	handoffEvents,
 	listings,
 	listingCreateRequests,
+	localizaGoldenLiveFixtures,
 	localizaIncidents,
 	locationResolutions,
 	leads,

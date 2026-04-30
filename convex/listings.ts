@@ -1,6 +1,93 @@
+import type { LocalizaPropertyDossier } from "@casedra/types";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireAuthenticatedUserId } from "./auth";
+
+const localizaDossierImageValidator = v.object({
+	imageUrl: v.string(),
+	thumbnailUrl: v.optional(v.string()),
+	sourcePortal: v.string(),
+	sourceUrl: v.string(),
+	observedAt: v.string(),
+	lastVerifiedAt: v.optional(v.string()),
+	sourcePublishedAt: v.optional(v.string()),
+	caption: v.optional(v.string()),
+});
+
+const localizaPropertyDossierValidator = v.object({
+	listingSnapshot: v.object({
+		title: v.optional(v.string()),
+		leadImageUrl: v.optional(v.string()),
+		askingPrice: v.optional(v.number()),
+		currencyCode: v.optional(v.literal("EUR")),
+		priceIncludesParking: v.optional(v.boolean()),
+		areaM2: v.optional(v.number()),
+		bedrooms: v.optional(v.number()),
+		bathrooms: v.optional(v.number()),
+		floorText: v.optional(v.string()),
+		isExterior: v.optional(v.boolean()),
+		hasElevator: v.optional(v.boolean()),
+		sourcePortal: v.literal("idealista"),
+		sourceUrl: v.string(),
+	}),
+	imageGallery: v.array(localizaDossierImageValidator),
+	officialIdentity: v.object({
+		proposedAddressLabel: v.optional(v.string()),
+		street: v.optional(v.string()),
+		number: v.optional(v.string()),
+		staircase: v.optional(v.string()),
+		floor: v.optional(v.string()),
+		door: v.optional(v.string()),
+		postalCode: v.optional(v.string()),
+		municipality: v.optional(v.string()),
+		province: v.optional(v.string()),
+		parcelRef14: v.optional(v.string()),
+		unitRef20: v.optional(v.string()),
+		officialSource: v.string(),
+		officialSourceUrl: v.optional(v.string()),
+	}),
+	publicHistory: v.array(
+		v.object({
+			observedAt: v.string(),
+			askingPrice: v.optional(v.number()),
+			currencyCode: v.optional(v.literal("EUR")),
+			portal: v.string(),
+			advertiserName: v.optional(v.string()),
+			agencyName: v.optional(v.string()),
+			sourceUrl: v.optional(v.string()),
+			daysPublished: v.optional(v.number()),
+		}),
+	),
+	duplicateGroup: v.object({
+		count: v.number(),
+		records: v.array(
+			v.object({
+				portal: v.string(),
+				sourceUrl: v.optional(v.string()),
+				advertiserName: v.optional(v.string()),
+				agencyName: v.optional(v.string()),
+				firstSeenAt: v.optional(v.string()),
+				lastSeenAt: v.optional(v.string()),
+				askingPrice: v.optional(v.number()),
+			}),
+		),
+	}),
+	publicationDurations: v.array(
+		v.object({
+			label: v.string(),
+			kind: v.union(
+				v.literal("advertiser"),
+				v.literal("agency"),
+				v.literal("portal"),
+			),
+			daysPublished: v.number(),
+		}),
+	),
+	actions: v.object({
+		reportDownloadUrl: v.optional(v.string()),
+		valuationUrl: v.optional(v.string()),
+	}),
+});
 
 const listingCreateArgs = {
 	title: v.string(),
@@ -64,6 +151,7 @@ const listingCreateArgs = {
 			reasonCodes: v.array(v.string()),
 		}),
 	),
+	propertyDossier: v.optional(localizaPropertyDossierValidator),
 	location: v.object({
 		street: v.string(),
 		city: v.string(),
@@ -143,6 +231,7 @@ type ListingCreateRecordInput = {
 		candidateCount?: number;
 		reasonCodes: string[];
 	};
+	propertyDossier?: LocalizaPropertyDossier;
 	location: {
 		street: string;
 		city: string;
@@ -183,6 +272,9 @@ const assertListingSourceConsistency = (listing: ListingCreateRecordInput) => {
 				"Manual listings cannot include location resolution metadata.",
 			);
 		}
+		if (listing.propertyDossier) {
+			throw new Error("Manual listings cannot include Localiza property reports.");
+		}
 		return;
 	}
 
@@ -201,11 +293,19 @@ const assertListingSourceConsistency = (listing: ListingCreateRecordInput) => {
 				"Only Idealista listings can include location resolution metadata.",
 			);
 		}
+		if (listing.propertyDossier) {
+			throw new Error(
+				"Only Idealista listings can include Localiza property reports.",
+			);
+		}
 		return;
 	}
 
-	if (listing.locationResolution && !listing.sourceMetadata) {
-		throw new Error("Idealista location resolution requires source metadata.");
+	if (
+		(listing.locationResolution || listing.propertyDossier) &&
+		!listing.sourceMetadata
+	) {
+		throw new Error("Idealista Localiza metadata requires source metadata.");
 	}
 
 	if (
@@ -214,6 +314,15 @@ const assertListingSourceConsistency = (listing: ListingCreateRecordInput) => {
 	) {
 		throw new Error(
 			"Idealista source metadata must match the listing source URL.",
+		);
+	}
+
+	if (
+		listing.propertyDossier &&
+		listing.propertyDossier.listingSnapshot.sourceUrl !== listing.sourceUrl
+	) {
+		throw new Error(
+			"Localiza property report must match the listing source URL.",
 		);
 	}
 };
@@ -244,6 +353,7 @@ const buildListingInsert = (
 		sourceUrl: args.sourceUrl,
 		sourceMetadata: args.sourceMetadata,
 		locationResolution: args.locationResolution,
+		propertyDossier: args.propertyDossier,
 		location: args.location,
 		displayAddressLabel,
 		details: args.details,
@@ -277,6 +387,7 @@ export const createBatch = mutation({
 				sourceUrl: listingCreateArgs.sourceUrl,
 				sourceMetadata: listingCreateArgs.sourceMetadata,
 				locationResolution: listingCreateArgs.locationResolution,
+				propertyDossier: listingCreateArgs.propertyDossier,
 				location: listingCreateArgs.location,
 				displayAddressLabel: listingCreateArgs.displayAddressLabel,
 				details: listingCreateArgs.details,

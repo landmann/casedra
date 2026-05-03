@@ -1,5 +1,6 @@
 import type { LocalizaAcquisitionStrategy } from "@casedra/types";
 import type { ConvexHttpClient } from "convex/browser";
+import { rankCaptacionBuildings } from "./captacion-catastro";
 import { getLocalizaReadinessSnapshot } from "./readiness";
 import { resolveIdealistaLocation } from "./resolver";
 
@@ -22,5 +23,11 @@ export const createLocalizaService = (deps: { convex: ConvexHttpClient }) => ({
 			now: input?.now,
 			sinceMs: input?.sinceMs,
 		});
+	},
+	async rankCaptacionBuildings(input: {
+		boundary: Array<{ lat: number; lng: number }>;
+		userId?: string;
+	}) {
+		return await rankCaptacionBuildings(input);
 	},
 });

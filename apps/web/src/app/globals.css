@@ -3,84 +3,94 @@
 @tailwind utilities;
 
 :root {
-  /* Canvas (primary brand background) — #FFFBF2 */
-  --background: 41 100% 97%;
-  /* Warm off-black body text — #1F1A14 */
-  --foreground: 33 22% 10%;
+	/* Canvas (primary brand background) — #FFFBF2 */
+	--background: 41 100% 97%;
+	/* Warm off-black body text — #1F1A14 */
+	--foreground: 33 22% 10%;
 
-  /* Cards sit on canvas; distinction comes from border hairline */
-  --card: 41 100% 97%;
-  --card-foreground: 33 22% 10%;
-  --popover: 41 100% 97%;
-  --popover-foreground: 33 22% 10%;
+	/* Cards sit on canvas; distinction comes from border hairline */
+	--card: 41 100% 97%;
+	--card-foreground: 33 22% 10%;
+	--popover: 41 100% 97%;
+	--popover-foreground: 33 22% 10%;
 
-  /* Copper accent (secondary brand color) — #9C6137 — used for CTAs, links, emphasis */
-  --primary: 25 48% 41%;
-  --primary-foreground: 41 100% 97%;
+	/* Copper accent (secondary brand color) — #9C6137 — used for CTAs, links, emphasis */
+	--primary: 25 48% 41%;
+	--primary-foreground: 41 100% 97%;
 
-  /* Subtle cream variant for secondary surfaces */
-  --secondary: 41 60% 94%;
-  --secondary-foreground: 33 22% 10%;
+	/* Subtle cream variant for secondary surfaces */
+	--secondary: 41 60% 94%;
+	--secondary-foreground: 33 22% 10%;
 
-  --muted: 41 40% 93%;
-  --muted-foreground: 33 20% 36%;
+	--muted: 41 40% 93%;
+	--muted-foreground: 33 20% 36%;
 
-  --accent: 41 60% 94%;
-  --accent-foreground: 25 48% 41%;
+	--accent: 41 60% 94%;
+	--accent-foreground: 25 48% 41%;
 
-  --destructive: 0 72% 45%;
-  --destructive-foreground: 41 100% 97%;
+	--destructive: 0 72% 45%;
+	--destructive-foreground: 41 100% 97%;
 
-  /* Hairline — #E8DFCC */
-  --border: 41 38% 86%;
-  --input: 41 38% 86%;
-  --ring: 25 48% 41%;
-  --radius: 0.75rem;
+	/* Hairline — #E8DFCC */
+	--border: 41 38% 86%;
+	--input: 41 38% 86%;
+	--ring: 25 48% 41%;
+	--radius: 0.75rem;
 }
 
 body {
-  min-height: 100vh;
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
-  font-feature-settings: "rlig" 1, "calt" 1;
-  background-image:
-    radial-gradient(circle at top left, rgba(255, 251, 242, 0.85), transparent 35%),
-    linear-gradient(to bottom, rgba(255, 251, 242, 0.94), rgba(255, 251, 242, 1));
+	min-height: 100vh;
+	background-color: hsl(var(--background));
+	color: hsl(var(--foreground));
+	font-feature-settings:
+		"rlig" 1,
+		"calt" 1;
+	background-image:
+		radial-gradient(
+			circle at top left,
+			rgba(255, 251, 242, 0.85),
+			transparent 35%
+		),
+		linear-gradient(
+			to bottom,
+			rgba(255, 251, 242, 0.94),
+			rgba(255, 251, 242, 1)
+		);
 }
 
 .casedra-clerk-auth {
-  --clerk-color-primary: #9c6137;
-  --clerk-color-foreground: #1f1a14;
-  --clerk-color-neutral: #e8dfcc;
-  --clerk-color-border: #e8dfcc;
-  --clerk-color-ring: #9c6137;
-  --clerk-color-input: #fff8ee;
-  --clerk-color-input-foreground: #1f1a14;
-  --clerk-font-family: var(--font-sans);
-  --clerk-font-family-buttons: var(--font-sans);
-  --clerk-border-radius: 1rem;
+	--clerk-color-primary: #9c6137;
+	--clerk-color-foreground: #1f1a14;
+	--clerk-color-neutral: #e8dfcc;
+	--clerk-color-border: #e8dfcc;
+	--clerk-color-ring: #9c6137;
+	--clerk-color-input: #fff8ee;
+	--clerk-color-input-foreground: #1f1a14;
+	--clerk-font-family: var(--font-sans);
+	--clerk-font-family-buttons: var(--font-sans);
+	--clerk-border-radius: 1rem;
 }
 
 .casedra-clerk-auth .cl-rootBox,
 .casedra-clerk-auth .cl-cardBox {
-  width: 100%;
+	width: 100%;
 }
 
 .casedra-clerk-auth .cl-card {
-  width: 100%;
-  border: 1px solid hsl(var(--border)) !important;
-  border-radius: 2rem !important;
-  background: rgba(255, 251, 242, 0.94) !important;
-  box-shadow: 0 34px 100px rgba(31, 26, 20, 0.12) !important;
-  backdrop-filter: blur(18px);
+	width: 100%;
+	border: 1px solid hsl(var(--border)) !important;
+	border-radius: 2rem !important;
+	background: rgba(255, 251, 242, 0.94) !important;
+	box-shadow: 0 34px 100px rgba(31, 26, 20, 0.12) !important;
+	backdrop-filter: blur(18px);
 }
 
 .casedra-clerk-auth .cl-headerTitle {
-  font-family: var(--font-serif) !important;
-  font-size: clamp(1.9rem, 1.6rem + 1vw, 2.55rem) !important;
-  font-weight: 400 !important;
-  letter-spacing: -0.02em !important;
-  color: hsl(var(--foreground)) !important;
+	font-family: var(--font-serif) !important;
+	font-size: clamp(1.9rem, 1.6rem + 1vw, 2.55rem) !important;
+	font-weight: 400 !important;
+	letter-spacing: -0.02em !important;
+	color: hsl(var(--foreground)) !important;
 }
 
 .casedra-clerk-auth .cl-headerSubtitle,
@@ -88,252 +98,303 @@ body {
 .casedra-clerk-auth .cl-dividerText,
 .casedra-clerk-auth .cl-formFieldHintText,
 .casedra-clerk-auth .cl-identityPreviewText {
-  color: hsl(var(--muted-foreground)) !important;
+	color: hsl(var(--muted-foreground)) !important;
 }
 
 .casedra-clerk-auth .cl-headerSubtitle {
-  font-size: 0.95rem !important;
-  line-height: 1.7 !important;
+	font-size: 0.95rem !important;
+	line-height: 1.7 !important;
 }
 
 .casedra-clerk-auth .cl-dividerLine {
-  background: hsl(var(--border)) !important;
+	background: hsl(var(--border)) !important;
 }
 
 .casedra-clerk-auth .cl-dividerText,
 .casedra-clerk-auth .cl-formFieldLabel {
-  font-size: 0.7rem !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.18em !important;
-  text-transform: uppercase !important;
+	font-size: 0.7rem !important;
+	font-weight: 600 !important;
+	letter-spacing: 0.18em !important;
+	text-transform: uppercase !important;
 }
 
 .casedra-clerk-auth .cl-formFieldLabel {
-  color: hsl(var(--muted-foreground)) !important;
+	color: hsl(var(--muted-foreground)) !important;
 }
 
 .casedra-clerk-auth .cl-formFieldInput {
-  min-height: 2.95rem !important;
-  border: 1px solid hsl(var(--border)) !important;
-  border-radius: 1rem !important;
-  background: rgba(255, 248, 238, 0.92) !important;
-  box-shadow: none !important;
-  color: hsl(var(--foreground)) !important;
+	min-height: 2.95rem !important;
+	border: 1px solid hsl(var(--border)) !important;
+	border-radius: 1rem !important;
+	background: rgba(255, 248, 238, 0.92) !important;
+	box-shadow: none !important;
+	color: hsl(var(--foreground)) !important;
 }
 
 .casedra-clerk-auth .cl-formFieldInput:focus,
 .casedra-clerk-auth .cl-formFieldInput:focus-visible {
-  border-color: #9c6137 !important;
-  box-shadow: 0 0 0 1px rgba(156, 97, 55, 0.35) !important;
+	border-color: #9c6137 !important;
+	box-shadow: 0 0 0 1px rgba(156, 97, 55, 0.35) !important;
 }
 
 .casedra-clerk-auth .cl-formButtonPrimary {
-  min-height: 2.95rem !important;
-  border-radius: 9999px !important;
-  background: #9c6137 !important;
-  box-shadow: none !important;
-  color: #fffbf2 !important;
-  transition: background-color 180ms ease, transform 180ms ease !important;
+	min-height: 2.95rem !important;
+	border-radius: 9999px !important;
+	background: #9c6137 !important;
+	box-shadow: none !important;
+	color: #fffbf2 !important;
+	transition:
+		background-color 180ms ease,
+		transform 180ms ease !important;
 }
 
 .casedra-clerk-auth .cl-formButtonPrimary:hover,
 .casedra-clerk-auth .cl-formButtonPrimary:focus-visible {
-  background: #87522d !important;
+	background: #87522d !important;
 }
 
 .casedra-clerk-auth .cl-socialButtonsBlockButton {
-  min-height: 2.95rem !important;
-  border: 1px solid hsl(var(--border)) !important;
-  border-radius: 9999px !important;
-  background: rgba(255, 251, 242, 0.84) !important;
-  box-shadow: none !important;
-  color: hsl(var(--foreground)) !important;
+	min-height: 2.95rem !important;
+	border: 1px solid hsl(var(--border)) !important;
+	border-radius: 9999px !important;
+	background: rgba(255, 251, 242, 0.84) !important;
+	box-shadow: none !important;
+	color: hsl(var(--foreground)) !important;
 }
 
 .casedra-clerk-auth .cl-socialButtonsBlockButton:hover,
 .casedra-clerk-auth .cl-socialButtonsBlockButton:focus-visible {
-  background: hsl(var(--secondary)) !important;
+	background: hsl(var(--secondary)) !important;
 }
 
 .casedra-clerk-auth .cl-footerActionLink,
 .casedra-clerk-auth .cl-identityPreviewEditButton {
-  color: #9c6137 !important;
+	color: #9c6137 !important;
 }
 
 .casedra-clerk-auth .cl-formFieldErrorText,
 .casedra-clerk-auth .cl-alertText {
-  font-size: 0.85rem !important;
+	font-size: 0.85rem !important;
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
+	* {
+		@apply border-border;
+	}
 
-  body {
-    @apply bg-background text-foreground antialiased;
-  }
+	body {
+		@apply bg-background text-foreground antialiased;
+	}
 
-  /* Instrument Serif looks best with slightly tightened tracking at display sizes */
-  .font-serif {
-    letter-spacing: -0.01em;
-    font-feature-settings: "liga" 1, "dlig" 1;
-  }
+	/* Instrument Serif looks best with slightly tightened tracking at display sizes */
+	.font-serif {
+		letter-spacing: -0.01em;
+		font-feature-settings:
+			"liga" 1,
+			"dlig" 1;
+	}
 }
 
 @layer utilities {
-  .animate-enter {
-    animation: casedra-enter 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-  }
+	.animate-enter {
+		animation: casedra-enter 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+	}
 
-  .localiza-loading-panel {
-    animation: casedra-localiza-panel-in 360ms cubic-bezier(0.2, 0, 0, 1) both;
-  }
+	.casedra-hero-image {
+		animation: casedra-hero-drift 12000ms ease-in-out infinite alternate;
+		transform-origin: center;
+	}
 
-  .localiza-loading-text {
-    animation: casedra-localiza-loading-text 420ms cubic-bezier(0.2, 0, 0, 1) both;
-  }
+	.casedra-lift {
+		transition:
+			border-color 180ms ease,
+			box-shadow 180ms ease,
+			transform 180ms ease;
+	}
 
-  .localiza-loading-orb {
-    animation: casedra-localiza-orb 1400ms cubic-bezier(0.2, 0, 0, 1) infinite;
-  }
+	.casedra-lift:hover {
+		border-color: rgba(156, 97, 55, 0.36);
+		box-shadow: 0 18px 46px rgba(31, 26, 20, 0.12);
+		transform: translateY(-2px);
+	}
 
-  .localiza-loading-ring {
-    animation: casedra-localiza-ring 1400ms cubic-bezier(0.2, 0, 0, 1) infinite;
-  }
+	.localiza-loading-panel {
+		animation: casedra-localiza-panel-in 360ms cubic-bezier(0.2, 0, 0, 1) both;
+	}
 
-  .localiza-loading-dots > span {
-    height: 0.25rem;
-    width: 0.25rem;
-    border-radius: 9999px;
-    background: #9c6137;
-    animation: casedra-localiza-dot 1100ms cubic-bezier(0.2, 0, 0, 1) infinite;
-  }
+	.localiza-loading-text {
+		animation: casedra-localiza-loading-text 420ms cubic-bezier(0.2, 0, 0, 1)
+			both;
+	}
 
-  .localiza-loading-dots > span:nth-child(2) {
-    animation-delay: 120ms;
-  }
+	.localiza-loading-orb {
+		animation: casedra-localiza-orb 1400ms cubic-bezier(0.2, 0, 0, 1) infinite;
+	}
 
-  .localiza-loading-dots > span:nth-child(3) {
-    animation-delay: 240ms;
-  }
+	.localiza-loading-ring {
+		animation: casedra-localiza-ring 1400ms cubic-bezier(0.2, 0, 0, 1) infinite;
+	}
 
-  .localiza-loading-shimmer {
-    position: relative;
-    overflow: hidden;
-  }
+	.localiza-loading-dots > span {
+		height: 0.25rem;
+		width: 0.25rem;
+		border-radius: 9999px;
+		background: #9c6137;
+		animation: casedra-localiza-dot 1100ms cubic-bezier(0.2, 0, 0, 1) infinite;
+	}
 
-  .localiza-loading-shimmer::after {
-    position: absolute;
-    inset: 0;
-    content: "";
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(156, 97, 55, 0.18),
-      transparent
-    );
-    animation: casedra-localiza-shimmer 1500ms cubic-bezier(0.2, 0, 0, 1)
-      infinite;
-  }
+	.localiza-loading-dots > span:nth-child(2) {
+		animation-delay: 120ms;
+	}
+
+	.localiza-loading-dots > span:nth-child(3) {
+		animation-delay: 240ms;
+	}
+
+	.localiza-loading-shimmer {
+		position: relative;
+		overflow: hidden;
+	}
+
+	.localiza-loading-shimmer::after {
+		position: absolute;
+		inset: 0;
+		content: "";
+		background: linear-gradient(
+			90deg,
+			transparent,
+			rgba(156, 97, 55, 0.18),
+			transparent
+		);
+		animation: casedra-localiza-shimmer 1500ms cubic-bezier(0.2, 0, 0, 1)
+			infinite;
+	}
 }
 
 @keyframes casedra-enter {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
+	from {
+		opacity: 0;
+		transform: translateY(18px);
+	}
 
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
 }
 
-@keyframes casedra-localiza-panel-in {
-  from {
-    opacity: 0;
-    filter: blur(6px);
-    transform: translateY(8px);
-  }
+@keyframes casedra-hero-drift {
+	from {
+		transform: scale(1.01) translate3d(-0.4%, 0, 0);
+	}
 
-  to {
-    opacity: 1;
-    filter: blur(0);
-    transform: translateY(0);
-  }
-}
-
-@keyframes casedra-localiza-loading-text {
-  from {
-    opacity: 0;
-    filter: blur(4px);
-    transform: translateY(6px);
-  }
-
-  to {
-    opacity: 1;
-    filter: blur(0);
-    transform: translateY(0);
-  }
-}
-
-@keyframes casedra-localiza-orb {
-  0%,
-  100% {
-    opacity: 0.45;
-    transform: scale(0.72);
-  }
-
-  45% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes casedra-localiza-ring {
-  0% {
-    opacity: 0.42;
-    transform: scale(0.85);
-  }
-
-  80%,
-  100% {
-    opacity: 0;
-    transform: scale(2.3);
-  }
-}
-
-@keyframes casedra-localiza-dot {
-  0%,
-  100% {
-    opacity: 0.28;
-    transform: translateY(0);
-  }
-
-  45% {
-    opacity: 1;
-    transform: translateY(-2px);
-  }
-}
-
-@keyframes casedra-localiza-shimmer {
-  from {
-    transform: translateX(-100%);
-  }
-
-  to {
-    transform: translateX(100%);
-  }
+	to {
+		transform: scale(1.04) translate3d(0.4%, -0.5%, 0);
+	}
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .localiza-loading-panel,
-  .localiza-loading-text,
-  .localiza-loading-orb,
-  .localiza-loading-ring,
-  .localiza-loading-dots > span,
-  .localiza-loading-shimmer::after {
-    animation: none;
-  }
+	.animate-enter,
+	.casedra-hero-image,
+	.localiza-loading-panel,
+	.localiza-loading-text,
+	.localiza-loading-orb,
+	.localiza-loading-ring,
+	.localiza-loading-dots > span,
+	.localiza-loading-shimmer::after {
+		animation: none;
+	}
+
+	.casedra-lift,
+	.casedra-lift:hover {
+		transform: none;
+	}
+}
+
+@keyframes casedra-localiza-panel-in {
+	from {
+		opacity: 0;
+		filter: blur(6px);
+		transform: translateY(8px);
+	}
+
+	to {
+		opacity: 1;
+		filter: blur(0);
+		transform: translateY(0);
+	}
+}
+
+@keyframes casedra-localiza-loading-text {
+	from {
+		opacity: 0;
+		filter: blur(4px);
+		transform: translateY(6px);
+	}
+
+	to {
+		opacity: 1;
+		filter: blur(0);
+		transform: translateY(0);
+	}
+}
+
+@keyframes casedra-localiza-orb {
+	0%,
+	100% {
+		opacity: 0.45;
+		transform: scale(0.72);
+	}
+
+	45% {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+
+@keyframes casedra-localiza-ring {
+	0% {
+		opacity: 0.42;
+		transform: scale(0.85);
+	}
+
+	80%,
+	100% {
+		opacity: 0;
+		transform: scale(2.3);
+	}
+}
+
+@keyframes casedra-localiza-dot {
+	0%,
+	100% {
+		opacity: 0.28;
+		transform: translateY(0);
+	}
+
+	45% {
+		opacity: 1;
+		transform: translateY(-2px);
+	}
+}
+
+@keyframes casedra-localiza-shimmer {
+	from {
+		transform: translateX(-100%);
+	}
+
+	to {
+		transform: translateX(100%);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.localiza-loading-panel,
+	.localiza-loading-text,
+	.localiza-loading-orb,
+	.localiza-loading-ring,
+	.localiza-loading-dots > span,
+	.localiza-loading-shimmer::after {
+		animation: none;
+	}
 }

@@ -14,6 +14,29 @@ const localizaDossierImageValidator = v.object({
 	caption: v.optional(v.string()),
 });
 
+const localizaOnlineEvidenceKindValidator = v.union(
+	v.literal("listing_archive"),
+	v.literal("building_cadastre"),
+	v.literal("building_condition"),
+	v.literal("official_cadastre"),
+	v.literal("energy_certificate"),
+	v.literal("solar_potential"),
+	v.literal("risk_overlay"),
+	v.literal("local_amenity"),
+	v.literal("planning_heritage"),
+	v.literal("market_benchmark"),
+	v.literal("licensed_feed"),
+);
+
+const localizaOnlineEvidenceItemValidator = v.object({
+	label: v.string(),
+	value: v.string(),
+	sourceLabel: v.string(),
+	sourceUrl: v.optional(v.string()),
+	observedAt: v.optional(v.string()),
+	kind: localizaOnlineEvidenceKindValidator,
+});
+
 const localizaPropertyDossierValidator = v.object({
 	listingSnapshot: v.object({
 		title: v.optional(v.string()),
@@ -31,6 +54,7 @@ const localizaPropertyDossierValidator = v.object({
 		sourceUrl: v.string(),
 	}),
 	imageGallery: v.array(localizaDossierImageValidator),
+	onlineEvidence: v.optional(v.array(localizaOnlineEvidenceItemValidator)),
 	officialIdentity: v.object({
 		proposedAddressLabel: v.optional(v.string()),
 		street: v.optional(v.string()),
@@ -273,7 +297,9 @@ const assertListingSourceConsistency = (listing: ListingCreateRecordInput) => {
 			);
 		}
 		if (listing.propertyDossier) {
-			throw new Error("Manual listings cannot include Localiza property reports.");
+			throw new Error(
+				"Manual listings cannot include Localiza property reports.",
+			);
 		}
 		return;
 	}

@@ -62,6 +62,29 @@ const localizaDossierImageValidator = v.object({
 	caption: v.optional(v.string()),
 });
 
+const localizaOnlineEvidenceKindValidator = v.union(
+	v.literal("listing_archive"),
+	v.literal("building_cadastre"),
+	v.literal("building_condition"),
+	v.literal("official_cadastre"),
+	v.literal("energy_certificate"),
+	v.literal("solar_potential"),
+	v.literal("risk_overlay"),
+	v.literal("local_amenity"),
+	v.literal("planning_heritage"),
+	v.literal("market_benchmark"),
+	v.literal("licensed_feed"),
+);
+
+const localizaOnlineEvidenceItemValidator = v.object({
+	label: v.string(),
+	value: v.string(),
+	sourceLabel: v.string(),
+	sourceUrl: v.optional(v.string()),
+	observedAt: v.optional(v.string()),
+	kind: localizaOnlineEvidenceKindValidator,
+});
+
 const localizaPropertyDossierValidator = v.object({
 	listingSnapshot: v.object({
 		title: v.optional(v.string()),
@@ -79,6 +102,7 @@ const localizaPropertyDossierValidator = v.object({
 		sourceUrl: v.string(),
 	}),
 	imageGallery: v.array(localizaDossierImageValidator),
+	onlineEvidence: v.optional(v.array(localizaOnlineEvidenceItemValidator)),
 	officialIdentity: v.object({
 		proposedAddressLabel: v.optional(v.string()),
 		street: v.optional(v.string()),
@@ -159,6 +183,17 @@ const resolutionCandidateValidator = v.object({
 	score: v.number(),
 	reasonCodes: v.array(v.string()),
 	prefillLocation: v.optional(listingLocationValidator),
+	selectionDisabled: v.optional(v.boolean()),
+	rationale: v.optional(
+		v.object({
+			title: v.string(),
+			description: v.string(),
+			sourceLabel: v.optional(v.string()),
+			sourceUrl: v.optional(v.string()),
+			matchedSignals: v.array(v.string()),
+			discardedSignals: v.array(v.string()),
+		}),
+	),
 });
 
 const resolveIdealistaLocationResultValidator = v.object({
@@ -220,6 +255,31 @@ export const getBySourceUrl = query({
 
 		return (
 			matches.sort((left, right) => right.updatedAt - left.updatedAt)[0] ?? null
+		);
+	},
+});
+
+export const getLatestSuccessfulBySourceUrl = query({
+	args: {
+		sourceUrl: v.string(),
+	},
+	handler: async (ctx, args) => {
+		await requireAuthenticatedUserId(ctx);
+
+		const matches = await ctx.db
+			.query("locationResolutions")
+			.withIndex("by_source_url", (q) => q.eq("sourceUrl", args.sourceUrl))
+			.collect();
+
+		return (
+			matches
+				.filter(
+					(record) =>
+						record.result &&
+						record.normalizedSignals &&
+						record.resultStatus !== "unresolved",
+				)
+				.sort((left, right) => right.updatedAt - left.updatedAt)[0] ?? null
 		);
 	},
 });
@@ -347,17 +407,21 @@ export const listRecentPropertyHistoryKeys = query({
 		>();
 
 		for (const record of records) {
-			if (!record.propertyHistoryKey || keysByValue.has(record.propertyHistoryKey)) {
+			if (
+				!record.propertyHistoryKey ||
+				keysByValue.has(record.propertyHistoryKey)
+			) {
 				continue;
 			}
 
 			keysByValue.set(record.propertyHistoryKey, {
 				propertyHistoryKey: record.propertyHistoryKey,
 				label:
-					record.result?.propertyDossier?.officialIdentity.proposedAddressLabel ??
-					record.result?.resolvedAddressLabel,
+					record.result?.propertyDossier?.officialIdentity
+						.proposedAddressLabel ?? record.result?.resolvedAddressLabel,
 				unitRef20: record.result?.propertyDossier?.officialIdentity.unitRef20,
-				parcelRef14: record.result?.propertyDossier?.officialIdentity.parcelRef14,
+				parcelRef14:
+					record.result?.propertyDossier?.officialIdentity.parcelRef14,
 				sourceUrl: record.sourceUrl,
 				resolverVersion: record.resolverVersion,
 				updatedAt: record.updatedAt,
@@ -763,9 +827,7 @@ export const listFalsePositiveIncidents = query({
 			? await ctx.db
 					.query("localizaIncidents")
 					.withIndex("by_status_and_kind", (q) =>
-						q
-							.eq("status", status)
-							.eq("kind", "false_positive_autofill"),
+						q.eq("status", status).eq("kind", "false_positive_autofill"),
 					)
 					.collect()
 			: await ctx.db.query("localizaIncidents").collect();

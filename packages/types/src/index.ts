@@ -71,6 +71,37 @@ export interface LocalizaDossierImage {
 	caption?: string;
 }
 
+export type LocalizaOnlineEvidenceKind =
+	| "listing_archive"
+	| "building_cadastre"
+	| "building_condition"
+	| "official_cadastre"
+	| "energy_certificate"
+	| "solar_potential"
+	| "risk_overlay"
+	| "local_amenity"
+	| "planning_heritage"
+	| "market_benchmark"
+	| "licensed_feed";
+
+export interface LocalizaOnlineEvidenceItem {
+	label: string;
+	value: string;
+	sourceLabel: string;
+	sourceUrl?: string;
+	observedAt?: string;
+	kind: LocalizaOnlineEvidenceKind;
+}
+
+export interface LocalizaAddressEvidence {
+	label: string;
+	value: string;
+	sourceLabel: string;
+	sourceUrl?: string;
+	observedAt?: string;
+	matchedSignals: string[];
+}
+
 export interface LocalizaPropertyDossier {
 	listingSnapshot: {
 		title?: string;
@@ -88,6 +119,7 @@ export interface LocalizaPropertyDossier {
 		sourceUrl: string;
 	};
 	imageGallery: LocalizaDossierImage[];
+	onlineEvidence?: LocalizaOnlineEvidenceItem[];
 	officialIdentity: {
 		proposedAddressLabel?: string;
 		street?: string;
@@ -154,6 +186,7 @@ export interface IdealistaSignals {
 	advertiserName?: string;
 	agencyName?: string;
 	daysPublished?: number;
+	addressText?: string;
 	portalHint?: string;
 	neighborhood?: string;
 	municipality?: string;
@@ -165,6 +198,7 @@ export interface IdealistaSignals {
 	listingText?: string;
 	imageUrls?: string[];
 	imageObservations?: LocalizaDossierImage[];
+	addressEvidence?: LocalizaAddressEvidence[];
 	acquisitionMethod: IdealistaAcquisitionMethod;
 	acquiredAt: string;
 }
@@ -191,6 +225,15 @@ export interface ResolveIdealistaLocationCandidate {
 	score: number;
 	reasonCodes: string[];
 	prefillLocation?: ListingLocation;
+	selectionDisabled?: boolean;
+	rationale?: {
+		title: string;
+		description: string;
+		sourceLabel?: string;
+		sourceUrl?: string;
+		matchedSignals: string[];
+		discardedSignals: string[];
+	};
 }
 
 export interface ResolveIdealistaLocationResult {
@@ -319,6 +362,35 @@ export interface LocalizaGoldenSummary {
 	livePendingValidationFixtureCount: number;
 }
 
+export interface LocalizaDataCoverageSource {
+	id:
+		| "firecrawl"
+		| "official_public_sources"
+		| "oportunista_rapidapi"
+		| "operator_market_import"
+		| "licensed_comparable_feed";
+	label: string;
+	status: "active" | "manual" | "missing_credentials" | "reserved";
+	configured: boolean;
+	coverage: string[];
+	gap?: string;
+	action?: string;
+	blockerCode?: string;
+}
+
+export interface LocalizaDataCoverageSummary {
+	liveFixtureCount: number;
+	observedFixtureCount: number;
+	addressObservedCount: number;
+	cadastralIdentityObservedCount: number;
+	buildingOrBetterObservedCount: number;
+	onlineEvidenceObservedCount: number;
+	listingArchiveObservedCount: number;
+	multiSourceHistoryObservedCount: number;
+	needsConfirmationObservedCount: number;
+	unresolvedObservedCount: number;
+}
+
 export interface LocalizaReadinessSnapshot {
 	generatedAt: number;
 	status: "ready" | "blocked";
@@ -336,11 +408,60 @@ export interface LocalizaReadinessSnapshot {
 		configured: boolean;
 		refreshIntervalMs: number;
 	};
+	dataCoverage: {
+		sources: LocalizaDataCoverageSource[];
+		liveSummary: LocalizaDataCoverageSummary;
+	};
 	goldenDataset: {
 		summary: LocalizaGoldenSummary;
 		issues: string[];
 	};
 	metrics: LocalizaMetricsSnapshot;
+}
+
+export interface CaptacionBoundaryPoint {
+	lat: number;
+	lng: number;
+}
+
+export type CaptacionRankingSource =
+	| "catastro_alphanumeric_unit_surface"
+	| "catastro_inspire_building_area";
+
+export type CaptacionRankingConfidence = "exact" | "diagnostic_proxy";
+
+export interface CaptacionRankedBuilding {
+	rank: number;
+	cadastralReference: string;
+	addressLabel?: string;
+	municipality?: string;
+	province?: string;
+	centroid: CaptacionBoundaryPoint;
+	largestResidentialUnitM2?: number;
+	largestResidentialUnitReference?: string;
+	officialBuildingAreaM2?: number;
+	residentialUnitCount?: number;
+	buildingUnitCount?: number;
+	currentUse?: string;
+	rankingSurfaceM2: number;
+	rankingSource: CaptacionRankingSource;
+	rankingConfidence: CaptacionRankingConfidence;
+	officialSource: string;
+	officialUrl?: string;
+}
+
+export interface CaptacionRankingResult {
+	generatedAt: string;
+	boundaryAreaKm2: number;
+	adapter: string;
+	rankingSource: CaptacionRankingSource;
+	rankingConfidence: CaptacionRankingConfidence;
+	exactRowCount: number;
+	totalResidentialRowCount: number;
+	exactCoverage: number;
+	exportEnabled: boolean;
+	rows: CaptacionRankedBuilding[];
+	warnings: string[];
 }
 
 export type BrandSourceType = "firecrawl" | "manual";

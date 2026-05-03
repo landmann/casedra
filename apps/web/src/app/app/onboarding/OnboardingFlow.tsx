@@ -350,6 +350,43 @@ const buildDossierWithOfficialLocation = (
 			}
 		: undefined;
 
+const isBrowserUrl = (value?: string): value is string => {
+	if (!value) {
+		return false;
+	}
+
+	try {
+		const parsed = new URL(value);
+		return parsed.protocol === "https:" || parsed.protocol === "http:";
+	} catch {
+		return false;
+	}
+};
+
+const getFirstSelectableCandidateId = (
+	candidates: ResolveIdealistaLocationResult["candidates"],
+) => candidates.find((candidate) => !candidate.selectionDisabled)?.id ?? null;
+
+const getDirectOfficialPropertyUrl = (
+	result: ResolveIdealistaLocationResult,
+) => {
+	if (result.status !== "exact_match" && result.status !== "building_match") {
+		return undefined;
+	}
+
+	const candidate =
+		result.candidates.find(
+			(entry) => Boolean(result.unitRef20) && entry.unitRef20 === result.unitRef20,
+		) ??
+		result.candidates.find(
+			(entry) =>
+				Boolean(result.parcelRef14) && entry.parcelRef14 === result.parcelRef14,
+		) ??
+		(result.candidates.length === 1 ? result.candidates[0] : undefined);
+
+	return isBrowserUrl(candidate?.officialUrl) ? candidate.officialUrl : undefined;
+};
+
 const normalizeLocationValue = (value: string) =>
 	value.trim().toLowerCase().replace(/\s+/g, " ");
 
@@ -489,6 +526,9 @@ export default function OnboardingFlow({
 		[availableLocalizaStrategies],
 	);
 	const hasConfiguredLocalizaStrategy = localizaStrategyOptions.length > 0;
+	const directOfficialPropertyUrl = localizaResult
+		? getDirectOfficialPropertyUrl(localizaResult)
+		: undefined;
 
 	const canContinue = useMemo(() => {
 		if (currentStep === "brand") {
@@ -727,8 +767,9 @@ export default function OnboardingFlow({
 				result.status === "needs_confirmation"
 					? (result.candidates.find(
 							(candidate) =>
-								candidate.id === initialLocalizaCandidateIdRef.current,
-						)?.id ?? null)
+								candidate.id === initialLocalizaCandidateIdRef.current &&
+								!candidate.selectionDisabled,
+						)?.id ?? getFirstSelectableCandidateId(result.candidates))
 					: null,
 			);
 			setListingDraft((prev) => ({
@@ -1807,16 +1848,16 @@ export default function OnboardingFlow({
 															{localizaResult.sourceMetadata.externalListingId}
 														</p>
 													) : null}
-													{localizaResult.officialSourceUrl ? (
+													{directOfficialPropertyUrl ? (
 														<p className="text-muted-foreground">
-															Registro oficial:{" "}
+															Ficha oficial:{" "}
 															<a
-																href={localizaResult.officialSourceUrl}
+																href={directOfficialPropertyUrl}
 																target="_blank"
 																rel="noreferrer"
 																className="text-primary underline underline-offset-4"
 															>
-																Abrir registro
+																Abrir ficha
 															</a>
 														</p>
 													) : null}
@@ -1838,7 +1879,7 @@ export default function OnboardingFlow({
 													{localizaResult.status === "needs_confirmation" &&
 													localizaResult.candidates.length > 0 ? (
 														<div className="space-y-3 pt-1">
-															<fieldset className="grid gap-3 sm:grid-cols-2">
+															<fieldset className="grid gap-3">
 																<legend className="sr-only">
 																	Opciones de dirección
 																</legend>
@@ -1846,16 +1887,19 @@ export default function OnboardingFlow({
 																	<label
 																		key={candidate.id}
 																		className={`rounded-md border p-3 text-left transition-colors ${
-																			selectedLocalizaCandidateId ===
-																			candidate.id
-																				? "border-primary bg-primary/10"
-																				: "border-border/70 bg-background"
+																			candidate.selectionDisabled
+																				? "cursor-not-allowed border-border/70 bg-background opacity-75"
+																				: selectedLocalizaCandidateId ===
+																						candidate.id
+																					? "cursor-pointer border-primary bg-primary/10"
+																					: "cursor-pointer border-border/70 bg-background"
 																		}`}
 																	>
 																		<input
 																			type="radio"
 																			name="localiza-candidate"
 																			value={candidate.id}
+																			disabled={candidate.selectionDisabled}
 																			checked={
 																				selectedLocalizaCandidateId ===
 																				candidate.id
@@ -1867,14 +1911,45 @@ export default function OnboardingFlow({
 																			}
 																			className="sr-only"
 																		/>
-																		<p className="font-medium text-foreground">
-																			{candidate.label}
+																		<p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium text-foreground">
+																			<span>{candidate.label}</span>
+																			{candidate.selectionDisabled ? (
+																				<span className="text-xs text-destructive">
+																					Descartada
+																				</span>
+																			) : null}
 																		</p>
 																		<p className="text-muted-foreground">
 																			Seguridad:{" "}
 																			{Math.round(candidate.score * 100)}%
 																		</p>
-																		{candidate.officialUrl ? (
+																		{candidate.rationale ? (
+																			<p className="mt-2 text-muted-foreground">
+																				<span className="font-medium text-foreground">
+																					{candidate.rationale.title}:{" "}
+																				</span>
+																				{candidate.rationale.description}
+																				{isBrowserUrl(
+																					candidate.rationale.sourceUrl,
+																				) ? (
+																					<>
+																						{" "}
+																						<a
+																							href={
+																								candidate.rationale.sourceUrl
+																							}
+																							target="_blank"
+																							rel="noreferrer"
+																							className="text-primary underline underline-offset-4"
+																						>
+																							{candidate.rationale
+																								.sourceLabel ?? "Fuente"}
+																						</a>
+																					</>
+																				) : null}
+																			</p>
+																		) : null}
+																		{isBrowserUrl(candidate.officialUrl) ? (
 																			<p>
 																				<a
 																					href={candidate.officialUrl}
@@ -1882,7 +1957,7 @@ export default function OnboardingFlow({
 																					rel="noreferrer"
 																					className="text-primary underline underline-offset-4"
 																				>
-																					Abrir registro
+																					Abrir ficha
 																				</a>
 																			</p>
 																		) : null}
@@ -1898,7 +1973,8 @@ export default function OnboardingFlow({
 																		!localizaResult.candidates.find(
 																			(candidate) =>
 																				candidate.id ===
-																				selectedLocalizaCandidateId,
+																					selectedLocalizaCandidateId &&
+																				!candidate.selectionDisabled,
 																		)?.prefillLocation
 																	}
 																>

@@ -7,6 +7,10 @@
 		".": {
 			"types": "./src/index.ts",
 			"default": "./src/index.ts"
+		},
+		"./convex": {
+			"types": "./src/convex.ts",
+			"default": "./src/convex.ts"
 		}
 	},
 	"scripts": {

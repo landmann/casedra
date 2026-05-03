@@ -212,6 +212,7 @@ export const buildListingSignalCorpus = (signals: IdealistaSignals) =>
     [
       signals.title,
       signals.listingText,
+      signals.addressText,
       signals.portalHint,
       signals.floorText,
       signals.neighborhood,
@@ -503,7 +504,8 @@ export const classifyLocalizaCandidateOutcome = (input: {
 
   if (
     input.topScore >= LOCALIZA_BUILDING_MATCH_THRESHOLD &&
-    scoreGap >= LOCALIZA_MIN_SCORE_GAP
+    scoreGap >= LOCALIZA_MIN_SCORE_GAP &&
+    input.hasStreetLevelProof
   ) {
     return {
       status: "building_match" as const,

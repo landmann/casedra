@@ -25,15 +25,28 @@ import {
 } from "./score";
 import { resolveAlavaCatastro } from "./catastro-alava";
 import { resolveBizkaiaCatastro } from "./catastro-bizkaia";
-import { resolveStateCatastroByCallejero } from "./catastro-callejero";
+import {
+	fetchStateCallejeroFactFit,
+	resolveStateCatastroByCallejero,
+} from "./catastro-callejero";
 import { resolveGipuzkoaCatastro } from "./catastro-gipuzkoa";
 import { resolveNavarraCatastro } from "./catastro-navarra";
 import type { LocalizaOfficialResolution, LocalizaTerritoryAdapter } from "./types";
 import { officialSourceLabelByTerritory } from "./types";
 
 const CATASTRO_WFS_URL = "https://ovc.catastro.meh.es/INSPIRE/wfsAD.aspx";
-const MAX_RESULTS_PER_REQUEST = 60;
+const MAX_RESULTS_PER_REQUEST = 120;
 const MIN_VIABLE_SCORE = LOCALIZA_MIN_VIABLE_SCORE;
+const BASE_FACT_FIT_CANDIDATE_LIMIT = 10;
+const BROAD_FACT_FIT_CANDIDATE_LIMIT = 40;
+const FACT_FIT_BATCH_SIZE = 8;
+const NUMBERED_STREET_SIGNAL_PATTERN =
+	/\b(calle|cl|c\/|c|avenida|avda\.?|av|plaza|pz|paseo|ps|camino|cm|carretera|ctra|cr|ronda|rda|traves[ií]a|tr)\s+[^\n.;]{3,95}?\s*,?\s+\d{1,4}\b/i;
+const VIRTUAL_TOUR_STREET_HINT_PATTERN =
+	/\b([A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚÑáéíóúñ .'´-]{2,64}?)\s+-\s+(?:Matterport\s+)?3D\s+Showcase\b/g;
+const STREET_PREFIX_PATTERN =
+	/^(calle|cl|c|avenida|avda|av|plaza|pz|paseo|ps|camino|cm|carretera|ctra|cr|ronda|rda|travesia|tr|urbanizacion|urb|ur|poligono|pg)\s+/;
+const STREET_ARTICLE_PATTERN = /^(de|del|la|las|los|el)\s+/;
 
 interface CatastroComponentMaps {
 	thoroughfares: Map<string, string>;
@@ -361,8 +374,15 @@ const scoreCandidate = (input: {
 	signals: IdealistaSignals;
 	centerPoint: { x: number; y: number };
 	listingSignalCorpus: string;
+	streetNameHints: string[];
 }): ScoredCatastroCandidate | null => {
-	const { candidate, signals, centerPoint, listingSignalCorpus } = input;
+	const {
+		candidate,
+		signals,
+		centerPoint,
+		listingSignalCorpus,
+		streetNameHints,
+	} = input;
 	const matchedSignals: string[] = [];
 	const discardedSignals: string[] = [];
 	const normalizedMunicipalityHint = normalizeLocalizaText(
@@ -390,15 +410,19 @@ const scoreCandidate = (input: {
 		120,
 	);
 	const streetLabel = humanizeStreetName(candidate.streetName);
-	const listingHasStreetNameHint = hasStreetNameHint(signals.title);
+	const candidateStreetCore = normalizeStreetCore(candidate.streetName);
+	const listingHasStreetNameHint =
+		streetNameHints.length > 0 ||
+		hasStreetNameHint(signals.title) ||
+		hasStreetNameHint(listingSignalCorpus);
+	const candidateMatchesParsedStreetHint =
+		candidateStreetCore.length > 0 &&
+		streetNameHints.some((hint) => hint === candidateStreetCore);
 	const candidateMatchesStreetHint =
 		streetLabel &&
 		(corpusIncludesPhrase(listingSignalCorpus, streetLabel) ||
-			corpusIncludesPhrase(listingSignalCorpus, candidate.streetName));
-
-	if (listingHasStreetNameHint && !candidateMatchesStreetHint) {
-		return null;
-	}
+			corpusIncludesPhrase(listingSignalCorpus, candidate.streetName) ||
+			candidateMatchesParsedStreetHint);
 
 	const prefillLocation = buildPrefillLocation(candidate);
 	const label = buildCandidateLabel(candidate);
@@ -433,6 +457,9 @@ const scoreCandidate = (input: {
 	if (candidateMatchesStreetHint) {
 		score += 0.15;
 		matchedSignals.push("street_name_match");
+		if (candidateMatchesParsedStreetHint) {
+			matchedSignals.push("virtual_tour_street_hint_match");
+		}
 	} else if (candidate.streetName) {
 		discardedSignals.push("street_name");
 	}
@@ -479,6 +506,20 @@ const scoreCandidate = (input: {
 			reasonCodes,
 			distanceMeters: Number(distanceMeters.toFixed(1)),
 			prefillLocation,
+			rationale: {
+				title: "Candidato oficial por proximidad",
+				description: `Catastro ubica ${label} a ${Math.round(distanceMeters)} m del centro aproximado del anuncio.${
+					candidateMatchesStreetHint
+						? " La calle también aparece entre las señales públicas del anuncio."
+						: listingHasStreetNameHint
+							? " La calle no coincide con la señal textual más fuerte, así que Localiza lo trata como candidato competidor y no como prueba definitiva."
+							: " No hay calle exacta publicada, así que la distancia y el resto de señales deciden si merece revisión."
+				}`,
+				sourceLabel: "Dirección General del Catastro",
+				sourceUrl: "https://www.sedecatastro.gob.es/",
+				matchedSignals: dedupeStrings(matchedSignals),
+				discardedSignals: dedupeStrings(discardedSignals),
+			},
 		},
 		matchedSignals: dedupeStrings(matchedSignals),
 		discardedSignals: dedupeStrings(discardedSignals),
@@ -502,6 +543,186 @@ const dedupeByCandidateId = (candidates: ParsedCatastroAddress[]) => {
 	}
 
 	return Array.from(byId.values());
+};
+
+const hasStrongOfficialFactSignals = (signals: IdealistaSignals) =>
+	signals.areaM2 !== undefined ||
+	Boolean(signals.floorText) ||
+	/\b[aá]tico\b/i.test(
+		[signals.title, signals.listingText].filter(Boolean).join(" "),
+	);
+
+const hasNumberedStreetSignal = (signals: IdealistaSignals) =>
+	NUMBERED_STREET_SIGNAL_PATTERN.test(
+		[signals.addressText, signals.listingText, signals.title]
+			.filter(Boolean)
+			.join("\n"),
+	);
+
+const normalizeStreetCore = (value?: string) =>
+	normalizeLocalizaText(value)
+		.replace(STREET_PREFIX_PATTERN, "")
+		.replace(STREET_ARTICLE_PATTERN, "")
+		.trim();
+
+const extractVirtualTourStreetNameHints = (signals: IdealistaSignals) => {
+	const corpus = [signals.addressText, signals.listingText, signals.title]
+		.filter(Boolean)
+		.join("\n");
+	const hints: string[] = [];
+
+	for (const match of corpus.matchAll(VIRTUAL_TOUR_STREET_HINT_PATTERN)) {
+		const hint = normalizeStreetCore(match[1]);
+
+		if (hint.length >= 4 && !/\d/.test(hint)) {
+			hints.push(hint);
+		}
+	}
+
+	return dedupeStrings(hints);
+};
+
+const hasPreciseAddressProof = (matchedSignals: string[]) =>
+	matchedSignals.includes("portal_hint_match") ||
+	matchedSignals.includes("designator_match");
+
+const capCandidateWithoutNumberedProof = (
+	entry: ScoredCatastroCandidate,
+	hasNumberedAddressSignal: boolean,
+): ScoredCatastroCandidate => {
+	if (
+		!hasNumberedAddressSignal ||
+		hasPreciseAddressProof(entry.matchedSignals) ||
+		entry.candidate.selectionDisabled
+	) {
+		return entry;
+	}
+
+	return {
+		...entry,
+		candidate: {
+			...entry.candidate,
+			score: Math.min(entry.candidate.score, 0.44),
+			reasonCodes: dedupeStrings([
+				...entry.candidate.reasonCodes,
+				"numbered_address_signal_required",
+			]),
+		},
+		discardedSignals: dedupeStrings([
+			...entry.discardedSignals,
+			"numbered_address_signal_mismatch",
+		]),
+	};
+};
+
+const enrichScoredCandidatesWithFactFit = async (input: {
+	candidates: ScoredCatastroCandidate[];
+	signals: IdealistaSignals;
+	signal?: AbortSignal;
+	hasNumberedAddressSignal: boolean;
+}) => {
+	const factFitByAddress = new Map<
+		string,
+		ReturnType<typeof fetchStateCallejeroFactFit>
+	>();
+
+	const enrichOne = async (entry: ScoredCatastroCandidate) => {
+		const addressKey = [
+			entry.provinceName ?? input.signals.province ?? "",
+			entry.municipality ?? input.signals.municipality ?? "",
+			entry.streetName ?? "",
+			entry.designator ?? "",
+		]
+			.map(normalizeLocalizaText)
+			.join("|");
+		let factFitPromise = factFitByAddress.get(addressKey);
+
+		if (!factFitPromise) {
+			factFitPromise = fetchStateCallejeroFactFit({
+				province: entry.provinceName ?? input.signals.province ?? "",
+				municipality: entry.municipality ?? input.signals.municipality ?? "",
+				streetName: entry.streetName,
+				number: entry.designator,
+				signals: input.signals,
+				signal: input.signal,
+			});
+			factFitByAddress.set(addressKey, factFitPromise);
+		}
+
+		const factFit = await factFitPromise;
+
+		if (!factFit) {
+			return entry;
+		}
+
+		const hasPreciseTextProof = hasPreciseAddressProof(entry.matchedSignals);
+		const hasAddressProof =
+			hasPreciseTextProof ||
+			(!input.hasNumberedAddressSignal &&
+				entry.matchedSignals.includes("street_name_match"));
+		const scoreBoost = hasAddressProof ? factFit.scoreBoost : 0;
+		const nextScore = factFit.isRejected
+			? Math.min(entry.candidate.score, 0.34)
+			: Math.min(
+					Number((entry.candidate.score + scoreBoost).toFixed(2)),
+					1,
+				);
+		const matchedSignals = dedupeStrings([
+			...entry.matchedSignals,
+			...factFit.matchedSignals,
+		]);
+		const discardedSignals = dedupeStrings([
+			...entry.discardedSignals,
+			...factFit.discardedSignals,
+			!factFit.isRejected && !hasAddressProof
+				? "catastro_fact_fit_not_promoted_without_address_proof"
+				: "",
+		]);
+
+		return {
+			...entry,
+			candidate: {
+				...entry.candidate,
+				score: nextScore,
+				selectionDisabled: factFit.isRejected || undefined,
+				reasonCodes: dedupeStrings([
+					...entry.candidate.reasonCodes,
+					...factFit.matchedSignals,
+					factFit.isRejected
+						? "catastro_fact_fit_rejected"
+						: "catastro_fact_fit_checked",
+				]),
+				rationale: {
+					...factFit.rationale,
+					description:
+						!factFit.isRejected && !hasAddressProof
+							? `${factFit.rationale.description} Localiza no lo sube por superficie o planta solamente porque esos encajes son comunes en la zona y no hay una calle y número publicados que aten el anuncio a este portal.`
+							: factFit.rationale.description,
+					matchedSignals,
+					discardedSignals,
+				},
+			},
+			matchedSignals,
+			discardedSignals,
+		} satisfies ScoredCatastroCandidate;
+	};
+
+	const enriched: ScoredCatastroCandidate[] = [];
+	for (
+		let index = 0;
+		index < input.candidates.length;
+		index += FACT_FIT_BATCH_SIZE
+	) {
+		enriched.push(
+			...(await Promise.all(
+				input.candidates
+					.slice(index, index + FACT_FIT_BATCH_SIZE)
+					.map(enrichOne),
+			)),
+		);
+	}
+
+	return enriched;
 };
 
 const buildUnresolvedOfficialResolution = (input: {
@@ -634,6 +855,14 @@ export const resolveStateCatastro = async (input: {
 	const listingSignalCorpus = buildListingSignalCorpus(input.signals);
 	const radii = buildSearchRadii(input.signals.mapPrecisionMeters);
 	const allCandidates: ParsedCatastroAddress[] = [];
+	const hasNumberedAddressSignal = hasNumberedStreetSignal(input.signals);
+	const streetNameHints = extractVirtualTourStreetNameHints(input.signals);
+	const hasStreetNameSignal =
+		streetNameHints.length > 0 ||
+		hasStreetNameHint(input.signals.title) ||
+		hasStreetNameHint(listingSignalCorpus);
+	const shouldScanBroadlyForFactFit =
+		hasStreetNameSignal && hasStrongOfficialFactSignals(input.signals);
 
 	for (const radius of radii) {
 		const nextCandidates = await fetchCandidatesForRadius({
@@ -645,7 +874,10 @@ export const resolveStateCatastro = async (input: {
 
 		allCandidates.push(...nextCandidates);
 
-		if (dedupeByCandidateId(allCandidates).length >= 6) {
+		if (
+			!shouldScanBroadlyForFactFit &&
+			dedupeByCandidateId(allCandidates).length >= 6
+		) {
 			break;
 		}
 	}
@@ -671,13 +903,14 @@ export const resolveStateCatastro = async (input: {
 		});
 	}
 
-	const scoredCandidates = dedupedCandidates
+	const baseScoredCandidates = dedupedCandidates
 		.map((candidate) =>
 			scoreCandidate({
 				candidate,
 				signals: input.signals,
 				centerPoint,
 				listingSignalCorpus,
+				streetNameHints,
 			}),
 		)
 		.filter((entry): entry is ScoredCatastroCandidate => Boolean(entry))
@@ -692,7 +925,7 @@ export const resolveStateCatastro = async (input: {
 			);
 		});
 
-	if (scoredCandidates.length === 0) {
+	if (baseScoredCandidates.length === 0) {
 		const callejeroFallback = await resolveStateCatastroByCallejero({
 			signals: input.signals,
 			listingCorpus: listingSignalCorpus,
@@ -714,11 +947,77 @@ export const resolveStateCatastro = async (input: {
 		});
 	}
 
+	const factFitCandidateLimit = shouldScanBroadlyForFactFit
+		? BROAD_FACT_FIT_CANDIDATE_LIMIT
+		: BASE_FACT_FIT_CANDIDATE_LIMIT;
+	const candidatesForFactFit = baseScoredCandidates.slice(
+		0,
+		factFitCandidateLimit,
+	);
+	const candidatesWithoutFactFit =
+		baseScoredCandidates.slice(factFitCandidateLimit);
+	const scoredCandidates = [
+		...(await enrichScoredCandidatesWithFactFit({
+			candidates: candidatesForFactFit,
+			signals: input.signals,
+			signal: input.signal,
+			hasNumberedAddressSignal,
+		})),
+		...candidatesWithoutFactFit,
+	]
+		.map((entry) =>
+			capCandidateWithoutNumberedProof(entry, hasNumberedAddressSignal),
+		)
+		.sort((left, right) => {
+			if (
+				left.candidate.selectionDisabled !== right.candidate.selectionDisabled
+			) {
+				return left.candidate.selectionDisabled ? 1 : -1;
+			}
+
+			if (right.candidate.score !== left.candidate.score) {
+				return right.candidate.score - left.candidate.score;
+			}
+
+			return (
+				(left.distanceMeters ?? Number.POSITIVE_INFINITY) -
+				(right.distanceMeters ?? Number.POSITIVE_INFINITY)
+			);
+		});
+
 	const viableCandidates = scoredCandidates
 		.filter((candidate) => candidate.candidate.score >= MIN_VIABLE_SCORE)
+		.filter((candidate) => !candidate.candidate.selectionDisabled)
 		.slice(0, 5);
+	const rejectedCandidates = scoredCandidates
+		.filter((candidate) => candidate.candidate.selectionDisabled)
+		.slice(0, 3);
+	const displayedCandidates = [...viableCandidates, ...rejectedCandidates].slice(
+		0,
+		8,
+	);
 
 	if (viableCandidates.length === 0) {
+		if (rejectedCandidates.length > 0) {
+			return {
+				status: "needs_confirmation",
+				confidenceScore: 0,
+				officialSource: officialSourceLabelByTerritory.state_catastro,
+				candidates: displayedCandidates.map((entry) => entry.candidate),
+				reasonCodes: dedupeStrings([
+					"state_catastro_numbered_address_rejected",
+					"state_catastro_confirmation_required",
+				]),
+				matchedSignals: dedupeStrings(
+					rejectedCandidates.flatMap((entry) => entry.matchedSignals),
+				),
+				discardedSignals: dedupeStrings(
+					rejectedCandidates.flatMap((entry) => entry.discardedSignals),
+				),
+				territoryAdapter: "state_catastro",
+			};
+		}
+
 		const callejeroFallback = await resolveStateCatastroByCallejero({
 			signals: input.signals,
 			listingCorpus: listingSignalCorpus,
@@ -754,7 +1053,7 @@ export const resolveStateCatastro = async (input: {
 		return buildResolvedOfficialResolution({
 			status: "exact_match",
 			selected: topCandidate,
-			candidates: viableCandidates,
+			candidates: displayedCandidates,
 			territoryAdapter: "state_catastro",
 			extraReasonCodes: [
 				"state_catastro_exact_match",
@@ -767,7 +1066,7 @@ export const resolveStateCatastro = async (input: {
 		return buildResolvedOfficialResolution({
 			status: "building_match",
 			selected: topCandidate,
-			candidates: viableCandidates,
+			candidates: displayedCandidates,
 			territoryAdapter: "state_catastro",
 			extraReasonCodes: [
 				"state_catastro_building_match",
@@ -779,7 +1078,7 @@ export const resolveStateCatastro = async (input: {
 	return buildResolvedOfficialResolution({
 		status: "needs_confirmation",
 		selected: topCandidate,
-		candidates: viableCandidates,
+		candidates: displayedCandidates,
 		territoryAdapter: "state_catastro",
 		extraReasonCodes: [
 			"state_catastro_confirmation_required",

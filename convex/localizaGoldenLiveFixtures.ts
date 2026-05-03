@@ -39,9 +39,7 @@ export const list = query({
 	args: {},
 	handler: async (ctx) => {
 		await requireAuthenticatedUserId(ctx);
-		const fixtures = await ctx.db
-			.query("localizaGoldenLiveFixtures")
-			.collect();
+		const fixtures = await ctx.db.query("localizaGoldenLiveFixtures").collect();
 		return fixtures.sort((left, right) => right.updatedAt - left.updatedAt);
 	},
 });
@@ -118,6 +116,15 @@ export const recordObservation = mutation({
 		lastObservedStatus: expectedStatusValidator,
 		lastObservedTerritoryAdapter: v.optional(territoryAdapterValidator),
 		lastObservedReasonCodes: v.optional(v.array(v.string())),
+		lastObservedAddressLabel: v.optional(v.string()),
+		lastObservedLocation: v.optional(expectedLocationValidator),
+		lastObservedParcelRef14: v.optional(v.string()),
+		lastObservedUnitRef20: v.optional(v.string()),
+		lastObservedResolverVersion: v.optional(v.string()),
+		lastObservedOnlineEvidenceKinds: v.optional(v.array(v.string())),
+		lastObservedOnlineEvidenceCount: v.optional(v.number()),
+		lastObservedPublicHistoryCount: v.optional(v.number()),
+		lastObservedImageCount: v.optional(v.number()),
 		lastValidationRunAt: v.string(),
 		now: v.optional(v.number()),
 	},
@@ -135,6 +142,15 @@ export const recordObservation = mutation({
 			lastObservedStatus: args.lastObservedStatus,
 			lastObservedTerritoryAdapter: args.lastObservedTerritoryAdapter,
 			lastObservedReasonCodes: args.lastObservedReasonCodes,
+			lastObservedAddressLabel: args.lastObservedAddressLabel,
+			lastObservedLocation: args.lastObservedLocation,
+			lastObservedParcelRef14: args.lastObservedParcelRef14,
+			lastObservedUnitRef20: args.lastObservedUnitRef20,
+			lastObservedResolverVersion: args.lastObservedResolverVersion,
+			lastObservedOnlineEvidenceKinds: args.lastObservedOnlineEvidenceKinds,
+			lastObservedOnlineEvidenceCount: args.lastObservedOnlineEvidenceCount,
+			lastObservedPublicHistoryCount: args.lastObservedPublicHistoryCount,
+			lastObservedImageCount: args.lastObservedImageCount,
 			lastValidationRunAt: args.lastValidationRunAt,
 			updatedAt: args.now ?? Date.now(),
 		});

@@ -1,4 +1,6 @@
 import type {
+	LocalizaDataCoverageSource,
+	LocalizaDataCoverageSummary,
 	LocalizaMetricsSnapshot,
 	LocalizaReadinessSnapshot,
 } from "@casedra/types";
@@ -25,6 +27,26 @@ type LocalizaLiveFixtureValidationStatus =
 
 type LocalizaLiveFixtureRecord = {
 	validationStatus: LocalizaLiveFixtureValidationStatus;
+	lastObservedStatus?:
+		| "exact_match"
+		| "building_match"
+		| "needs_confirmation"
+		| "unresolved";
+	lastObservedAddressLabel?: string;
+	lastObservedLocation?: {
+		street?: string;
+		city?: string;
+		stateOrProvince?: string;
+		country?: string;
+		postalCode?: string;
+	};
+	lastObservedParcelRef14?: string;
+	lastObservedUnitRef20?: string;
+	lastObservedOnlineEvidenceKinds?: string[];
+	lastObservedOnlineEvidenceCount?: number;
+	lastObservedPublicHistoryCount?: number;
+	lastObservedImageCount?: number;
+	lastValidationRunAt?: string;
 };
 
 const listLiveFixturesRef = makeFunctionReference<
@@ -125,6 +147,151 @@ const loadLiveFixtures = async (
 	}
 };
 
+const buildLocalizaLiveCoverageSummary = (
+	fixtures: LocalizaLiveFixtureRecord[],
+): LocalizaDataCoverageSummary => {
+	const observedFixtures = fixtures.filter(
+		(fixture) => fixture.lastValidationRunAt || fixture.lastObservedStatus,
+	);
+
+	return {
+		liveFixtureCount: fixtures.length,
+		observedFixtureCount: observedFixtures.length,
+		addressObservedCount: observedFixtures.filter(
+			(fixture) =>
+				Boolean(fixture.lastObservedAddressLabel) ||
+				Boolean(fixture.lastObservedLocation?.street),
+		).length,
+		cadastralIdentityObservedCount: observedFixtures.filter(
+			(fixture) =>
+				Boolean(fixture.lastObservedUnitRef20) ||
+				Boolean(fixture.lastObservedParcelRef14),
+		).length,
+		buildingOrBetterObservedCount: observedFixtures.filter(
+			(fixture) =>
+				fixture.lastObservedStatus === "exact_match" ||
+				fixture.lastObservedStatus === "building_match",
+		).length,
+		onlineEvidenceObservedCount: observedFixtures.filter(
+			(fixture) => (fixture.lastObservedOnlineEvidenceCount ?? 0) > 0,
+		).length,
+		listingArchiveObservedCount: observedFixtures.filter((fixture) =>
+			fixture.lastObservedOnlineEvidenceKinds?.includes("listing_archive"),
+		).length,
+		multiSourceHistoryObservedCount: observedFixtures.filter(
+			(fixture) => (fixture.lastObservedPublicHistoryCount ?? 0) > 1,
+		).length,
+		needsConfirmationObservedCount: observedFixtures.filter(
+			(fixture) => fixture.lastObservedStatus === "needs_confirmation",
+		).length,
+		unresolvedObservedCount: observedFixtures.filter(
+			(fixture) => fixture.lastObservedStatus === "unresolved",
+		).length,
+	};
+};
+
+const buildLocalizaDataCoverageSources = (input: {
+	configuredStrategies: string[];
+	isMarketHistoryConfigured: boolean;
+}): LocalizaDataCoverageSource[] => {
+	const hasFirecrawl = input.configuredStrategies.includes("firecrawl");
+
+	return [
+		{
+			id: "firecrawl",
+			label: "Lectura del anuncio",
+			status: hasFirecrawl ? "active" : "missing_credentials",
+			configured: hasFirecrawl,
+			coverage: [
+				"título",
+				"precio",
+				"m²",
+				"habitaciones",
+				"zona",
+				"mapa aproximado",
+				"imagen principal",
+			],
+			gap: hasFirecrawl
+				? undefined
+				: "Sin Firecrawl no hay señales iniciales del anuncio.",
+			action: hasFirecrawl
+				? "Vigilar precisión en las pruebas reales."
+				: "Configurar FIRECRAWL_API_KEY o uno de sus alias.",
+			blockerCode: hasFirecrawl
+				? undefined
+				: "localiza_firecrawl_not_configured",
+		},
+		{
+			id: "official_public_sources",
+			label: "Fuentes oficiales",
+			status: "active",
+			configured: true,
+			coverage: [
+				"dirección oficial",
+				"parcela",
+				"unidad",
+				"edificio",
+				"energía",
+				"riesgos",
+				"solar",
+				"servicios cercanos",
+				"urbanismo",
+				"patrimonio",
+			],
+			action: "Validar los enlaces vivos antes de ampliar acceso.",
+		},
+		{
+			id: "oportunista_rapidapi",
+			label: "Archivo Idealista",
+			status: input.isMarketHistoryConfigured ? "active" : "reserved",
+			configured: input.isMarketHistoryConfigured,
+			coverage: [
+				"histórico de precio",
+				"primer visto",
+				"última captura",
+				"estado",
+				"fotos",
+				"anunciante",
+				"dirección archivada",
+			],
+			gap: input.isMarketHistoryConfigured
+				? undefined
+				: "No hay alta pública verificada para el feed histórico. El informe mantiene el archivo automático apagado.",
+			action: input.isMarketHistoryConfigured
+				? "Revisar cobertura real por fixture."
+				: "Usar import manual o añadir un proveedor con contrato verificable.",
+		},
+		{
+			id: "operator_market_import",
+			label: "Import manual de mercado",
+			status: "manual",
+			configured: true,
+			coverage: [
+				"Fotocasa",
+				"Habitaclia",
+				"Pisos.com",
+				"agencia",
+				"días publicado",
+				"duplicados",
+			],
+			action: "Usar pegado masivo hasta tener un feed licenciado.",
+		},
+		{
+			id: "licensed_comparable_feed",
+			label: "Feed comparable licenciado",
+			status: "reserved",
+			configured: false,
+			coverage: [
+				"comparables cerrados",
+				"benchmark por zona",
+				"oferta multiportal",
+			],
+			gap: "No hay proveedor aprobado conectado todavía.",
+			action: "Añadir solo cuando exista un feed legal y atribuible.",
+		},
+	];
+};
+
 export const getLocalizaReadinessSnapshot = async (input: {
 	convex: ConvexHttpClient;
 	now?: number;
@@ -145,16 +312,8 @@ export const getLocalizaReadinessSnapshot = async (input: {
 		(strategy) => !configuredStrategies.includes(strategy),
 	).map((strategy) => `localiza_${strategy}_not_configured`);
 	const isMarketHistoryConfigured = isOportunistaPriceHistoryConfigured();
-	const marketHistoryIssues = isMarketHistoryConfigured
-		? []
-		: ["localiza_oportunista_not_configured"];
 	const blockers = Array.from(
-		new Set([
-			...missingRequiredStrategies,
-			...marketHistoryIssues,
-			...goldenIssues,
-			...metrics.alerts,
-		]),
+		new Set([...missingRequiredStrategies, ...goldenIssues, ...metrics.alerts]),
 	);
 
 	return {
@@ -168,6 +327,13 @@ export const getLocalizaReadinessSnapshot = async (input: {
 			provider: "oportunista_rapidapi",
 			configured: isMarketHistoryConfigured,
 			refreshIntervalMs: OPORTUNISTA_PRICE_HISTORY_REFRESH_MS,
+		},
+		dataCoverage: {
+			sources: buildLocalizaDataCoverageSources({
+				configuredStrategies,
+				isMarketHistoryConfigured,
+			}),
+			liveSummary: buildLocalizaLiveCoverageSummary(liveFixtures),
 		},
 		goldenDataset: {
 			summary: getLocalizaGoldenFrozenSummary(liveFixtures),

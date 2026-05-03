@@ -64,6 +64,29 @@ export const localizaDossierImageSchema = z.object({
 	caption: z.string().min(1).optional(),
 });
 
+export const localizaOnlineEvidenceKindSchema = z.enum([
+	"listing_archive",
+	"building_cadastre",
+	"building_condition",
+	"official_cadastre",
+	"energy_certificate",
+	"solar_potential",
+	"risk_overlay",
+	"local_amenity",
+	"planning_heritage",
+	"market_benchmark",
+	"licensed_feed",
+]);
+
+export const localizaOnlineEvidenceItemSchema = z.object({
+	label: z.string().min(1),
+	value: z.string().min(1),
+	sourceLabel: z.string().min(1),
+	sourceUrl: z.string().url().optional(),
+	observedAt: z.string().datetime().optional(),
+	kind: localizaOnlineEvidenceKindSchema,
+});
+
 export const localizaPropertyDossierSchema = z.object({
 	listingSnapshot: z.object({
 		title: z.string().min(1).optional(),
@@ -81,6 +104,7 @@ export const localizaPropertyDossierSchema = z.object({
 		sourceUrl: z.string().url(),
 	}),
 	imageGallery: z.array(localizaDossierImageSchema).default([]),
+	onlineEvidence: z.array(localizaOnlineEvidenceItemSchema).default([]),
 	officialIdentity: z.object({
 		proposedAddressLabel: z.string().min(1).optional(),
 		street: z.string().min(1).optional(),
@@ -251,7 +275,8 @@ export const listingCreateInputSchema = z
 				ctx.addIssue({
 					code: z.ZodIssueCode.custom,
 					path: ["propertyDossier"],
-					message: "Only Idealista listings can include Localiza property reports",
+					message:
+						"Only Idealista listings can include Localiza property reports",
 				});
 			}
 
@@ -311,4 +336,16 @@ export const resolveIdealistaLocationInputSchema = z.object({
 	strategy: z
 		.enum(["auto", "idealista_api", "firecrawl", "browser_worker"])
 		.default("auto"),
+});
+
+export const captacionBoundaryPointSchema = z.object({
+	lat: z.number().min(35).max(44.5),
+	lng: z.number().min(-10).max(4.5),
+});
+
+export const rankCaptacionBuildingsInputSchema = z.object({
+	boundary: z
+		.array(captacionBoundaryPointSchema)
+		.min(3, "Dibuja al menos tres puntos.")
+		.max(80, "La zona es demasiado compleja para una búsqueda."),
 });

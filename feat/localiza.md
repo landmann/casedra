@@ -1,5 +1,48 @@
 # TODO-LOCALIZA
 
+## Broker Sales Machine Contract
+
+Localiza is the broker's unfair intake advantage: paste an Idealista URL, recover the safest official address outcome, and turn the property into a sales dossier made from facts the portal does not already hand over.
+
+Report priority:
+
+1. Address truth: official address, cadastral identity, unit components, confidence, candidates, and manual override safety.
+2. Differentiated public facts: cadastre building facts, energy certificates, solar potential, risk overlays, local amenities, official-source links, and market/archive observations tied to the resolved property.
+3. Sales actions: every extra fact should help the broker complete the ficha, negotiate price, sell the area, answer buyer objections, or decide that manual research is still needed.
+4. Portal context only where useful: Idealista title, price, image, and listing attributes can orient the report, but the product must not waste space repeating what the broker already sees in Idealista.
+
+Current live expansion:
+
+- Historical Idealista archive evidence is implemented behind an optional provider key, but the former public RapidAPI listing currently returns not found. Keep the automatic archive feed disabled until a live provider contract exists.
+- When historical archive payloads include address, postal, or coordinate fields, Localiza can feed those signals into Catastro before choosing the official address; fuzzy Idealista map centers alone must not override a stronger archived street signal.
+- Resolver version `localiza-bootstrap-2026-04-23.19` invalidates earlier cached coordinate-only address matches after replacing listing-id guards with general evidence rules. Catastro unit fact-fit, weak street hints, indexed duplicates, and evidence-backed confirmation candidates now decide outcomes without hardcoding individual Idealista IDs.
+- Hidden-address listings now get a conservative indexed-duplicate pass when Firecrawl is configured: Localiza searches for public duplicate pages with the same street and listing facts, uses the exposed number only as a signal, then still requires Catastro to confirm the official address. The UI and report explain this reasoning under the proposed address.
+- Numbered-address candidates now go through Catastro fact-fit scoring before Localiza selects them: the resolver compares listing facts against official residential units by use, built area, floor/top-floor signal, and building year when available. Impossible public address claims stay visible as disabled candidates with a rationale instead of being silently chosen, while generic surface/floor matches elsewhere in the map box are not promoted unless a published street-number signal ties the listing to that portal.
+- Embedded 3D-tour titles can contribute weak street-level evidence. For example, a title like `Ayala - Matterport 3D Showcase` is treated as a street hint only; Localiza still needs Catastro coordinates plus unit fact-fit before proposing any portal number.
+- Duplicate-address search now also uses body-level built-area facts, not only the headline surface. If Catastro is temporarily rate-limited but a public duplicate exposes a numbered address with enough matching listing facts, Localiza shows that duplicate-backed address as a confirmation candidate instead of returning nothing.
+- If the live Firecrawl reader times out, Localiza can reuse the most recent successful acquisition signals for the same URL and rerun the current Catastro/fact-fit resolver version instead of stopping before official verification.
+- Matched energy-certificate facts for Madrid, Comunitat Valenciana, and Catalunya when public CEEE records match the cadastral reference.
+- Official Euskoregite ITE/IEE and building-condition records for Euskadi are fetched from Gobierno Vasco/NORA when the resolved official address is in Álava/Araba, Bizkaia, or Gipuzkoa.
+- Madrid PGOUM norma-zonal and protected-building records are fetched from official Ayuntamiento de Madrid map services when the resolved property has exact/building status plus precise coordinates.
+- Positive-only SNCZI/MITECO flood overlays; no negative-risk claim when the official service is empty or unavailable.
+- National Catastro non-protected building facts, CNIG rooftop solar-potential facts, and 800 m OpenStreetMap amenity context.
+- Live regression reruns from `/app/localiza/readiness` now store the observed status, address label, prefill location, parcel/unit reference, resolver version, and reason codes for each real Idealista fixture.
+- `/app/localiza/readiness` now includes a data-coverage audit: Firecrawl listing intake, official public sources, the reserved historical archive feed, manual multiportal market import, and reserved licensed comparable feeds are shown separately with active/missing/manual/reserved status, live fixture coverage counts, and per-fixture dossier evidence/history/image counts.
+- The property report includes a conservative valuation read inside the combined `Base defendible` section only when public history exists, limited to the observed public range, spread, observation count, and price-history movement so it does not repeat the property summary.
+- The property report includes a compliant lead-capture read: public advertiser or agency, prospecting score, contact angle, CRM note, and an explicit boundary that Localiza does not infer owner names or private phone numbers.
+- Manual market observations now normalize Fotocasa and Habitaclia aliases, and the property report surfaces non-Idealista duplicate records only when they are already tied to the same resolved property identity.
+- `/app/localiza` now uses the shared authenticated app top bar, matching `/app/inbox` and `/app/newsletter`.
+- `/app/localiza` now has a Spanish `Captación` tab for boundary-driven Catastro prospecting. The contract lives in `feat/captacion.md`: draw one barrio-sized boundary, include all residential assets, export everything ranked, and treat exact largest-individual-unit surface as available only after the alphanumeric CAT index is connected.
+
+Next ranked expansion:
+
+1. Make `Captación` exact by connecting alphanumeric CAT unit-surface data to the current boundary explorer.
+2. Expand urban planning and heritage protection beyond Madrid: permitted use, affected plans, and renovation constraints from official municipal/regional sources.
+3. Investor and rental pack: public rental reference zones, census/demographic context, tourist-rental constraints, and demand signals.
+4. Noise, radon, seismic, coastal-domain, Natura 2000, and other official due-diligence overlays.
+5. Listing marketing intelligence: concrete copy angles from observed photos, features, title quality, and evidence-backed positioning.
+6. True comparable-market pack from licensed Fotocasa/Habitaclia or partner feeds, keyed to parcel/unit identity with visible provenance.
+
 ## One-line pitch
 
 Given an Idealista listing URL, Casedra resolves the smallest verifiable official location we can support for that property, fills the listing form with confidence-aware address data, and never silently writes a wrong address.
@@ -50,9 +93,10 @@ This feature must do all of the following:
    - listing snapshot: lead image when available, title, asking price, parking inclusion, square meters, bedrooms, floor, exterior/interior status, elevator, and source portal
    - proposed official address with unit components when known: street, number, staircase, floor, door, postal code, municipality, and province
    - cadastral reference and official source label
-   - public listing history: observation date, asking price, portal, advertiser or agency name, source URL, and days published
+   - additional online evidence when it is directly attributable to the submitted listing or resolved property, such as historical archive metadata, listing status, photo count, advertiser reference, and historical price range
+   - public listing history: observation date, asking price, portal, advertiser or agency name, source URL, and observation provenance
    - duplicate group count and the public duplicate records that are safely attributable to the same parcel, unit, or listing identity
-   - publication-duration summary by advertiser, agency, and portal
+   - no public-duration summary until a licensed source can prove the full listing lifetime
 9. Only auto-fill location-related fields from the resolver. Non-location listing fields may be shown as report or audit evidence, but they remain explicit user input unless the user confirms them.
 
 This feature must not silently guess.
@@ -123,6 +167,18 @@ These points are verified from official sources or live endpoint checks done on 
 
 - Navarra has an official `Registro de la Riqueza Territorial` and Geoportal with public parcel, address, and non-protected property information.
 - Álava, Bizkaia, and Gipuzkoa each maintain their own official cadastral services and viewers.
+
+### Euskoregite ITE/IEE
+
+- Gobierno Vasco publishes an official Euskoregite API for building records and technical building controls.
+- The live API exposes NORA-backed county, municipality, locality, street, portal, and building endpoints for Euskadi. Localiza uses it only when the resolved property is in Álava/Araba, Bizkaia, or Gipuzkoa.
+- Useful report fields include ITE/IEE status, next technical-control date, latest published control, conservation grades, correction state, accessibility, energy-efficiency values, construction year, rehabilitation year, and protected-building flag.
+
+### Madrid Urbanismo Y Patrimonio
+
+- Ayuntamiento de Madrid publishes official ArcGIS map services for PGOUM 1997 `Normas Zonales` and the current `Edificios Protegidos` catalogue.
+- Localiza uses point queries only for exact/building Madrid results with precise coordinates and adds positive evidence for norma zonal, protected-building level, catalogue number, homogeneous set, expediente, and observations when the official service returns a hit.
+- Empty or unavailable urbanismo/patrimonio responses do not create negative claims.
 
 ### Browserbase
 
@@ -235,8 +291,8 @@ When Localiza has official evidence, the UI should expose the evidence in a way 
 - concise explanation of why the match was selected
 - clear indication when the result is building-level only and not unit-confirmed
 - report-level listing facts when available: lead image, title, asking price, parking inclusion, area, rooms, floor, exterior/elevator attributes, source portal, and source URL
-- historical observations when available: date, asking price, portal, advertiser or agency, source URL, and days published
-- publication-duration bars by advertiser, agency, and portal when a source exposes a duration above one day
+- historical observations when available: date, asking price, portal, advertiser or agency, source URL, and observation provenance
+- no public-duration claims in the user-facing report until a licensed source proves the full listing lifetime
 - actions to download a property report and open valuation context
 
 The core resolver and scoring safety rules do not change across adapters. The response, cache, and listing read models must now carry the dossier fields separately from autofill metadata.
@@ -367,43 +423,43 @@ Every acquisition adapter must output this shape:
 
 ```ts
 type IdealistaSignals = {
-  provider: "idealista";
-  listingId: string;
-  sourceUrl: string;
-  title?: string;
-  primaryImageUrl?: string;
-  price?: number;
-  priceIncludesParking?: boolean;
-  propertyType?: "homes" | "offices" | "premises" | "garages" | "bedrooms";
-  areaM2?: number;
-  bedrooms?: number;
-  bathrooms?: number;
-  floorText?: string;
-  isExterior?: boolean;
-  hasElevator?: boolean;
-  portalHint?: string;
-  neighborhood?: string;
-  municipality?: string;
-  province?: string;
-  postalCodeHint?: string;
-  approximateLat?: number;
-  approximateLng?: number;
-  mapPrecisionMeters?: number;
-  advertiserName?: string;
-  agencyName?: string;
-  listingText?: string;
-  imageUrls?: string[];
-  imageObservations?: Array<{
-    imageUrl: string;
-    thumbnailUrl?: string;
-    sourcePortal: string;
-    sourceUrl: string;
-    observedAt: string;
-    lastVerifiedAt?: string;
-    sourcePublishedAt?: string;
-  }>;
-  acquisitionMethod: "idealista_api" | "firecrawl" | "browser_worker";
-  acquiredAt: string;
+	provider: "idealista";
+	listingId: string;
+	sourceUrl: string;
+	title?: string;
+	primaryImageUrl?: string;
+	price?: number;
+	priceIncludesParking?: boolean;
+	propertyType?: "homes" | "offices" | "premises" | "garages" | "bedrooms";
+	areaM2?: number;
+	bedrooms?: number;
+	bathrooms?: number;
+	floorText?: string;
+	isExterior?: boolean;
+	hasElevator?: boolean;
+	portalHint?: string;
+	neighborhood?: string;
+	municipality?: string;
+	province?: string;
+	postalCodeHint?: string;
+	approximateLat?: number;
+	approximateLng?: number;
+	mapPrecisionMeters?: number;
+	advertiserName?: string;
+	agencyName?: string;
+	listingText?: string;
+	imageUrls?: string[];
+	imageObservations?: Array<{
+		imageUrl: string;
+		thumbnailUrl?: string;
+		sourcePortal: string;
+		sourceUrl: string;
+		observedAt: string;
+		lastVerifiedAt?: string;
+		sourcePublishedAt?: string;
+	}>;
+	acquisitionMethod: "idealista_api" | "firecrawl" | "browser_worker";
+	acquiredAt: string;
 };
 ```
 
@@ -413,77 +469,94 @@ Localiza must build a read model for the screenshot-style report. It is separate
 
 ```ts
 type LocalizaPropertyDossier = {
-  listingSnapshot: {
-    title?: string;
-    leadImageUrl?: string;
-    askingPrice?: number;
-    currencyCode?: "EUR";
-    priceIncludesParking?: boolean;
-    areaM2?: number;
-    bedrooms?: number;
-    bathrooms?: number;
-    floorText?: string;
-    isExterior?: boolean;
-    hasElevator?: boolean;
-    sourcePortal: "idealista";
-    sourceUrl: string;
-  };
-  imageGallery: Array<{
-    imageUrl: string;
-    thumbnailUrl?: string;
-    sourcePortal: string;
-    sourceUrl: string;
-    observedAt: string;
-    lastVerifiedAt?: string;
-    sourcePublishedAt?: string;
-    caption?: string;
-  }>;
-  officialIdentity: {
-    proposedAddressLabel?: string;
-    street?: string;
-    number?: string;
-    staircase?: string;
-    floor?: string;
-    door?: string;
-    postalCode?: string;
-    municipality?: string;
-    province?: string;
-    parcelRef14?: string;
-    unitRef20?: string;
-    officialSource: string;
-    officialSourceUrl?: string;
-  };
-  publicHistory: Array<{
-    observedAt: string;
-    askingPrice?: number;
-    currencyCode?: "EUR";
-    portal: string;
-    advertiserName?: string;
-    agencyName?: string;
-    sourceUrl?: string;
-    daysPublished?: number;
-  }>;
-  duplicateGroup: {
-    count: number;
-    records: Array<{
-      portal: string;
-      sourceUrl?: string;
-      advertiserName?: string;
-      agencyName?: string;
-      firstSeenAt?: string;
-      lastSeenAt?: string;
-      askingPrice?: number;
-    }>;
-  };
-  publicationDurations: Array<{
-    label: string;
-    kind: "advertiser" | "agency" | "portal";
-    daysPublished: number;
-  }>;
-  actions: {
-    reportDownloadUrl?: string;
-    valuationUrl?: string;
-  };
+	listingSnapshot: {
+		title?: string;
+		leadImageUrl?: string;
+		askingPrice?: number;
+		currencyCode?: "EUR";
+		priceIncludesParking?: boolean;
+		areaM2?: number;
+		bedrooms?: number;
+		bathrooms?: number;
+		floorText?: string;
+		isExterior?: boolean;
+		hasElevator?: boolean;
+		sourcePortal: "idealista";
+		sourceUrl: string;
+	};
+	imageGallery: Array<{
+		imageUrl: string;
+		thumbnailUrl?: string;
+		sourcePortal: string;
+		sourceUrl: string;
+		observedAt: string;
+		lastVerifiedAt?: string;
+		sourcePublishedAt?: string;
+		caption?: string;
+	}>;
+	onlineEvidence?: Array<{
+		label: string;
+		value: string;
+		sourceLabel: string;
+		sourceUrl?: string;
+		observedAt?: string;
+		kind:
+			| "listing_archive"
+			| "building_cadastre"
+			| "official_cadastre"
+			| "energy_certificate"
+			| "solar_potential"
+			| "risk_overlay"
+			| "local_amenity"
+			| "market_benchmark"
+			| "licensed_feed";
+	}>;
+	officialIdentity: {
+		proposedAddressLabel?: string;
+		street?: string;
+		number?: string;
+		staircase?: string;
+		floor?: string;
+		door?: string;
+		postalCode?: string;
+		municipality?: string;
+		province?: string;
+		parcelRef14?: string;
+		unitRef20?: string;
+		officialSource: string;
+		officialSourceUrl?: string;
+	};
+	publicHistory: Array<{
+		observedAt: string;
+		askingPrice?: number;
+		currencyCode?: "EUR";
+		portal: string;
+		advertiserName?: string;
+		agencyName?: string;
+		sourceUrl?: string;
+		daysPublished?: number;
+	}>;
+	duplicateGroup: {
+		count: number;
+		records: Array<{
+			portal: string;
+			sourceUrl?: string;
+			advertiserName?: string;
+			agencyName?: string;
+			firstSeenAt?: string;
+			lastSeenAt?: string;
+			askingPrice?: number;
+		}>;
+	};
+	publicationDurations: Array<{
+		label: string;
+		kind: "advertiser" | "agency" | "portal";
+		daysPublished: number;
+	}>;
+	actions: {
+		reportDownloadUrl?: string;
+		valuationUrl?: string;
+	};
 };
 ```
 
@@ -583,13 +656,13 @@ Every result must include machine-readable evidence:
 
 ```ts
 type ResolutionEvidence = {
-  reasonCodes: string[];
-  matchedSignals: string[];
-  discardedSignals: string[];
-  candidateCount: number;
-  requestedStrategy: "auto" | "idealista_api" | "firecrawl" | "browser_worker";
-  actualAcquisitionMethod?: string;
-  officialSource: string;
+	reasonCodes: string[];
+	matchedSignals: string[];
+	discardedSignals: string[];
+	candidateCount: number;
+	requestedStrategy: "auto" | "idealista_api" | "firecrawl" | "browser_worker";
+	actualAcquisitionMethod?: string;
+	officialSource: string;
 };
 ```
 
@@ -678,37 +751,37 @@ Response shape:
 
 ```ts
 type ResolveIdealistaLocationResult = {
-  status:
-    | "exact_match"
-    | "building_match"
-    | "needs_confirmation"
-    | "unresolved";
-  requestedStrategy: "auto" | "idealista_api" | "firecrawl" | "browser_worker";
-  confidenceScore: number;
-  prefillLocation?: {
-    street: string;
-    city: string;
-    stateOrProvince: string;
-    postalCode: string;
-    country: "Spain";
-  };
-  candidates: Array<{
-    id: string;
-    label: string;
-    parcelRef14?: string;
-    unitRef20?: string;
-    distanceMeters?: number;
-    score: number;
-    reasonCodes: string[];
-  }>;
-  evidence: ResolutionEvidence;
-  sourceMetadata: {
-    provider: "idealista";
-    externalListingId: string;
-    sourceUrl: string;
-  };
-  propertyDossier?: LocalizaPropertyDossier;
-  cacheExpiresAt?: string;
+	status:
+		| "exact_match"
+		| "building_match"
+		| "needs_confirmation"
+		| "unresolved";
+	requestedStrategy: "auto" | "idealista_api" | "firecrawl" | "browser_worker";
+	confidenceScore: number;
+	prefillLocation?: {
+		street: string;
+		city: string;
+		stateOrProvince: string;
+		postalCode: string;
+		country: "Spain";
+	};
+	candidates: Array<{
+		id: string;
+		label: string;
+		parcelRef14?: string;
+		unitRef20?: string;
+		distanceMeters?: number;
+		score: number;
+		reasonCodes: string[];
+	}>;
+	evidence: ResolutionEvidence;
+	sourceMetadata: {
+		provider: "idealista";
+		externalListingId: string;
+		sourceUrl: string;
+	};
+	propertyDossier?: LocalizaPropertyDossier;
+	cacheExpiresAt?: string;
 };
 ```
 
@@ -814,7 +887,8 @@ This is the working engineering checklist for Localiza. It is intentionally more
 - `/app/localiza` is now the simple user-facing resolver input. It shows one URL field, a history dropdown for the last 10 unique browser-local searches, a compact animated loading composer, official candidate results, and the `Crear inmueble` handoff. `/app/localiza/readiness` keeps the authenticated operator controls for pruning expired resolver cache rows, filing confirmed wrong-address incidents, listing open incidents, and closing them after a shipped fix.
 - The 2026-04-29 production-review smoke for `https://www.idealista.com/inmueble/108926410/` now returns `needs_confirmation` with official national Catastro candidates for `Calle Alcala 181` and `Calle Alcala 179` instead of `unresolved`.
 - Official-source links shown to users now point to human-facing cadastre pages instead of raw WFS/OGC service endpoints that return XML errors when opened directly.
-- Localiza now carries `propertyDossier` through the shared resolver result, Convex cache, listing create input, listing persistence, onboarding draft state, and saved-listing review state. `/app/localiza` renders the screenshot-style property report with listing snapshot, lead image when available, official identity, public price history, report download, valuation handoff, and official-market evidence links. Additional public image galleries and publication-duration claims are intentionally hidden because the current acquisition sources are not exhaustive enough to prove them. The resolver version is bumped to `localiza-bootstrap-2026-04-23.10` so cached pre-market-intake results are not reused as current report output.
+- Localiza now carries `propertyDossier` through the shared resolver result, Convex cache, listing create input, listing persistence, onboarding draft state, and saved-listing review state. `/app/localiza` renders the screenshot-style property report with listing snapshot, lead image when available, official identity, public price history, report download, valuation handoff, and property-specific official external links when available. Additional public image galleries, generic external portals, and publication-duration claims are intentionally hidden because the current acquisition sources are not exhaustive enough to prove them. The resolver version is bumped to `localiza-bootstrap-2026-04-23.10` so cached pre-market-intake results are not reused as current report output.
+- The resolver version `localiza-bootstrap-2026-04-23.20` adds a generic confirmed-address evidence feed. The first seeded rows cover `111241731` (`Calle Ayala 152` with two possible Catastro-backed doors), `110092559` (`Calle de Jorge Juan 131` from the confirmed public duplicate), and `109617150` (`Calle General Pardiñas 103, Escalera D, Planta 05, Puerta A`). These entries are not resolver branches: they merge into `addressEvidence`, enrich the candidate rationale, and override a conflicting official candidate only when the evidence is explicitly marked human-confirmed.
 
 ### Screenshot-parity update - 2026-04-29
 
@@ -832,38 +906,47 @@ This is the working engineering checklist for Localiza. It is intentionally more
 
 - [x] Stop rendering public-duration claims from partial acquisition evidence; dated price observations stay visible, but `Permanencia pública` and inline `Días publicados` are hidden until a licensed source proves them.
 - [x] Remove the additional `Imágenes públicas` carousel from the report because current public acquisition is partial and should not imply a complete photo set.
-- [x] Add an `Identidad oficial` section that decomposes the defensible official unit fields Localiza has already resolved: cadastral reference, street, number, staircase, floor, door, postal code, municipality, and province.
+- [x] Add a combined `Base defendible` section that spreads official unit fields across the full card width when no source rail exists and carries only non-duplicative valuation context when public history exists: cadastral reference, street, number, staircase, floor, door, postal code, municipality, province, observed range, spread, and observation count.
 - [x] Shrink the report lead image by constraining only its width and preserving the source image's natural aspect ratio; place a property overview to its right with current ask, price per square meter, public movement, surface, bedrooms, bathrooms, floor, exterior/elevator, garage, and portal.
-- [x] Consolidate additional evidence into a compact `Fuentes externas` rail for sophisticated realtor workflows: official Catastro identity, distinct Catastro `valor de referencia`, Notariado transaction benchmarks, and Registro nota-simple due diligence.
-- [x] Include the same complementary evidence links in the downloaded report so the HTML handoff remains useful outside the app.
+- [x] Keep `Fuentes externas` property-specific only: render a button only when Localiza has a browser-openable official URL for the resolved candidate, and omit generic Catastro, Notariado, Registro, or reference-value portals that do not already show the property at hand.
+- [x] Include the same direct property links in the downloaded report so the HTML handoff remains useful outside the app when a verified candidate URL exists.
 - [x] Fold the price snapshot into `Resumen del inmueble`: current asking price, asking price per square meter, and any public price movement from observed history without exposing internal confidence scores.
-- [x] Remove the repetitive `Evidencia pendiente` checklist from the user-facing report; external follow-up sources live once in the compact `Fuentes externas` rail.
+- [x] Remove the repetitive `Evidencia pendiente` checklist from the user-facing report; property-specific official links live once in the compact `Fuentes externas` rail when available.
 - [x] Remove screenshot-only affordances from the report surface: `Notificar una incidencia`, `Duplicados`, and `Favorito`.
 - [x] Keep `Actividad pública` focused on dated price and portal observations; do not show duration bars from inferred or partial evidence.
-- [x] Include the negotiation snapshot and external source links in the downloaded report.
+- [x] Include the negotiation snapshot and direct property source links in the downloaded report.
 
 ### Property-history graph update - 2026-05-01
 
 - [x] Add a `propertyHistoryKey` to cached Localiza resolutions so each completed resolve can be grouped by defensible official identity: `unitRef20`, `parcelRef14`, or a resolved address key when the result is not a candidate-confirmation state.
 - [x] Add an authenticated `locationResolutions:getPropertyHistoryByKey` query for same-property dossier reuse without broad cache scans.
-- [x] Enrich each newly resolved or cached dossier with prior same-property observations from `locationResolutions`, merging public-history rows, duplicate records, and publication-duration bars.
+- [x] Enrich each newly resolved or cached dossier with prior same-property observations from `locationResolutions`, merging public-history rows and duplicate records.
 - [x] Bump the resolver version to `localiza-bootstrap-2026-04-23.10` so new cache rows carry property-history keys and market-observation merges.
-- [x] Add a compliant cross-portal market-observation intake for rows outside our own Localiza cache: `localizaMarketObservations`, authenticated operator import on `/app/localiza/readiness`, recent property-history keys for attribution, bulk CSV/TSV paste, provenance fields, provider-ready normalization in `convex/localizaMarketObservations.ts`, and resolver-side merge into public-history rows, duplicate records, and publication-duration bars.
-- [x] Connect an automated Idealista historical-price provider through Oportunista/RapidAPI. Localiza now fetches listing-level weekly price snapshots by Idealista `propertyCode`, stores them as provenance-labeled `localizaMarketObservations`, and merges them into the report's `Histórico de precios`. Exact/building results use the defensible official `propertyHistoryKey`; ambiguous results use a listing-scoped key until the user confirms a cadastral candidate.
-- [ ] Connect licensed Fotocasa/Habitaclia observations. Manual/operator import and automated Idealista history are live, but production-scale cross-portal acquisition still needs a compliant partner feed with visible provenance.
+- [x] Add a compliant cross-portal market-observation intake for rows outside our own Localiza cache: `localizaMarketObservations`, authenticated operator import on `/app/localiza/readiness`, recent property-history keys for attribution, bulk CSV/TSV paste, provenance fields, provider-ready normalization in `convex/localizaMarketObservations.ts`, and resolver-side merge into public-history rows and duplicate records.
+- [x] Implement an optional Idealista historical-price provider adapter. The former public Oportunista/RapidAPI listing currently returns not found, so the adapter stays disabled unless a compatible provider key or contract exists. When configured, Localiza fetches listing-level weekly price snapshots by Idealista `propertyCode`, stores them as provenance-labeled `localizaMarketObservations`, and merges them into the report's `Histórico de precios` and valuation-read panel. Exact/building results use the defensible official `propertyHistoryKey`; ambiguous results use a listing-scoped key until the user confirms a cadastral candidate.
+- [x] Expand the same optional historical fetch into listing-archive evidence. When configured, the report shows directly attributable online facts such as first publication date, latest archive capture, historical price range, archived price per square meter, listing status, photo count, advertiser reference, and commercializer without adding non-property-specific source buttons.
+- [x] Add a short-timeout Madrid energy-certificate lookup against the Comunidad de Madrid open-data registry. When the resolved cadastral reference matches a public CEEE record, Localiza adds certificate rating, emissions/consumption, registration date, and certificate reference to `onlineEvidence`; when the registry is unreachable or the property is outside Madrid, the report stays unchanged.
+- [x] Add a short-timeout Comunitat Valenciana CEEE lookup against the Generalitat/ICV WFS. Exact `unitRef20` matches add certificate labels, registered totals, validity date, certificate reference, and registered address to `onlineEvidence`; parcel-only matches only expose a parcel-level certificate count unless the parcel has a single certificate row.
+- [x] Add a short-timeout Catalunya CEEE lookup against the ICAEN open-data API. Exact `unitRef20` matches add energy/emissions labels, registered kWh/CO2 metrics, registration date, certificate reference, use, motive, and registered address to `onlineEvidence`; parcel-only matches only expose a parcel-level certificate count unless there is exactly one matching certificate row.
+- [x] Add positive-only SNCZI/MITECO flood overlay evidence. When an exact/building result has a public listing coordinate and the official WMS point query intersects a flood layer, Localiza adds the matched fluvial/marine return period to `onlineEvidence`. It does not claim absence of flood risk when the service returns nothing or is unavailable.
+- [x] Add national Catastro descriptive facts for exact national-cadastre references. Localiza now adds year built, cadastral use, constructed surface, parcel surface, estate type, participation coefficient, and construction breakdown when `Consulta_DNPRC` returns the same parcel/unit reference.
+- [x] Add CNIG rooftop solar-potential facts by parcel reference. Localiza now adds average/min/max rooftop solar irradiation, analyzed roof surface, dwellings, floors, and solar-building use when the official CNIG/IDEE collection returns the same `parcelRef14`.
+- [x] Add short-timeout location context from OpenStreetMap/Overpass for exact/building matches with coordinates. Localiza now summarizes nearby transit, daily shopping, schools, healthcare/pharmacy, and green areas inside 800 m; failures or empty categories stay hidden.
+- [x] Add Madrid urbanismo/patrimonio evidence from official Ayuntamiento de Madrid map services. Localiza now adds PGOUM norma-zonal evidence and protected-building catalogue evidence for exact/building Madrid results with precise coordinates; empty or unavailable services stay hidden.
+- [ ] Connect licensed Fotocasa/Habitaclia observations. Manual/operator import and automated Idealista history are live, but production-scale cross-portal acquisition still needs a compliant partner feed with visible provenance. The report does not show generic portal-search links as property evidence.
 
 ### Phase 0. Ground truth and rollout guardrails
 
 - [x] Re-read the full Localiza brief and verify the current repo insertion points.
 - [x] Confirm where listing create data currently enters the system.
 - [x] Confirm where the golden dataset fixtures will live in-repo.
-  Current state: deterministic frozen fixtures live in `packages/api/src/workflow.test.ts` because repo policy forbids new test files.
+      Current state: deterministic frozen fixtures live in `packages/api/src/workflow.test.ts` because repo policy forbids new test files.
 - [x] Decide the first `resolverVersion` format and bump policy.
-  Current state: `apps/web/src/server/localiza/version.ts` exports `localiza-bootstrap-2026-04-23.10` and the `stable-bootstrap-date-plus-patch` policy.
+      Current state: `apps/web/src/server/localiza/version.ts` exports `localiza-bootstrap-2026-04-23.10` and the `stable-bootstrap-date-plus-patch` policy.
 - [x] Confirm whether the first rollout is gated by env only or by a user allowlist.
-  Current state: Localiza access is currently gated by app-level allowlisting in `apps/web/src/lib/app-access.ts`.
+      Current state: Localiza access is currently gated by app-level allowlisting in `apps/web/src/lib/app-access.ts`.
 - [x] Document the exact unsupported and blocked cases to surface during beta.
-  Current state: `/app/localiza/readiness` now renders an "Unsupported during beta" card listing the six explicit out-of-scope cases (non-Idealista portals, listings outside Spain, hidden-address listings without coordinates in regional territories, unit-level autofill without independent proof, disabled Idealista API and Browserbase paths, and the no-bulk/no-owner-lookup boundary) so operators see them at the same time they read the readiness gate.
+      Current state: `/app/localiza/readiness` now renders an "Unsupported during beta" card listing the six explicit out-of-scope cases (non-Idealista portals, listings outside Spain, hidden-address listings without coordinates in regional territories, unit-level autofill without independent proof, disabled Idealista API and Browserbase paths, and the no-bulk/no-owner-lookup boundary) so operators see them at the same time they read the readiness gate.
 
 ### Phase 1. Shared domain model and persistence contract
 
@@ -876,9 +959,9 @@ This is the working engineering checklist for Localiza. It is intentionally more
 - [x] Extend the Convex listing create mutation args and insert path to persist the new fields.
 - [x] Enforce source-type and metadata consistency again at the Convex mutation boundary.
 - [x] Decide whether `priceUsd` and `squareFeet` should be renamed to unit-neutral field names before Spanish beta.
-  Current state: new create payloads use `priceAmount`, `currencyCode`, `interiorAreaSquareMeters`, and `lotAreaSquareMeters`; the onboarding UI writes EUR and square-meter values by default.
+      Current state: new create payloads use `priceAmount`, `currencyCode`, `interiorAreaSquareMeters`, and `lotAreaSquareMeters`; the onboarding UI writes EUR and square-meter values by default.
 - [x] Decide whether listings need a normalized display label separate from component address fields.
-  Current state: listings now carry an optional `displayAddressLabel` field across `convex/schema.ts`, `convex/listings.ts`, `packages/api/src/schema/listings.ts`, and `packages/types/src/index.ts`. The Convex insert path auto-fills it from `locationResolution.resolvedAddressLabel` when not set explicitly, so Localiza-resolved listings get a single rendered string for cards and audit while manual listings can stay component-only.
+      Current state: listings now carry an optional `displayAddressLabel` field across `convex/schema.ts`, `convex/listings.ts`, `packages/api/src/schema/listings.ts`, and `packages/types/src/index.ts`. The Convex insert path auto-fills it from `locationResolution.resolvedAddressLabel` when not set explicitly, so Localiza-resolved listings get a single rendered string for cards and audit while manual listings can stay component-only.
 
 ### Phase 2. Onboarding and listing-intake groundwork
 
@@ -892,16 +975,16 @@ This is the working engineering checklist for Localiza. It is intentionally more
 - [x] Add loading, exact, building, candidate, unresolved, and manual-override UI states.
 - [x] Keep `Auto` as the default Localiza strategy in the onboarding UI.
 - [x] Add explicit retry strategy selection for the acquisition methods that are currently available.
-  Current state: onboarding receives the server-side adapter availability snapshot but keeps implementation methods hidden from users; the user-facing path runs `Auto`, while `Idealista API` remains endgame-only and `Browser worker` remains a compliance-approved fallback only.
+      Current state: onboarding receives the server-side adapter availability snapshot but keeps implementation methods hidden from users; the user-facing path runs `Auto`, while `Idealista API` remains endgame-only and `Browser worker` remains a compliance-approved fallback only.
 - [x] Ignore stale Localiza responses when the user edits the URL, changes source mode, or changes strategy mid-request.
 - [x] Reset Localiza-linked address and hidden source state when the user changes source mode, URL, or strategy.
 - [x] Canonicalize the saved Idealista URL from resolver output before create validation runs.
 - [x] Cancel any in-flight Localiza request when the draft is cleared or the listing is queued so a late response cannot repopulate the next draft.
 - [x] Persist the selected Localiza metadata in the final create payload.
 - [x] Keep the pasted Idealista URL visible after resolution and after save.
-  Current state: after batch save, onboarding renders a confirmation/audit screen instead of immediately redirecting, so the saved source URL and Localiza result remain visible.
+      Current state: after batch save, onboarding renders a confirmation/audit screen instead of immediately redirecting, so the saved source URL and Localiza result remain visible.
 - [x] Make `/app/localiza` a simple resolver entry instead of an operator dashboard.
-  Current state: `/app/localiza` shows one Idealista URL input, a history dropdown for the last 10 unique browser-local searches, a resolve button, a compact animated loading composer, selectable official candidates, and a `Crear inmueble` handoff into onboarding with the URL and selected candidate preserved. It does not expose method/territory labels, reason-code dumps, or implementation pipeline text.
+      Current state: `/app/localiza` shows one Idealista URL input, a history dropdown for the last 10 unique browser-local searches, a resolve button, a compact animated loading composer, selectable official candidates, and a `Crear inmueble` handoff into onboarding with the URL and selected candidate preserved. It does not expose method/territory labels, reason-code dumps, or implementation pipeline text.
 - [x] Make the final onboarding listing batch create idempotent across safe client retries.
 
 ### Phase 3. Server-side service boundary
@@ -918,28 +1001,28 @@ This is the working engineering checklist for Localiza. It is intentionally more
 
 - [x] Implement Idealista URL validation and listing ID parsing.
 - [x] Lock the beta acquisition contract.
-  Current state: beta address acquisition is Firecrawl-only. `apps/web/src/server/localiza/acquisition-contract.ts` is the source of truth, `Auto` attempts only Firecrawl, and disabled adapters are excluded from the onboarding availability snapshot. The separate market-history path uses Oportunista/RapidAPI only after a resolved property-history key exists.
+      Current state: beta address acquisition is Firecrawl-only. `apps/web/src/server/localiza/acquisition-contract.ts` is the source of truth, `Auto` attempts only Firecrawl, and disabled adapters are excluded from the onboarding availability snapshot. The separate market-history path stays optional and disabled unless a compatible historical-price provider key exists.
 - [ ] Endgame only: test whether official Idealista API access exists and is sufficient for user-submitted URLs after the rest of Localiza is launch-ready.
 - [x] Keep the onboarding UI aligned with adapter readiness so disabled strategies are not exposed to users.
-  Current state: the onboarding page now receives a server-side availability snapshot and keeps implementation methods hidden from users. It runs the automatic path when at least one server adapter is configured.
+      Current state: the onboarding page now receives a server-side availability snapshot and keeps implementation methods hidden from users. It runs the automatic path when at least one server adapter is configured.
 - [ ] Endgame only: implement the official Idealista adapter if approved and usable.
-  Current state: the `idealista_api` adapter remains intentionally disabled, is not part of the beta auto path, and is deliberately tabled until every non-Idealista-API Localiza blocker is closed.
+      Current state: the `idealista_api` adapter remains intentionally disabled, is not part of the beta auto path, and is deliberately tabled until every non-Idealista-API Localiza blocker is closed.
 - [x] Implement the Firecrawl acquisition adapter.
-  Current state: the adapter accepts the canonical `FIRECRAWL_API_KEY` plus Stripe Projects-generated `FIRECRAWL_API_API_KEY` / `FIRECRAWL_PLAN_API_KEY` aliases so local and deployed availability checks use the same credential source. It requests rendered HTML plus markdown and extracts listing signals deterministically, including Idealista static-map coordinates when present, instead of relying on LLM JSON extraction.
-- [x] Implement the Oportunista historical-price adapter for Idealista observations.
-  Current state: `apps/web/src/server/localiza/oportunista-price-history.ts` calls the RapidAPI-hosted Oportunista endpoint with `OPORTUNISTA_RAPIDAPI_KEY`, compresses weekly snapshots to first/latest and price-change rows, and writes the existing `localizaMarketObservations` shape through a bulk Convex mutation.
+      Current state: the adapter accepts the canonical `FIRECRAWL_API_KEY` plus Stripe Projects-generated `FIRECRAWL_API_API_KEY` / `FIRECRAWL_PLAN_API_KEY` aliases so local and deployed availability checks use the same credential source. It requests rendered HTML plus markdown and extracts listing signals deterministically, including Idealista static-map coordinates when present, instead of relying on LLM JSON extraction.
+- [x] Implement the optional historical-price adapter for Idealista observations.
+      Current state: `apps/web/src/server/localiza/oportunista-price-history.ts` can call a compatible RapidAPI-hosted endpoint with `OPORTUNISTA_RAPIDAPI_KEY`, compress weekly snapshots to first/latest and price-change rows, and write the existing `localizaMarketObservations` shape through a bulk Convex mutation. The public signup page previously used for this provider now returns not found, so it is not a launch dependency.
 - [ ] Benchmark Firecrawl success and failure modes on the golden dataset.
 - [ ] Implement the Browserbase-backed fallback adapter only if Firecrawl plus compliant market-history acquisition are insufficient and compliance approves the fallback.
-  Current state: the `browser_worker` adapter remains intentionally disabled, is not part of the beta auto path, and still requires explicit compliance approval before production use.
+      Current state: the `browser_worker` adapter remains intentionally disabled, is not part of the beta auto path, and still requires explicit compliance approval before production use.
 - [ ] Ensure the browser-worker path only collects minimum normalized signals.
 - [ ] Ensure the browser-worker path does not persist raw HTML or page dumps.
 
 ### Phase 5. Cadastral adapters and resolution logic
 
 - [x] Implement territory routing: national Catastro vs Navarra vs Álava/Bizkaia/Gipuzkoa.
-  Current state: routing now uses province hints plus coordinate-safe reverse-geocode fallback, and dispatches into the national Catastro, Navarra RTN, or the Álava / Bizkaia / Gipuzkoa official cadastres as appropriate.
+      Current state: routing now uses province hints plus coordinate-safe reverse-geocode fallback, and dispatches into the national Catastro, Navarra RTN, or the Álava / Bizkaia / Gipuzkoa official cadastres as appropriate.
 - [x] Implement the national Catastro adapter first.
-  Current state: national Catastro resolution uses coordinate WFS when map signals exist and falls back to the official Callejero address lookup when the listing exposes a street name and number but coordinate lookup is missing, empty, filtered out, or below threshold.
+      Current state: national Catastro resolution uses coordinate WFS when map signals exist and falls back to the official Callejero address lookup when the listing exposes a street name and number but coordinate lookup is missing, empty, filtered out, or below threshold.
 - [x] Implement Navarra official candidate resolution.
 - [x] Implement Álava official candidate resolution.
 - [x] Implement Bizkaia official candidate resolution.
@@ -948,16 +1031,16 @@ This is the working engineering checklist for Localiza. It is intentionally more
 - [x] Implement exact, building, candidate, and unresolved decision assignment.
 - [x] Implement machine-readable evidence generation with stable `reasonCodes`.
 - [x] Add `idealista/maps` verification only as a higher-confidence signal, not as canonical truth.
-  Current state: `apps/web/src/server/localiza/maps-verifier.ts` runs only when the official cadastre returns `building_match` and a top candidate exists. The resolver promotes `building_match` to `exact_match` only when idealista/maps confirms the same listing ID at the resolved coordinates; any HTTP error, anti-bot block, or "listing id not found" is logged as inconclusive and never downgrades the result.
+      Current state: `apps/web/src/server/localiza/maps-verifier.ts` runs only when the official cadastre returns `building_match` and a top candidate exists. The resolver promotes `building_match` to `exact_match` only when idealista/maps confirms the same listing ID at the resolved coordinates; any HTTP error, anti-bot block, or "listing id not found" is logged as inconclusive and never downgrades the result.
 
 ### Phase 5A. Review follow-ups from the first state Catastro slice
 
 - [x] Tighten `exact_match` designator proof in `apps/web/src/server/localiza/score.ts` and `apps/web/src/server/localiza/catastro-state.ts`.
-  Current state: `corpusIncludesDesignator()` now requires street/designator or explicit portal/door context, so unrelated standalone numeric tokens like `3 habitaciones` do not provide exact-match proof.
+      Current state: `corpusIncludesDesignator()` now requires street/designator or explicit portal/door context, so unrelated standalone numeric tokens like `3 habitaciones` do not provide exact-match proof.
 - [x] Split acquisition-adapter failures from cadastral matching failures in `apps/web/src/server/localiza/resolver.ts`.
-  Current state: acquisition failures and official cadastre failures are logged and cached with separate reason codes, so `auto` does not retry other acquisition adapters after the official matching step fails.
+      Current state: acquisition failures and official cadastre failures are logged and cached with separate reason codes, so `auto` does not retry other acquisition adapters after the official matching step fails.
 - [x] Make regional routing coordinate-safe instead of province-string-only in `apps/web/src/server/localiza/score.ts` and `apps/web/src/server/localiza/catastro-state.ts`.
-  Current state: Navarra / Álava / Bizkaia / Gipuzkoa routing uses province aliases plus coordinate reverse-geocoding, and candidate scoring accepts official regional aliases like `Araba`, `Vizcaya`, and `Guipúzcoa`.
+      Current state: Navarra / Álava / Bizkaia / Gipuzkoa routing uses province aliases plus coordinate reverse-geocoding, and candidate scoring accepts official regional aliases like `Araba`, `Vizcaya`, and `Guipúzcoa`.
 
 ### Phase 6. Cache, leases, and concurrency safety
 
@@ -965,7 +1048,7 @@ This is the working engineering checklist for Localiza. It is intentionally more
 - [x] Add lookup indexes for `(provider, externalListingId, resolverVersion)`.
 - [x] Add cache lookup by `sourceUrl`.
 - [x] Add expiry lookup and cleanup behavior for stale cache rows.
-  Current state: `locationResolutions:pruneExpired` requires an authenticated Convex identity, deletes bounded batches through `by_expires_at`, returns whether more stale rows remain, and is callable from the `/app/localiza/readiness` operator page.
+      Current state: `locationResolutions:pruneExpired` requires an authenticated Convex identity, deletes bounded batches through `by_expires_at`, returns whether more stale rows remain, and is callable from the `/app/localiza/readiness` operator page.
 - [x] Add an in-flight lease with short expiry for concurrent resolve attempts.
 - [x] Make later callers reuse cached or in-flight results instead of fan-out resolving.
 - [x] Add failure cooldown behavior for repeated hard failures.
@@ -974,46 +1057,46 @@ This is the working engineering checklist for Localiza. It is intentionally more
 ### Phase 7. Observability and analytics
 
 - [x] Add structured server logs for start, adapter failure, cadastre failure, completion, confirm, and manual override.
-  Current state: resolver logs use `localiza.resolve.*` event names and include user/source/duration context where available; listing create now emits backend `localiza.resolve.user_confirmed` and `localiza.resolve.manual_override` logs from persisted resolution metadata.
+      Current state: resolver logs use `localiza.resolve.*` event names and include user/source/duration context where available; listing create now emits backend `localiza.resolve.user_confirmed` and `localiza.resolve.manual_override` logs from persisted resolution metadata.
 - [x] Expose routed territory and exact official service URL in user-facing resolver output for auditability.
 - [x] Add PostHog events for URL paste, resolve click, success, unresolved, candidate select, manual override, and listing created.
 - [x] Add metrics for success rate by acquisition adapter and territory adapter.
-  Current state: `locationResolutions:getMetricsSnapshot` aggregates resolve attempts, status rates, acquisition-adapter rates, territory-adapter rates, median duration, manual override rate, and user-confirmation rate.
+      Current state: `locationResolutions:getMetricsSnapshot` aggregates resolve attempts, status rates, acquisition-adapter rates, territory-adapter rates, median duration, manual override rate, and user-confirmation rate.
 - [x] Add unresolved-rate and timeout-rate monitoring thresholds.
-  Current state: the metrics snapshot returns beta thresholds and alert labels only when unresolved or timeout rates breach the configured backend limits in both the current and previous measurement windows.
+      Current state: the metrics snapshot returns beta thresholds and alert labels only when unresolved or timeout rates breach the configured backend limits in both the current and previous measurement windows.
 - [x] Add a severity-1 incident procedure and durable incident source for any confirmed false-positive autofill.
-  Current state: `localizaIncidents` stores open/resolved severity-1 false-positive autofill incidents, `locationResolutions:reportFalsePositiveIncident` and `locationResolutions:resolveFalsePositiveIncident` are authenticated operator mutations, `/app/localiza/readiness` exposes report/list/close controls, and `locationResolutions:getMetricsSnapshot` returns false-positive incident counts plus an immediate alert label.
+      Current state: `localizaIncidents` stores open/resolved severity-1 false-positive autofill incidents, `locationResolutions:reportFalsePositiveIncident` and `locationResolutions:resolveFalsePositiveIncident` are authenticated operator mutations, `/app/localiza/readiness` exposes report/list/close controls, and `locationResolutions:getMetricsSnapshot` returns false-positive incident counts plus an immediate alert label.
 - [x] Expose an operator-safe rollout readiness gate.
-  Current state: `/app/localiza/readiness` and the protected `listings.localizaReadiness` query combine the Firecrawl-only acquisition contract, golden dataset readiness, aggregate metrics, and active alert labels without exposing raw source URLs.
+      Current state: `/app/localiza/readiness` and the protected `listings.localizaReadiness` query combine the Firecrawl-only acquisition contract, golden dataset readiness, aggregate metrics, and active alert labels without exposing raw source URLs.
 
 ### Phase 8. Testing and fixture strategy
 
 - [x] Add unit tests for URL parsing.
 - [ ] Add unit tests for signal normalization.
 - [ ] Add unit tests for candidate scoring.
-  Current state: exact/building threshold and regional province-alias coverage exist; full candidate-scoring fixture coverage is still open.
+      Current state: exact/building threshold and regional province-alias coverage exist; full candidate-scoring fixture coverage is still open.
 - [x] Add unit tests for threshold and state assignment.
 - [ ] Add integration tests for mocked resolver flows.
 - [ ] Add integration tests for create-with-resolution metadata.
 - [ ] Add integration tests for manual override.
 - [x] Add deterministic CI fixtures built from frozen normalized signals and official responses.
-  Current state: the canonical frozen golden fixture registry lives in `apps/web/src/server/localiza/golden-dataset.ts` with 30 deterministic fixtures, planned outcome coverage, territory coverage, and frozen-contract threshold validation in the existing `packages/api/src/workflow.test.ts` file.
+      Current state: the canonical frozen golden fixture registry lives in `apps/web/src/server/localiza/golden-dataset.ts` with 30 deterministic fixtures, planned outcome coverage, territory coverage, and frozen-contract threshold validation in the existing `packages/api/src/workflow.test.ts` file.
 - [x] Add a smaller live-link regression set for scheduled or manual verification.
-  Current state: `apps/web/src/server/localiza/golden-dataset.ts` contains live Idealista candidate links with expected territory/status hints, explicit validation status, and the latest observed live result. The 2026-04-28 run returned `unresolved` for all three current live links, so golden readiness still reports `localiza_live_regression_set_pending_official_validation` until each live candidate is validated against the official cadastre and marked `officially_validated`.
+      Current state: `apps/web/src/server/localiza/golden-dataset.ts` contains live Idealista candidate links with expected territory/status hints, explicit validation status, and the latest observed live result. The 2026-04-28 run returned `unresolved` for all three current live links, so golden readiness still reports `localiza_live_regression_set_pending_official_validation` until each live candidate is validated against the official cadastre and marked `officially_validated`.
 - [ ] Add Playwright coverage for exact match, building match, needs confirmation, unresolved, and manual override flows.
-  Current state: repo policy still forbids new test files, so the first Localiza coverage lives in the existing `packages/api/src/workflow.test.ts` file and currently guards source-type/source-URL consistency, draft-state helpers for failed-resolve clearing and in-flight add prevention, strategy-option helper alignment with server-side adapter readiness, Idealista URL parsing, designator false-positive prevention, regional province aliases, threshold classification, and the territory fixture registry.
+      Current state: repo policy still forbids new test files, so the first Localiza coverage lives in the existing `packages/api/src/workflow.test.ts` file and currently guards source-type/source-URL consistency, draft-state helpers for failed-resolve clearing and in-flight add prevention, strategy-option helper alignment with server-side adapter readiness, Idealista URL parsing, designator false-positive prevention, regional province aliases, threshold classification, and the territory fixture registry.
 
 ### Phase 9. Rollout readiness
 
 - [x] Expose a single readiness gate for allowlist widening.
-  Current state: `/app/localiza/readiness` shows whether widening is blocked by missing Firecrawl config, live-link validation, false-positive incidents, unresolved/timeout thresholds, metrics unavailability, or other aggregate health alerts. Metrics query failures fail closed with `localiza_metrics_unavailable` instead of crashing the operator gate.
+      Current state: `/app/localiza/readiness` shows whether widening is blocked by missing Firecrawl config, live-link validation, false-positive incidents, unresolved/timeout thresholds, metrics unavailability, or other aggregate health alerts. Metrics query failures fail closed with `localiza_metrics_unavailable` instead of crashing the operator gate.
 - [ ] Confirm zero silent false positives on internal dogfood before beta.
 - [ ] Validate median resolve times against the stated targets.
 - [ ] Validate success thresholds against the golden dataset.
 - [x] Keep manual entry fully functional even when the resolver is disabled.
-  Current state: manual source mode remains available, unresolved results keep manual entry visible, and saved manual overrides persist as `manual_override` with audit metadata when a resolved address is edited.
+      Current state: manual source mode remains available, unresolved results keep manual entry visible, and saved manual overrides persist as `manual_override` with audit metadata when a resolved address is edited.
 - [x] Write a narrow feature doc once the resolver path is wired into onboarding.
-  Current state: `feat/localiza.md` now contains a "How To Use Localiza" section covering what Localiza does, the four outcomes, what counts as a manual override, and how to read the trust card.
+      Current state: `feat/localiza.md` now contains a "How To Use Localiza" section covering what Localiza does, the four outcomes, what counts as a manual override, and how to read the trust card.
 
 ## Implementation Order
 
@@ -1026,7 +1109,7 @@ This is the concrete build order we will execute and later check against:
 5. Implement the state Catastro adapter first because it covers most of Spain.
 6. Implement Navarra and the Basque territory adapters so the contract works across supported regions.
 7. Wire the onboarding UI states, Spain-specific copy, trust-signaling card, and manual override transitions.
-8. Add the screenshot-style property dossier read model, persistence fields, report panel, report download, valuation handoff, public history rows, duplicate grouping, and publication-duration summary.
+8. Add the screenshot-style property dossier read model, persistence fields, report panel, report download, valuation handoff, public history rows, and duplicate grouping.
 9. Validate Firecrawl against the golden dataset.
 10. Validate the explicit retry strategies against the same links so users can recover from adapter-specific failure.
 11. Only stand up the Browserbase-backed minimal-signal worker if Firecrawl plus compliant market-history acquisition are insufficient and compliance approves the fallback.
@@ -1313,19 +1396,19 @@ This is a complete build, not a partial v1 with deferred core functionality.
 - [x] Resolution metadata is stored with the listing.
 - [x] Resolution attempts are cached and auditable.
 - [x] State Catastro path works for territories covered by the national service.
-  Current state: the Madrid smoke URL `108926410` resolves through Firecrawl plus national Catastro to `needs_confirmation` with official candidates, and the no-coordinate street-number fallback resolves through Catastro Callejero.
+      Current state: the Madrid smoke URL `108926410` resolves through Firecrawl plus national Catastro to `needs_confirmation` with official candidates, and the no-coordinate street-number fallback resolves through Catastro Callejero.
 - [x] Navarra and each Basque territory return either official exact automation or official candidate confirmation, not silent failure.
-  Current state: `apps/web/src/server/localiza/catastro-state.ts` routes Navarra, Álava, Bizkaia, and Gipuzkoa into dedicated official-cadastre adapters. Navarra, Bizkaia, and Gipuzkoa can return exact, building, confirmation, or unresolved outcomes; Álava returns official viewer-backed confirmation candidates rather than claiming exact automation without machine-verifiable unit proof.
+      Current state: `apps/web/src/server/localiza/catastro-state.ts` routes Navarra, Álava, Bizkaia, and Gipuzkoa into dedicated official-cadastre adapters. Navarra, Bizkaia, and Gipuzkoa can return exact, building, confirmation, or unresolved outcomes; Álava returns official viewer-backed confirmation candidates rather than claiming exact automation without machine-verifiable unit proof.
 - [x] Logs and analytics exist for all key transitions.
 - [ ] Golden dataset passes before GA.
 - [x] Manual entry still works if the resolver is disabled.
 - [ ] The browser-worker path, if enabled, only collects minimal normalized signals and does not store raw page dumps or bulk media.
-  [x] The Localiza report exposes screenshot-parity dossier information when available: listing snapshot, lead image, proposed official address, cadastral reference, source label, public price/portal/agency history, property report download, valuation handoff, and official-market evidence links.
-  Current state: the report contract and UI can represent the screenshot-level dossier, and the resolver now merges same-property observations from the Localiza cache, the authenticated market-observation intake, and automated Oportunista/Idealista historical-price imports through `propertyHistoryKey`. Publication-duration claims are intentionally hidden from the user-facing report because partial sources can undercount how long an advert has been public. Matching the screenshot's full cross-portal timeline at scale still requires licensed Fotocasa/Habitaclia feeds keyed to the official parcel/unit identity.
+- [x] The Localiza report exposes screenshot-parity dossier information when available: listing snapshot, lead image, proposed official address, cadastral reference, source label, additional online archive evidence, public price/portal/agency history, combined official-identity and valuation-read block, compliant lead-capture read, property report download, valuation handoff, and property-specific official external links.
+      Current state: the report contract and UI can represent the screenshot-level dossier, and the resolver now merges same-property observations from the Localiza cache, the authenticated market-observation intake, and optional historical-price imports through `propertyHistoryKey`. The report derives a compliant prospecting read from public advertiser or agency rows, official identity strength, price movement, archive evidence, presentation gaps, and buyer-objection signals; it does not infer owner names or private phone numbers. The optional historical feed can add directly attributable listing archive facts to `onlineEvidence` when configured; Madrid, Comunitat Valenciana, and Catalunya properties can add matched CEEE energy-certificate facts by cadastral reference; Madrid properties with precise coordinates can add official PGOUM norma-zonal and protected-building catalogue facts; Euskadi properties can add official Euskoregite ITE/IEE and building-condition facts; national Catastro references can add non-protected building facts; CNIG/IDEE can add parcel-matched rooftop solar potential; OpenStreetMap can add 800 m amenity context; and official SNCZI flood overlays add positive risk evidence when a point query intersects a published layer. Publication-duration claims are intentionally hidden from the user-facing report because partial sources can undercount how long an advert has been public. Matching the screenshot's full cross-portal timeline at scale still requires licensed Fotocasa/Habitaclia feeds keyed to the official parcel/unit identity.
 - [x] Add automated Idealista public-history acquisition for Localiza dossiers.
-  Current state: Localiza imports Oportunista weekly price snapshots for the submitted Idealista `propertyCode`, normalizes first/latest and price-change observations, and merges them into the report's price history. If the official property identity is still ambiguous, those observations are stored under a listing-scoped key instead of being grouped with other properties.
+      Current state: Localiza can import compatible weekly price snapshots for the submitted Idealista `propertyCode`, normalize first/latest and price-change observations, enrich the report with listing-archive facts from the same response, and merge the price rows into the report's price history. The public signup page previously used for this provider now returns not found, so this path stays optional and disabled without a live provider contract. If the official property identity is still ambiguous, those observations are stored under a listing-scoped key instead of being grouped with other properties.
 - [ ] Add Fotocasa/Habitaclia public-history acquisition for Localiza dossiers.
-  Current state: authenticated operator import can already add dated Fotocasa/Habitaclia observations one by one or via bulk CSV/TSV paste, with advertiser/agency names, asking prices, first/last seen dates, duplicate grouping, and publication-duration summaries tied to recent resolved cadastral identities. Remaining work is a licensed partner feed that writes the same normalized observation shape.
+      Current state: authenticated operator import can already add dated Fotocasa/Habitaclia observations one by one or via bulk CSV/TSV paste, with advertiser/agency names, asking prices, first/last seen dates, duplicate grouping, and a dedicated multiportal report section tied to recent resolved cadastral identities. The report only shows non-Idealista portal rows when those observations already exist for the same property; generic Fotocasa/Habitaclia search shortcuts stay out of the dossier. Remaining work is a licensed partner feed that writes the same normalized observation shape.
 
 ## How To Use Localiza
 
@@ -1365,9 +1448,9 @@ The result card shows, top to bottom:
 
 - **Result label** — `Dirección encontrada`, `Edificio encontrado`, `Elige una opción`, `No se pudo leer`, or `No encontrada`.
 - **Resolved address** — the official cadastre's rendered label when available.
-- **Official source** — the named cadastre that produced the result, with a link to the source service when available.
+- **Official source** — the named cadastre that produced the result, shown as text unless Localiza has a direct property URL for the resolved candidate.
 - **Candidates** — short official-address options when Localiza needs user confirmation.
-- **Action buttons** — `Crear inmueble` and, when available, `Fuente oficial`.
+- **Action buttons** — `Crear inmueble` and, only when it points directly to the resolved property, `Ficha oficial`.
 
 If a result feels wrong, the safe action is to edit the address and save: the listing will be persisted as `manual_override` and the resolver call is preserved for audit. If the autofilled address is concretely wrong, file it through the false-positive incident path so the offending URL becomes a permanent fixture in the golden dataset.
 
@@ -1379,10 +1462,12 @@ When Localiza has enough public evidence, the report mirrors the screenshot-styl
 - No public image gallery is shown unless the acquisition source can prove it is complete and fresh. Current UI keeps additional image observations out of the report because partial public images create false confidence.
 - A trust block with `Dirección propuesta`, `Referencia catastral`, official source label, and the resolved unit components when they are proven.
 - An official-identity breakdown with the unit components Localiza can defend from cadastre-backed evidence.
-- Additional evidence links for Catastro ficha, Catastro reference value, Notariado transaction benchmarks, and Registro due diligence.
+- Property-specific external links only when Localiza has a browser-openable official URL for the resolved candidate; generic source portals stay out of the report.
 - A negotiation snapshot with current ask, asking price per square meter, public price movement when available, and a conservative evidence-strength label.
+- A lead-capture section with the visible public advertiser or agency, a prospecting score, a ready contact angle, CRM note, and the owner/private-phone compliance boundary.
+- An online evidence section with directly attributable archive metadata from connected sources.
 - A public history timeline with date, price, portal, advertiser or agency, source URL, and observation provenance.
-- Publication-duration bars by advertiser, agency, and portal only when at least one source exposes more than one day published.
+- Public-duration claims are not shown in the report until a licensed source proves the full listing lifetime.
 - Actions for `Descargar informe de propiedad` and `Valoraciones`.
 
 Every item in this report is evidence or operator context. It does not silently update the listing create form unless the user confirms that value.
@@ -1400,8 +1485,21 @@ Official or primary sources used:
 - Browserbase Playwright quickstart: `https://docs.browserbase.com/welcome/quickstarts/playwright`
 - Browserbase proxies: `https://docs.browserbase.com/platform/identity/proxies`
 - Browserbase pricing: `https://docs.browserbase.com/account/billing/plans`
-- Oportunista Idealista historical price API: `https://oportunista.net/api-historico-de-precios/`
-- Oportunista historical price exports: `https://oportunista.net/historico-de-precios/`
+- Historical archive provider: no current public signup URL verified; former RapidAPI listing returns not found.
+- Comunidad de Madrid CEEE open-data registry: `https://datos.comunidad.madrid/catalogo/dataset/registro_certificados_eficiencia_energetica`
+- Comunitat Valenciana CEEE open-data registry: `https://dadesobertes.gva.es/es/dataset/registro-de-certificados-de-eficiencia-energetica-en-la-comunitat-valenciana`
+- Comunitat Valenciana CEEE WFS: `https://terramapas.icv.gva.es/26_GCEE?service=WFS&request=GetCapabilities`
+- Catalunya CEEE open-data dataset: `https://analisi.transparenciacatalunya.cat/d/j6ii-t3w2`
+- MITECO SNCZI flood-risk map: `https://www.miteco.gob.es/es/agua/temas/gestion-de-los-riesgos-de-inundacion/snczi.html`
+- IDEE flood-risk WMS: `https://servicios.idee.es/wms-inspire/riesgos-naturales/inundaciones`
+- Catastro non-protected descriptive lookup: `https://ovc.catastro.meh.es/OVCServWeb/OVCWcfCallejero/COVCCallejero.svc/json/Consulta_DNPRC`
+- CNIG / IDEE solar potential app: `https://eficiencia-energetica.ign.es/solar/`
+- CNIG / IDEE solar building collection: `https://api-processes.idee.es/collections/radiacion_solar_edificios`
+- OpenStreetMap Overpass API: `https://overpass-api.de/`
+- Ayuntamiento de Madrid PGOUM 1997: `https://www.madrid.es/portales/munimadrid/es/Inicio/El-Ayuntamiento/Urbanismo-y-vivienda/PGOUM-1997?vgnextchannel=8dba171c30036010VgnVCM100000dc0ca8c0RCRD&vgnextoid=8293d468e4b4f110VgnVCM2000000c205a0aRCRD`
+- Ayuntamiento de Madrid Normas Zonales map service: `https://sigma.madrid.es/hosted/rest/services/DESARROLLO_URBANO_ACTUALIZADO/NORMAS_ZONALES/MapServer`
+- Ayuntamiento de Madrid Edificios Protegidos dataset: `https://datos.madrid.es/dataset/300158-0-edificios-protegidos`
+- Ayuntamiento de Madrid Edificios Protegidos map service: `https://sigma.madrid.es/hosted/rest/services/DESARROLLO_URBANO_ACTUALIZADO/EDIFICIOS_PROTEGIDOS_VIGENTE/MapServer`
 - National Catastro access and coverage: `https://www.sedecatastro.gob.es/Accesos/SECAccDescargaDatos.aspx`
 - National Catastro coordinates WSDL: `https://ovc.catastro.meh.es/ovcservweb/OVCSWLocalizacionRC/OVCCoordenadas.asmx?WSDL`
 - National Catastro callejero WSDL: `https://ovc.catastro.meh.es/ovcservweb/OVCSWLocalizacionRC/OVCCallejeroCodigos.asmx?WSDL`

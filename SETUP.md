@@ -17,7 +17,7 @@ Casedra is a Turborepo that hosts the web studio (Next.js), the mobile companion
 - Convex CLI: `pnpm dlx convex -h` (or `npm i -g convex`)
 - Expo CLI: `pnpm dlx expo --help`
 - Stripe CLI (optional, useful for webhook testing)
-- Access to the following services: Convex, fal.ai, Firecrawl, Oportunista/RapidAPI, PostHog, Stripe, Vercel
+- Access to the following services: Convex, fal.ai, Firecrawl, PostHog, Stripe, Vercel
 
 ## Install dependencies
 
@@ -48,11 +48,14 @@ pnpm install
 | `FAL_KEY` | Fal.ai | Server-side only; never expose publicly |
 | `FIRECRAWL_API_KEY` | Firecrawl | Required for the current Firecrawl-only Localiza beta path. `FIRECRAWL_API_API_KEY` and `FIRECRAWL_PLAN_API_KEY` are accepted as Stripe Projects-generated aliases. |
 | `IDEALISTA_API_KEY`, `IDEALISTA_API_SECRET` | Idealista | Reserved for a future Localiza acquisition path; leave unset until official API access is approved and implemented |
-| `OPORTUNISTA_RAPIDAPI_KEY` | Oportunista | RapidAPI key for Idealista listing-level historical price snapshots. `IDEALISTA_HISTORICO_RAPIDAPI_KEY` is accepted as an alias. |
-| `OPORTUNISTA_RAPIDAPI_HOST` | Oportunista | Optional RapidAPI host override. Defaults to `idealista-historico.p.rapidapi.com`. |
+| `OPORTUNISTA_RAPIDAPI_KEY` | Historical price feed | Optional legacy RapidAPI key for Idealista listing-level historical price snapshots. Leave unset unless a live provider contract exists. `IDEALISTA_HISTORICO_RAPIDAPI_KEY` is accepted as an alias. |
+| `OPORTUNISTA_RAPIDAPI_HOST` | Historical price feed | Optional RapidAPI host override. Defaults to `idealista-historico.p.rapidapi.com`. |
 | `BROWSERBASE_API_KEY`, `BROWSERBASE_PROJECT_ID` | Browserbase | Reserved for a future fallback path; leave unset unless Firecrawl is insufficient and browser automation has compliance approval |
 | `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` | Stripe | Follow the Stripe section below |
 | `POSTHOG_API_KEY`, `NEXT_PUBLIC_POSTHOG_KEY`, `POSTHOG_HOST`, `NEXT_PUBLIC_POSTHOG_HOST` | PostHog | Host defaults to `https://app.posthog.com` |
+| `BUYER_INTAKE_FALLBACK_AGENCY_SLUG` | Compradores | Slug opcional de agencia de respaldo para consultas públicas del Informe del Comprador cuando no haya un enlace verificado `?agency=<slug>` |
+| `NEWSLETTER_DISPATCH_SECRET` | Compradores | Secreto compartido para los endpoints internos de envío del informe y eventos SES |
+| `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `SES_FROM_EMAIL`, `SES_CONFIGURATION_SET` | SES | Solo necesario cuando se active el envío SES del Informe del Comprador |
 
 ## Convex
 
@@ -91,10 +94,17 @@ pnpm install
 - Grab an API key from [https://www.firecrawl.dev](https://www.firecrawl.dev) and set `FIRECRAWL_API_KEY`. If Stripe Projects generated `FIRECRAWL_API_API_KEY` or `FIRECRAWL_PLAN_API_KEY`, the Localiza adapter will also accept those names.
 - Localiza invokes Firecrawl for Idealista signal acquisition when configured. During beta, `Auto` only attempts Firecrawl; the official Idealista API and Browserbase worker are intentionally disabled until approved and implemented.
 
-## Oportunista
+## Historical Price Feed
 
-- Subscribe to the Idealista histórico API through RapidAPI and set `OPORTUNISTA_RAPIDAPI_KEY`.
-- Localiza uses Oportunista only after a user-submitted Idealista URL has been resolved to a defensible property-history key. The imported rows are stored as dated `IDEALISTA` market observations with Oportunista provenance and then merged into the property report's histórico de precios.
+- Keep `OPORTUNISTA_RAPIDAPI_KEY` unset unless a live provider contract exists. The former public RapidAPI listing for the Idealista histórico provider currently returns a not-found page.
+- If a compatible historical-price provider is configured later, Localiza imports dated `IDEALISTA` market observations and merges them into the property report's histórico de precios. The same response can enrich the report with directly attributable archive metadata such as publication date, latest capture, high/low price, listing status, photo count, advertiser reference, and commercializer.
+- Madrid properties also attempt a short-timeout lookup against the public Comunidad de Madrid CEEE open-data registry by cadastral reference. Matching certificate rows are shown as `onlineEvidence`; lookup failures are non-blocking.
+- Comunitat Valenciana properties also attempt a short-timeout exact lookup against the Generalitat/ICV CEEE WFS by `unitRef20` or `parcelRef14`. Unit matches show certificate details; parcel-only matches stay parcel-level unless there is a single certificate row.
+- Catalunya properties also attempt a short-timeout exact lookup against the ICAEN open-data API by `unitRef20` or `parcelRef14`. Unit matches show certificate details; parcel-only matches stay parcel-level unless there is a single certificate row.
+- National Catastro references also attempt a short-timeout non-protected descriptive lookup. Matching rows add sales-useful building facts such as cadastral use, year built, constructed surface, parcel surface, estate type, participation coefficient, and construction breakdown.
+- Parcel references also attempt a short-timeout CNIG/IDEE rooftop solar lookup. Matching rows add rooftop irradiation, analyzed roof surface, dwelling count, floor count, and solar-building use.
+- Exact/building matches with public listing coordinates also attempt a short-timeout OpenStreetMap/Overpass surroundings lookup. Matching rows summarize nearby transit, daily shopping, schools, healthcare/pharmacy, and green areas inside 800 m.
+- Exact/building matches with public listing coordinates also attempt a positive-only SNCZI/MITECO flood-overlay point query. Matching fluvial or marine flood layers are shown as `onlineEvidence`; empty or failed WMS responses are not presented as "no risk".
 - If the key is missing, Localiza still resolves addresses, but rollout readiness remains blocked because the automatic price-history feed is unavailable.
 
 ## Stripe
@@ -114,6 +124,14 @@ pnpm install
 1. Create a PostHog project and copy the API key into both `POSTHOG_API_KEY` (server) and `NEXT_PUBLIC_POSTHOG_KEY` (client).
 2. Adjust the host if you self-host PostHog.
 3. `usePosthog()` in `apps/web/src/app/providers.tsx` bootstraps analytics on the client.
+
+## Informe del Comprador
+
+- Las páginas públicas para compradores viven bajo `/buyers`. Los enlaces con `?agency=<slug>` enrutan consultas y altas hacia esa agencia activa tras verificación del servidor; si el slug falta o no es válido, las consultas usan `BUYER_INTAKE_FALLBACK_AGENCY_SLUG`.
+- Los suscriptores, consentimientos, borradores, ediciones, entregas y supresiones viven en Convex. La prueba de consentimiento guarda hashes de IP y navegador, no identificadores crudos.
+- La etapa actual sin SES puede guardar, marcar como listo, copiar y exportar borradores del Informe del Comprador desde `/app/newsletter`; la UI no debe afirmar que Casedra ha enviado nada.
+- SES dispatch is enabled only when `NEWSLETTER_DISPATCH_SECRET`, AWS credentials, region, and `SES_FROM_EMAIL` are configured. Run the dispatcher by POSTing to `/api/newsletter/dispatch` with `x-casedra-newsletter-secret`.
+- Point SES bounce and complaint notifications at `/api/newsletter/ses-events?secret=<NEWSLETTER_DISPATCH_SECRET>` or add the same secret as the `x-casedra-newsletter-secret` header if the notification bridge supports headers.
 
 ## Running the apps
 

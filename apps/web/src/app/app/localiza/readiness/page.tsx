@@ -208,6 +208,21 @@ type LocalizaLiveFixtureRecord = {
 		| "bizkaia_catastro"
 		| "gipuzkoa_catastro";
 	lastObservedReasonCodes?: string[];
+	lastObservedAddressLabel?: string;
+	lastObservedLocation?: {
+		street: string;
+		city: string;
+		stateOrProvince: string;
+		country: string;
+		postalCode?: string;
+	};
+	lastObservedParcelRef14?: string;
+	lastObservedUnitRef20?: string;
+	lastObservedResolverVersion?: string;
+	lastObservedOnlineEvidenceKinds?: string[];
+	lastObservedOnlineEvidenceCount?: number;
+	lastObservedPublicHistoryCount?: number;
+	lastObservedImageCount?: number;
 	observedAt: string;
 	validationNotes: string;
 	source: "seed" | "incident_auto_added";
@@ -246,6 +261,21 @@ const recordLiveFixtureObservationRef = makeFunctionReference<
 			| "bizkaia_catastro"
 			| "gipuzkoa_catastro";
 		lastObservedReasonCodes?: string[];
+		lastObservedAddressLabel?: string;
+		lastObservedLocation?: {
+			street: string;
+			city: string;
+			stateOrProvince: string;
+			country: string;
+			postalCode?: string;
+		};
+		lastObservedParcelRef14?: string;
+		lastObservedUnitRef20?: string;
+		lastObservedResolverVersion?: string;
+		lastObservedOnlineEvidenceKinds?: string[];
+		lastObservedOnlineEvidenceCount?: number;
+		lastObservedPublicHistoryCount?: number;
+		lastObservedImageCount?: number;
 		lastValidationRunAt: string;
 		now?: number;
 	},
@@ -264,7 +294,7 @@ const blockerCopy: Record<string, string> = {
 	localiza_metrics_unavailable:
 		"No podemos medir el rendimiento ahora mismo. Amplía el acceso cuando vuelva la medición.",
 	localiza_oportunista_not_configured:
-		"No podemos completar el histórico de precios automático. Revisa la conexión con Oportunista.",
+		"El histórico automático está apagado hasta tener un proveedor verificable.",
 	localiza_timeout_rate_threshold_breached:
 		"Demasiadas búsquedas tardan demasiado.",
 	localiza_unresolved_rate_threshold_breached:
@@ -286,6 +316,25 @@ const formatDuration = (durationMs: number | null) => {
 
 	return `${secondsFormatter.format(durationMs / 1000)} s`;
 };
+
+const dataCoverageStatusLabel = {
+	active: "Activo",
+	manual: "Manual",
+	missing_credentials: "Falta clave",
+	reserved: "Reservado",
+} as const;
+
+const dataCoverageStatusClass = {
+	active: "border-green-200 bg-green-50 text-green-900",
+	manual: "border-border bg-muted/40 text-foreground",
+	missing_credentials: "border-amber-200 bg-amber-50 text-amber-900",
+	reserved: "border-border bg-background text-muted-foreground",
+} as const;
+
+const formatCoverageCount = (value: number, total: number) =>
+	total > 0
+		? `${compactNumberFormatter.format(value)} / ${compactNumberFormatter.format(total)}`
+		: "Sin datos";
 
 const incidentStatusOptions = [
 	"exact_match",
@@ -342,7 +391,10 @@ const normalizeOptionalInteger = (value: FormDataEntryValue | null) => {
 	return number === undefined ? undefined : Math.round(number);
 };
 
-const normalizeDateInput = (value: FormDataEntryValue | null, message: string) => {
+const normalizeDateInput = (
+	value: FormDataEntryValue | null,
+	message: string,
+) => {
 	const normalized = requireText(value, message);
 	const timestamp = Date.parse(
 		normalized.includes("T") ? normalized : `${normalized}T00:00:00.000Z`,
@@ -442,7 +494,10 @@ const parseDelimitedLine = (line: string) => {
 			continue;
 		}
 
-		if (!quoted && (character === "," || character === "\t" || character === ";")) {
+		if (
+			!quoted &&
+			(character === "," || character === "\t" || character === ";")
+		) {
 			cells.push(current.trim());
 			current = "";
 			continue;
@@ -513,8 +568,8 @@ const parseMarketObservationBulkRows = (
 	}
 
 	const firstCells = parseDelimitedLine(lines[0]);
-	const maybeHeader = firstCells.map((cell) =>
-		marketObservationColumnMap[normalizeBulkColumn(cell)],
+	const maybeHeader = firstCells.map(
+		(cell) => marketObservationColumnMap[normalizeBulkColumn(cell)],
 	);
 	const hasHeader = maybeHeader.some(Boolean);
 	const columns = hasHeader
@@ -553,7 +608,10 @@ const parseMarketObservationBulkRows = (
 
 		return {
 			propertyHistoryKey,
-			portal: requireText(row.get("portal") ?? null, "El portal es obligatorio."),
+			portal: requireText(
+				row.get("portal") ?? null,
+				"El portal es obligatorio.",
+			),
 			observedAt: normalizeDateInput(
 				row.get("observedAt") ?? null,
 				"La fecha observada es obligatoria.",
@@ -673,14 +731,18 @@ const upsertMarketObservationAction = async (formData: FormData) => {
 						daysPublished: normalizeOptionalInteger(
 							formData.get("daysPublished"),
 						),
-						firstSeenAt: normalizeOptionalDateInput(formData.get("firstSeenAt")),
+						firstSeenAt: normalizeOptionalDateInput(
+							formData.get("firstSeenAt"),
+						),
 						lastSeenAt: normalizeOptionalDateInput(formData.get("lastSeenAt")),
 						provenanceLabel: requireText(
 							formData.get("provenanceLabel"),
 							"La procedencia es obligatoria.",
 						),
 						provenanceUrl: normalizeOptionalText(formData.get("provenanceUrl")),
-						sourceRecordId: normalizeOptionalText(formData.get("sourceRecordId")),
+						sourceRecordId: normalizeOptionalText(
+							formData.get("sourceRecordId"),
+						),
 					},
 				];
 
@@ -741,12 +803,30 @@ const rerunLiveFixturesAction = async () => {
 				strategy: "auto",
 				userId,
 			});
+			const onlineEvidenceKinds = Array.from(
+				new Set(
+					result.propertyDossier?.onlineEvidence
+						?.map((item) => item.kind)
+						.filter(Boolean) ?? [],
+				),
+			).slice(0, 12);
 
 			await convex.mutation(recordLiveFixtureObservationRef, {
 				fixtureId: fixture.fixtureId,
 				lastObservedStatus: result.status,
 				lastObservedTerritoryAdapter: result.territoryAdapter,
 				lastObservedReasonCodes: result.evidence.reasonCodes.slice(0, 8),
+				lastObservedAddressLabel: result.resolvedAddressLabel,
+				lastObservedLocation: result.prefillLocation,
+				lastObservedParcelRef14: result.parcelRef14,
+				lastObservedUnitRef20: result.unitRef20,
+				lastObservedResolverVersion: result.resolverVersion,
+				lastObservedOnlineEvidenceKinds: onlineEvidenceKinds,
+				lastObservedOnlineEvidenceCount:
+					result.propertyDossier?.onlineEvidence?.length,
+				lastObservedPublicHistoryCount:
+					result.propertyDossier?.publicHistory.length,
+				lastObservedImageCount: result.propertyDossier?.imageGallery.length,
 				lastValidationRunAt: new Date().toISOString(),
 				now: Date.now(),
 			});
@@ -772,8 +852,7 @@ const unsupportedBetaCases: Array<{ title: string; detail: string }> = [
 	},
 	{
 		title: "Anuncios fuera de España",
-		detail:
-			"Ahora solo trabajamos con anuncios de España.",
+		detail: "Ahora solo trabajamos con anuncios de España.",
 	},
 	{
 		title: "Dirección demasiado oculta",
@@ -1000,6 +1079,165 @@ export default async function LocalizaReadinessPage() {
 							</Card>
 						);
 					})}
+				</section>
+
+				<section>
+					<Card className="border-border/80 bg-background">
+						<CardHeader>
+							<CardTitle className="flex items-center gap-2 text-lg">
+								<DatabaseZap
+									className="h-5 w-5 text-primary"
+									aria-hidden="true"
+								/>
+								Cobertura de datos
+							</CardTitle>
+							<p className="text-sm text-muted-foreground">
+								Qué fuentes enriquecen el dossier y cuál es el hueco real.
+							</p>
+						</CardHeader>
+						<CardContent className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+							<div className="divide-y divide-border/70">
+								{snapshot.dataCoverage.sources.map((source) => (
+									<div
+										key={source.id}
+										className="grid gap-2 py-4 first:pt-0 last:pb-0 sm:grid-cols-[0.8fr_1.2fr]"
+									>
+										<div>
+											<div className="flex flex-wrap items-center gap-2">
+												<p className="font-medium text-foreground">
+													{source.label}
+												</p>
+												<span
+													className={`rounded-full border px-2 py-0.5 text-xs font-medium ${dataCoverageStatusClass[source.status]}`}
+												>
+													{dataCoverageStatusLabel[source.status]}
+												</span>
+											</div>
+											{source.gap ? (
+												<p className="mt-2 text-sm leading-6 text-muted-foreground">
+													{source.gap}
+												</p>
+											) : null}
+										</div>
+										<div>
+											<p className="text-sm leading-6 text-foreground">
+												{source.coverage.join(" · ")}
+											</p>
+											{source.action ? (
+												<p className="mt-1 text-xs leading-5 text-muted-foreground">
+													{source.action}
+												</p>
+											) : null}
+										</div>
+									</div>
+								))}
+							</div>
+
+							<div className="space-y-4">
+								<div>
+									<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+										Pruebas reales
+									</p>
+									<p className="mt-2 text-3xl font-semibold text-foreground">
+										{formatCoverageCount(
+											snapshot.dataCoverage.liveSummary.observedFixtureCount,
+											snapshot.dataCoverage.liveSummary.liveFixtureCount,
+										)}
+									</p>
+									<p className="mt-1 text-sm text-muted-foreground">
+										con última lectura guardada
+									</p>
+								</div>
+								<dl className="divide-y divide-border/70 text-sm">
+									<div className="flex items-center justify-between gap-4 py-3">
+										<dt className="text-muted-foreground">
+											Dirección observada
+										</dt>
+										<dd className="font-medium text-foreground">
+											{formatCoverageCount(
+												snapshot.dataCoverage.liveSummary.addressObservedCount,
+												snapshot.dataCoverage.liveSummary.liveFixtureCount,
+											)}
+										</dd>
+									</div>
+									<div className="flex items-center justify-between gap-4 py-3">
+										<dt className="text-muted-foreground">
+											Identidad catastral
+										</dt>
+										<dd className="font-medium text-foreground">
+											{formatCoverageCount(
+												snapshot.dataCoverage.liveSummary
+													.cadastralIdentityObservedCount,
+												snapshot.dataCoverage.liveSummary.liveFixtureCount,
+											)}
+										</dd>
+									</div>
+									<div className="flex items-center justify-between gap-4 py-3">
+										<dt className="text-muted-foreground">Evidencia online</dt>
+										<dd className="font-medium text-foreground">
+											{formatCoverageCount(
+												snapshot.dataCoverage.liveSummary
+													.onlineEvidenceObservedCount,
+												snapshot.dataCoverage.liveSummary.liveFixtureCount,
+											)}
+										</dd>
+									</div>
+									<div className="flex items-center justify-between gap-4 py-3">
+										<dt className="text-muted-foreground">
+											Archivo automático
+										</dt>
+										<dd className="font-medium text-foreground">
+											{formatCoverageCount(
+												snapshot.dataCoverage.liveSummary
+													.listingArchiveObservedCount,
+												snapshot.dataCoverage.liveSummary.liveFixtureCount,
+											)}
+										</dd>
+									</div>
+									<div className="flex items-center justify-between gap-4 py-3">
+										<dt className="text-muted-foreground">
+											Histórico multi-fuente
+										</dt>
+										<dd className="font-medium text-foreground">
+											{formatCoverageCount(
+												snapshot.dataCoverage.liveSummary
+													.multiSourceHistoryObservedCount,
+												snapshot.dataCoverage.liveSummary.liveFixtureCount,
+											)}
+										</dd>
+									</div>
+									<div className="flex items-center justify-between gap-4 py-3">
+										<dt className="text-muted-foreground">Edificio o mejor</dt>
+										<dd className="font-medium text-foreground">
+											{formatCoverageCount(
+												snapshot.dataCoverage.liveSummary
+													.buildingOrBetterObservedCount,
+												snapshot.dataCoverage.liveSummary.liveFixtureCount,
+											)}
+										</dd>
+									</div>
+									<div className="flex items-center justify-between gap-4 py-3">
+										<dt className="text-muted-foreground">Pide confirmación</dt>
+										<dd className="font-medium text-foreground">
+											{compactNumberFormatter.format(
+												snapshot.dataCoverage.liveSummary
+													.needsConfirmationObservedCount,
+											)}
+										</dd>
+									</div>
+									<div className="flex items-center justify-between gap-4 py-3">
+										<dt className="text-muted-foreground">Sin resolver</dt>
+										<dd className="font-medium text-foreground">
+											{compactNumberFormatter.format(
+												snapshot.dataCoverage.liveSummary
+													.unresolvedObservedCount,
+											)}
+										</dd>
+									</div>
+								</dl>
+							</div>
+						</CardContent>
+					</Card>
 				</section>
 
 				<section className="grid gap-4 lg:grid-cols-2">
@@ -1480,9 +1718,7 @@ export default async function LocalizaReadinessPage() {
 												<div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
 													{observation.askingPrice !== undefined ? (
 														<span className="rounded-full border border-border px-2 py-1">
-															{euroFormatter.format(
-																observation.askingPrice,
-															)}
+															{euroFormatter.format(observation.askingPrice)}
 														</span>
 													) : null}
 													{observation.daysPublished !== undefined ? (
@@ -1552,14 +1788,12 @@ export default async function LocalizaReadinessPage() {
 												</p>
 												<span
 													className={
-														fixture.validationStatus ===
-														"officially_validated"
+														fixture.validationStatus === "officially_validated"
 															? "rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-900"
 															: "rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900"
 													}
 												>
-													{fixture.validationStatus ===
-													"officially_validated"
+													{fixture.validationStatus === "officially_validated"
 														? "Verificada"
 														: "Pendiente"}
 												</span>
@@ -1575,9 +1809,7 @@ export default async function LocalizaReadinessPage() {
 													<dt className="font-medium text-foreground">
 														Última lectura
 													</dt>
-													<dd>
-														{fixture.lastObservedStatus ?? "Sin datos"}
-													</dd>
+													<dd>{fixture.lastObservedStatus ?? "Sin datos"}</dd>
 												</div>
 												<div>
 													<dt className="font-medium text-foreground">
@@ -1596,14 +1828,89 @@ export default async function LocalizaReadinessPage() {
 													</dd>
 												</div>
 											</dl>
+											<div className="mt-3 grid gap-2 text-xs text-muted-foreground lg:grid-cols-2">
+												<div className="rounded-md bg-muted/35 p-2">
+													<p className="font-medium text-foreground">
+														Dirección esperada
+													</p>
+													<p className="mt-1">
+														{[
+															fixture.expectedLocation.street,
+															fixture.expectedLocation.city,
+															fixture.expectedLocation.stateOrProvince,
+															fixture.expectedLocation.postalCode,
+														]
+															.filter(Boolean)
+															.join(", ")}
+													</p>
+												</div>
+												<div className="rounded-md bg-muted/35 p-2">
+													<p className="font-medium text-foreground">
+														Última dirección observada
+													</p>
+													<p className="mt-1">
+														{fixture.lastObservedAddressLabel ??
+															[
+																fixture.lastObservedLocation?.street,
+																fixture.lastObservedLocation?.city,
+																fixture.lastObservedLocation?.stateOrProvince,
+																fixture.lastObservedLocation?.postalCode,
+															]
+																.filter(Boolean)
+																.join(", ") ??
+															"Sin dirección observada"}
+													</p>
+													{fixture.lastObservedUnitRef20 ||
+													fixture.lastObservedParcelRef14 ? (
+														<p className="mt-1 break-all font-mono">
+															{fixture.lastObservedUnitRef20 ??
+																fixture.lastObservedParcelRef14}
+														</p>
+													) : null}
+													{fixture.lastObservedResolverVersion ? (
+														<p className="mt-1 break-all">
+															{fixture.lastObservedResolverVersion}
+														</p>
+													) : null}
+												</div>
+											</div>
+											{fixture.lastObservedOnlineEvidenceCount !== undefined ||
+											fixture.lastObservedPublicHistoryCount !== undefined ||
+											fixture.lastObservedImageCount !== undefined ? (
+												<div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+													{fixture.lastObservedOnlineEvidenceCount !==
+													undefined ? (
+														<span className="rounded-full border border-border px-2 py-1">
+															{fixture.lastObservedOnlineEvidenceCount}{" "}
+															evidencias
+														</span>
+													) : null}
+													{fixture.lastObservedPublicHistoryCount !==
+													undefined ? (
+														<span className="rounded-full border border-border px-2 py-1">
+															{fixture.lastObservedPublicHistoryCount} histórico
+														</span>
+													) : null}
+													{fixture.lastObservedImageCount !== undefined ? (
+														<span className="rounded-full border border-border px-2 py-1">
+															{fixture.lastObservedImageCount} imágenes
+														</span>
+													) : null}
+												</div>
+											) : null}
+											{fixture.lastObservedOnlineEvidenceKinds &&
+											fixture.lastObservedOnlineEvidenceKinds.length > 0 ? (
+												<p className="mt-2 break-all text-xs text-muted-foreground">
+													{fixture.lastObservedOnlineEvidenceKinds.join(", ")}
+												</p>
+											) : null}
 											{fixture.lastObservedReasonCodes &&
 											fixture.lastObservedReasonCodes.length > 0 ? (
 												<p className="mt-2 break-all text-xs text-muted-foreground">
 													{fixture.lastObservedReasonCodes.join(", ")}
 												</p>
 											) : null}
-											{fixture.validationStatus !==
-											"officially_validated" ? (
+											{fixture.validationStatus !== "officially_validated" ? (
 												<form
 													action={markLiveFixtureValidatedAction}
 													className="mt-3 flex flex-wrap items-center gap-2"

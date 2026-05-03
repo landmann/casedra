@@ -305,6 +305,67 @@ const getWhatsAppChannelId = async (
 	});
 };
 
+const getWebFormChannelId = async (
+	ctx: MutationCtx,
+	agencyId: Id<"agencies">,
+	args: {
+		externalChannelId?: string;
+		label?: string;
+		provider?: string;
+	},
+): Promise<Id<"channels">> => {
+	const channels = await ctx.db
+		.query("channels")
+		.withIndex("by_agency", (q) => q.eq("agencyId", agencyId))
+		.collect();
+
+	const existingChannel =
+		channels.find(
+			(channel) =>
+				channel.type === "web_form" &&
+				args.externalChannelId &&
+				channel.externalChannelId === args.externalChannelId,
+		) ??
+		channels.find(
+			(channel) =>
+				channel.type === "web_form" && args.label && channel.label === args.label,
+		) ??
+		channels.find((channel) => channel.type === "web_form");
+
+	if (existingChannel) {
+		const updates: Partial<Doc<"channels">> = {};
+		if (!existingChannel.externalChannelId && args.externalChannelId) {
+			updates.externalChannelId = args.externalChannelId;
+		}
+		if (args.label && existingChannel.label !== args.label) {
+			updates.label = args.label;
+		}
+		if (args.provider && existingChannel.provider !== args.provider) {
+			updates.provider = args.provider;
+		}
+		if (Object.keys(updates).length > 0) {
+			await ctx.db.patch(existingChannel._id, {
+				...updates,
+				updatedAt: Date.now(),
+			});
+		}
+
+		return existingChannel._id;
+	}
+
+	const now = Date.now();
+	return ctx.db.insert("channels", {
+		agencyId,
+		type: "web_form",
+		label: args.label ?? "Formulario del Informe del Comprador",
+		status: "active",
+		provider: args.provider ?? "web",
+		externalChannelId: args.externalChannelId,
+		createdAt: now,
+		updatedAt: now,
+	});
+};
+
 const findOrCreateContact = async (
 	ctx: MutationCtx,
 	agencyId: Id<"agencies">,
@@ -410,6 +471,44 @@ const findPortalEmailConversation = async (
 				}
 
 				return true;
+			})
+			.sort((a, b) => {
+				if (a.state === "closed" && b.state !== "closed") {
+					return 1;
+				}
+
+				if (a.state !== "closed" && b.state === "closed") {
+					return -1;
+				}
+
+				return byNewestMessage(a, b);
+			})[0] ?? null
+	);
+};
+
+const findWebFormConversation = async (
+	ctx: MutationCtx,
+	args: {
+		agencyId: Id<"agencies">;
+		channelId: Id<"channels">;
+		contactId: Id<"contacts">;
+	},
+) => {
+	const channelConversations = await ctx.db
+		.query("conversations")
+		.withIndex("by_channel", (q) =>
+			q.eq("agencyId", args.agencyId).eq("channelId", args.channelId),
+		)
+		.collect();
+
+	return (
+		channelConversations
+			.filter((conversation) => {
+				if (conversation.sourceType !== "web_form") {
+					return false;
+				}
+
+				return conversation.contactId === args.contactId;
 			})
 			.sort((a, b) => {
 				if (a.state === "closed" && b.state !== "closed") {
@@ -1491,6 +1590,220 @@ export const ingestWhatsAppMessage = mutation({
 			bodyFormat: "plain_text",
 			providerMessageId: args.message.providerMessageId,
 			externalEventId: args.message.externalEventId,
+			dedupeKey: args.message.dedupeKey,
+			sentAt: args.message.sentAt,
+			metadata: args.message.metadata,
+			createdAt: now,
+		});
+
+		return {
+			deduped: false,
+			conversationId: conversation._id,
+			messageId,
+		};
+	},
+});
+
+export const ingestBuyerWebForm = mutation({
+	args: {
+		agencySlug: v.string(),
+		channel: v.object({
+			externalChannelId: v.optional(v.string()),
+			label: v.optional(v.string()),
+			provider: v.optional(v.string()),
+		}),
+		contact: v.object({
+			fullName: v.string(),
+			email: v.optional(v.string()),
+			phone: v.optional(v.string()),
+			preferredLanguage: v.optional(v.string()),
+			notes: v.optional(v.string()),
+		}),
+		lead: v.object({
+			externalLeadId: v.optional(v.string()),
+			sourceLabel: v.string(),
+			rawPayload: v.optional(v.any()),
+		}),
+		message: v.object({
+			body: v.string(),
+			sentAt: v.number(),
+			dedupeKey: v.string(),
+			metadata: v.optional(v.any()),
+		}),
+		summary: v.optional(v.string()),
+		nextRecommendedStep: v.optional(v.string()),
+	},
+	handler: async (ctx, args) => {
+		const agency = await ctx.db
+			.query("agencies")
+			.withIndex("by_slug", (q) => q.eq("slug", args.agencySlug))
+			.unique();
+		if (!agency) {
+			raiseWorkflowError("NOT_FOUND", "Agency not found for buyer form ingestion");
+		}
+
+		const agencyId = agency!._id;
+		const existingMessage = await ctx.db
+			.query("messages")
+			.withIndex("by_dedupe_key", (q) =>
+				q.eq("agencyId", agencyId).eq("dedupeKey", args.message.dedupeKey),
+			)
+			.unique();
+
+		if (existingMessage) {
+			return {
+				deduped: true,
+				conversationId: existingMessage.conversationId,
+				messageId: existingMessage._id,
+			};
+		}
+
+		const now = Date.now();
+		const channelId = await getWebFormChannelId(ctx, agencyId, {
+			externalChannelId: args.channel.externalChannelId,
+			label: args.channel.label ?? args.lead.sourceLabel,
+			provider: args.channel.provider,
+		});
+		const contactId = await findOrCreateContact(ctx, agencyId, {
+			kind: "buyer",
+			fullName: args.contact.fullName,
+			email: args.contact.email,
+			phone: args.contact.phone,
+			preferredLanguage: args.contact.preferredLanguage,
+			notes: args.contact.notes,
+		});
+		let lead =
+			args.lead.externalLeadId
+				? await ctx.db
+						.query("leads")
+						.withIndex("by_external_lead", (q) =>
+							q.eq("agencyId", agencyId).eq("externalLeadId", args.lead.externalLeadId),
+						)
+						.unique()
+				: null;
+		let conversation = null;
+
+		if (lead) {
+			conversation = await ctx.db
+				.query("conversations")
+				.withIndex("by_lead", (q) => q.eq("leadId", lead!._id))
+				.unique();
+		}
+
+		if (!conversation) {
+			conversation = await findWebFormConversation(ctx, {
+				agencyId,
+				channelId,
+				contactId,
+			});
+		}
+
+		if (!lead && conversation) {
+			lead = await ctx.db.get(conversation.leadId);
+		}
+
+		let leadId = lead?._id;
+		if (!leadId) {
+			leadId = await ctx.db.insert("leads", {
+				agencyId,
+				contactId,
+				channelId,
+				kind: "buyer_inquiry",
+				sourceType: "web_form",
+				sourceLabel: args.lead.sourceLabel,
+				externalLeadId: args.lead.externalLeadId,
+				status: "new",
+				receivedAt: args.message.sentAt,
+				rawPayload: args.lead.rawPayload,
+				createdAt: now,
+				updatedAt: now,
+			});
+		} else {
+			await ctx.db.patch(leadId, {
+				contactId,
+				channelId,
+				status: "active",
+				rawPayload: args.lead.rawPayload ?? lead?.rawPayload,
+				updatedAt: now,
+			});
+		}
+
+		if (!conversation && leadId) {
+			conversation = await ctx.db
+				.query("conversations")
+				.withIndex("by_lead", (q) => q.eq("leadId", leadId))
+				.unique();
+		}
+
+		if (!conversation) {
+			const conversationId = await ctx.db.insert("conversations", {
+				agencyId,
+				leadId,
+				contactId,
+				channelId,
+				state: "new",
+				ownerType: "unassigned",
+				version: 1,
+				sourceType: "web_form",
+				sourceLabel: args.lead.sourceLabel,
+				summary: args.summary,
+				nextRecommendedStep: args.nextRecommendedStep,
+				lastInboundAt: args.message.sentAt,
+				lastMessageAt: args.message.sentAt,
+				createdAt: now,
+				updatedAt: now,
+			});
+			conversation = await getConversationDocOrThrow(ctx, conversationId);
+		} else {
+			const updates: Partial<Doc<"conversations">> = {
+				contactId,
+				channelId,
+				sourceLabel: args.lead.sourceLabel,
+				lastInboundAt: Math.max(
+					conversation.lastInboundAt ?? 0,
+					args.message.sentAt,
+				),
+				lastMessageAt: Math.max(conversation.lastMessageAt, args.message.sentAt),
+				updatedAt: now,
+				version: conversation.version + 1,
+			};
+
+			if (!conversation.summary && args.summary) {
+				updates.summary = args.summary;
+			}
+			if (!conversation.nextRecommendedStep && args.nextRecommendedStep) {
+				updates.nextRecommendedStep = args.nextRecommendedStep;
+			}
+			if (conversation.state === "closed") {
+				await closeActiveAssignments(ctx, conversation._id, now);
+				await ctx.db.insert("messages", {
+					agencyId,
+					conversationId: conversation._id,
+					direction: "internal",
+					senderType: "system",
+					body: "Conversación reabierta por una nueva consulta del Informe del Comprador.",
+					bodyFormat: "plain_text",
+					sentAt: Math.max(args.message.sentAt - 1, 0),
+					createdAt: now,
+				});
+				updates.state = "new";
+				updates.ownerType = "unassigned";
+				updates.ownerUserId = undefined;
+				updates.reopenedAt = args.message.sentAt;
+				updates.closedAt = undefined;
+			}
+
+			await ctx.db.patch(conversation._id, updates);
+			conversation = await getConversationDocOrThrow(ctx, conversation._id);
+		}
+
+		const messageId = await ctx.db.insert("messages", {
+			agencyId,
+			conversationId: conversation._id,
+			direction: "inbound",
+			senderType: "lead",
+			body: args.message.body,
+			bodyFormat: "plain_text",
 			dedupeKey: args.message.dedupeKey,
 			sentAt: args.message.sentAt,
 			metadata: args.message.metadata,

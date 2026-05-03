@@ -17,9 +17,12 @@ import {
 	getLocalizaGoldenReadinessIssues,
 	localizaGoldenFrozenFixtures,
 } from "../../../apps/web/src/server/localiza/golden-dataset.ts";
+import { fetchMadridPlanningHeritageEvidence } from "../../../apps/web/src/server/localiza/madrid-planning-heritage.ts";
 import {
 	classifyLocalizaCandidateOutcome,
+	buildListingSignalCorpus,
 	corpusIncludesDesignator,
+	corpusIncludesPhrase,
 	normalizeLocalizaText,
 	provinceMatchesHint,
 } from "../../../apps/web/src/server/localiza/score.ts";
@@ -134,6 +137,15 @@ const localizaFrozenOutcomeFixtures = [
 		hasDesignatorProof: false,
 		expectedStatus: "building_match",
 		expectedScoreGap: 0.24,
+	},
+	{
+		name: "coordinate-only building candidate requires confirmation",
+		topScore: 0.82,
+		secondScore: 0.52,
+		hasStreetLevelProof: false,
+		hasDesignatorProof: false,
+		expectedStatus: "needs_confirmation",
+		expectedScoreGap: 0.3,
 	},
 	{
 		name: "close top candidates require confirmation",
@@ -274,9 +286,110 @@ test("listingCreateInputSchema rejects idealista listings when source metadata U
 });
 
 test("listingCreateInputSchema accepts idealista listings when source URL matches canonical metadata", () => {
-	const result = listingCreateInputSchema.safeParse(buildListingCreateInput());
+	const result = listingCreateInputSchema.safeParse(
+		buildListingCreateInput({
+			propertyDossier: {
+				listingSnapshot: {
+					sourcePortal: "idealista",
+					sourceUrl: "https://www.idealista.com/inmueble/108926410/",
+				},
+				onlineEvidence: [
+					{
+						label: "Certificado energetico",
+						value: "Calificacion C",
+						sourceLabel: "Registro CEEE Comunidad de Madrid",
+						sourceUrl:
+							"https://datos.comunidad.madrid/catalogo/dataset/registro_certificados_eficiencia_energetica",
+						observedAt: "2026-04-30T00:00:00.000Z",
+						kind: "energy_certificate",
+					},
+					{
+						label: "Norma zonal PGOUM",
+						value: "1.2 - ZONA 1 GRADO 2",
+						sourceLabel: "Ayuntamiento de Madrid - PGOUM 1997",
+						sourceUrl:
+							"https://www.madrid.es/portales/munimadrid/es/Inicio/El-Ayuntamiento/Urbanismo-y-vivienda/PGOUM-1997",
+						observedAt: "2026-05-03T00:00:00.000Z",
+						kind: "planning_heritage",
+					},
+					{
+						label: "Estado ITE/IEE",
+						value: "Subsanada",
+						sourceLabel: "Euskoregite - Gobierno Vasco",
+						sourceUrl:
+							"https://opendata.euskadi.eus/catalogo/-/inspeccion-tecnica-de-edificios-de-euskadi-euskoregite/",
+						kind: "building_condition",
+					},
+				],
+				officialIdentity: {
+					proposedAddressLabel: "Calle de Alcala 123, Madrid",
+					officialSource: "Direccion General del Catastro",
+				},
+				duplicateGroup: {
+					count: 0,
+					records: [],
+				},
+				actions: {},
+			},
+		}),
+	);
 
 	assert.equal(result.success, true);
+	if (result.success) {
+		assert.equal(result.data.propertyDossier?.onlineEvidence?.length, 3);
+	}
+});
+
+test("Madrid planning evidence skips imprecise listing coordinates", async () => {
+	const originalFetch = globalThis.fetch;
+	let fetchCalled = false;
+	globalThis.fetch = (async () => {
+		fetchCalled = true;
+		throw new Error("planning heritage fetch should not run");
+	}) as typeof fetch;
+
+	try {
+		const evidence = await fetchMadridPlanningHeritageEvidence({
+			result: {
+				status: "building_match",
+				requestedStrategy: "auto",
+				confidenceScore: 0.86,
+				officialSource: "Direccion General del Catastro",
+				resolverVersion: "localiza-bootstrap-2026-04-23.11",
+				resolvedAt: "2026-05-03T00:00:00.000Z",
+				resolvedAddressLabel: "Calle de Alcala 123, Madrid",
+				candidates: [],
+				evidence: {
+					reasonCodes: ["state_catastro_building_match"],
+					matchedSignals: ["street_name_match"],
+					discardedSignals: [],
+					candidateCount: 1,
+					requestedStrategy: "auto",
+					officialSource: "Direccion General del Catastro",
+				},
+				sourceMetadata: {
+					provider: "idealista",
+					externalListingId: "108926410",
+					sourceUrl: "https://www.idealista.com/inmueble/108926410/",
+				},
+			},
+			signals: {
+				provider: "idealista",
+				listingId: "108926410",
+				sourceUrl: "https://www.idealista.com/inmueble/108926410/",
+				approximateLat: 40.4179,
+				approximateLng: -3.7143,
+				mapPrecisionMeters: 300,
+				acquisitionMethod: "firecrawl",
+				acquiredAt: "2026-05-03T00:00:00.000Z",
+			},
+		});
+
+		assert.deepEqual(evidence, []);
+		assert.equal(fetchCalled, false);
+	} finally {
+		globalThis.fetch = originalFetch;
+	}
 });
 
 test("clearLocationAfterFailedResolve removes Localiza-owned exact matches from the draft", () => {
@@ -453,6 +566,27 @@ test("corpusIncludesDesignator requires address context for numeric designators"
 	);
 });
 
+test("archived address signals participate in Localiza street matching", () => {
+	const corpus = buildListingSignalCorpus({
+		provider: "idealista",
+		listingId: "109617150",
+		sourceUrl: "https://www.idealista.com/inmueble/109617150/",
+		acquisitionMethod: "firecrawl",
+		acquiredAt: "2026-05-03T00:00:00.000Z",
+		title: "Ático en venta en Lista",
+		addressText: "Calle General Pardiñas",
+		neighborhood: "Lista",
+		municipality: "Madrid",
+		province: "Madrid",
+		approximateLat: 40.4380002,
+		approximateLng: -3.6786765,
+		mapPrecisionMeters: 300,
+	});
+
+	assert.equal(corpusIncludesPhrase(corpus, "Calle General Pardiñas"), true);
+	assert.equal(corpusIncludesPhrase(corpus, "Calle Maria de Molina"), false);
+});
+
 test("province matching accepts official regional aliases", () => {
 	assert.equal(provinceMatchesHint("01", "Araba"), true);
 	assert.equal(provinceMatchesHint("20", "Guipúzcoa"), true);
@@ -490,7 +624,7 @@ test("canCompleteLocationResolutionLease rejects stale resolver completions", ()
 });
 
 test("Localiza golden fixture registry covers all supported cadastral territories", () => {
-	assert.equal(LOCALIZA_RESOLVER_VERSION, "localiza-bootstrap-2026-04-23.7");
+	assert.equal(LOCALIZA_RESOLVER_VERSION, "localiza-bootstrap-2026-04-23.11");
 	assert.equal(
 		LOCALIZA_RESOLVER_VERSION_POLICY,
 		"stable-bootstrap-date-plus-patch",

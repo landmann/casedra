@@ -2,7 +2,7 @@
 
 import { cn } from "@casedra/ui";
 import { UserButton } from "@clerk/nextjs";
-import { MapPinned, MessageSquareText } from "lucide-react";
+import { MapPinned, MessageSquareText, Newspaper } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -13,6 +13,11 @@ const navItems = [
 		icon: MessageSquareText,
 	},
 	{
+		href: "/app/newsletter",
+		label: "Newsletter",
+		icon: Newspaper,
+	},
+	{
 		href: "/app/localiza",
 		label: "Localiza",
 		icon: MapPinned,
@@ -21,10 +26,6 @@ const navItems = [
 
 export function AppShellNav() {
 	const pathname = usePathname();
-
-	if (pathname === "/app/localiza" || pathname.startsWith("/app/localiza/")) {
-		return null;
-	}
 
 	return (
 		<header className="sticky top-0 z-30 border-b border-border/80 bg-background/92 backdrop-blur">

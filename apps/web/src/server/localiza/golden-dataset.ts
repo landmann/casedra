@@ -583,6 +583,32 @@ export const localizaGoldenLiveFixtures: LocalizaGoldenLiveFixture[] = [
 			"Last live run (2026-04-28) returned unresolved before Firecrawl stealth + Catastro callejero shipped on 2026-04-29; rerun the live regression action from /app/localiza/readiness and only mark validated if the result matches the expected status.",
 	},
 	{
+		fixtureId: "live-madrid-general-pardinas-109617150",
+		layer: "live_link_regression",
+		sourceUrl: "https://www.idealista.com/inmueble/109617150/",
+		expectedStatus: "needs_confirmation",
+		territoryAdapter: "state_catastro",
+		humanUnitResolvable: true,
+		expectedLocationHint: {
+			street: "Calle General Pardiñas 103",
+			city: "Madrid",
+			stateOrProvince: "Madrid",
+			postalCode: "28006",
+			country: "Spain",
+		},
+		validationStatus: "pending_official_validation",
+		lastValidationRunAt: "2026-05-03T00:00:00.000Z",
+		lastObservedStatus: "building_match",
+		lastObservedTerritoryAdapter: "state_catastro",
+		lastObservedReasonCodes: [
+			"state_catastro_building_match",
+			"coordinate_proximity",
+		],
+		observedAt: "2026-05-03T00:00:00.000Z",
+		validationNotes:
+			"User-reported wrong-address incident: Localiza showed Calle Maria de Molina 41, but the comparable report and official Catastro reference 2566608VK4726F0024KH point to CL GENERAL PARDIÑAS 103 Es:D Pl:05 Pt:A 28006 MADRID. Treat coordinate-only winners as confirmation-only until a street/unit signal proves the candidate.",
+	},
+	{
 		fixtureId: "live-valencia-pintor-stolz-110604052",
 		layer: "live_link_regression",
 		sourceUrl: "https://www.idealista.com/inmueble/110604052/",

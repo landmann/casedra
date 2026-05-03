@@ -1,5 +1,7 @@
  The best engineering cultures treat lines of code as something you spend, not something you produce. you spend them on the features that matter. you refuse to spend them on the features that don’t. the codebase is a liability on your balance sheet, not an asset. Casedra has the best engineering culture in the world.
 
+So, please AVOID REDUNDANT INFORMATION, CODE, AND VISUALS. No bounding boxes within boxes, or buttons  that have the same copy as the titles.
+
 Casedra is being developed by one engineer & CEO, so DO NOT CREATE PR reviews, test files, or anyhting like that.
 
 Let's be extremely ambitious over what we can accomplish together, so tighten deadlines, and develop things in one go - there is no Phase 2. Everything is launch ready from the get-go.

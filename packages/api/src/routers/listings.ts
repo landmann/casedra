@@ -7,6 +7,7 @@ import {
 	listingBatchCreateInputSchema,
 	listingCreateInputSchema,
 	listingFiltersSchema,
+	rankCaptacionBuildingsInputSchema,
 	resolveIdealistaLocationInputSchema,
 } from "../schema/listings";
 import { mediaGenerationRequestSchema } from "../schema/media";
@@ -126,6 +127,14 @@ export const listingsRouter = router({
 	localizaReadiness: protectedProcedure.query(async ({ ctx }) =>
 		ctx.localiza.getReadinessSnapshot(),
 	),
+	rankCaptacionBuildings: protectedProcedure
+		.input(rankCaptacionBuildingsInputSchema)
+		.mutation(async ({ ctx, input }) =>
+			ctx.localiza.rankCaptacionBuildings({
+				...input,
+				userId: ctx.session.userId,
+			}),
+		),
 	generateMedia: protectedProcedure
 		.input(mediaGenerationRequestSchema)
 		.mutation(async ({ ctx, input }) => {

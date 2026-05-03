@@ -22,6 +22,7 @@ import type * as localizaMetrics from "../localizaMetrics.js";
 import type * as locationResolutionLease from "../locationResolutionLease.js";
 import type * as locationResolutions from "../locationResolutions.js";
 import type * as media from "../media.js";
+import type * as newsletter from "../newsletter.js";
 import type * as workflow from "../workflow.js";
 import type * as workflowValidators from "../workflowValidators.js";
 
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   locationResolutionLease: typeof locationResolutionLease;
   locationResolutions: typeof locationResolutions;
   media: typeof media;
+  newsletter: typeof newsletter;
   workflow: typeof workflow;
   workflowValidators: typeof workflowValidators;
 }>;

@@ -1,20 +1,21 @@
 {
-  "name": "casedra",
-  "version": "0.1.0",
-  "private": true,
-  "packageManager": "pnpm@9.0.0",
-  "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "lint": "turbo run lint",
-    "format": "turbo run format",
-    "test": "turbo run test",
-    "clean": "turbo run clean"
-  },
-  "dependencies": {
-    "convex": "^1.27.2"
-  },
-  "devDependencies": {
-    "turbo": "^2.9.6"
-  }
+	"name": "casedra",
+	"version": "0.1.0",
+	"private": true,
+	"packageManager": "pnpm@9.0.0",
+	"scripts": {
+		"dev": "turbo run dev",
+		"build": "turbo run build",
+		"lint": "turbo run lint",
+		"format": "turbo run format",
+		"test": "turbo run test",
+		"captacion:build-index": "node scripts/build-captacion-catastro-units.mjs",
+		"clean": "turbo run clean"
+	},
+	"dependencies": {
+		"convex": "^1.27.2"
+	},
+	"devDependencies": {
+		"turbo": "^2.9.6"
+	}
 }

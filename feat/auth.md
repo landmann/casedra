@@ -68,7 +68,7 @@ The implementation adds:
 
 - `apps/web/src/app/app/layout.tsx`
   - Enforces the server-side app allowlist for authenticated app routes
-  - Renders the shared app shell outside excluded Localiza paths
+  - Renders the shared app shell for inbox, newsletter, Localiza, and other authenticated app paths
 
 - `apps/web/src/app/app/AppShellNav.tsx`
   - Provides compact app navigation and the Clerk `UserButton`

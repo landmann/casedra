@@ -49,8 +49,28 @@ export const requireLocalizaMarketObservationText = (
 	return trimmed;
 };
 
-const normalizeMarketPortal = (portal: string) =>
-	requireLocalizaMarketObservationText(portal, "portal").toUpperCase();
+const MARKET_PORTAL_ALIASES: Record<string, string> = {
+	FOTOCASA: "FOTOCASA",
+	"FOTOCASA.ES": "FOTOCASA",
+	"WWW.FOTOCASA.ES": "FOTOCASA",
+	HABITACLIA: "HABITACLIA",
+	"HABITACLIA.COM": "HABITACLIA",
+	"WWW.HABITACLIA.COM": "HABITACLIA",
+	IDEALISTA: "IDEALISTA",
+	"IDEALISTA.COM": "IDEALISTA",
+	"WWW.IDEALISTA.COM": "IDEALISTA",
+	"PISOS.COM": "PISOS.COM",
+	"WWW.PISOS.COM": "PISOS.COM",
+};
+
+const normalizeMarketPortal = (portal: string) => {
+	const normalized = requireLocalizaMarketObservationText(portal, "portal")
+		.toUpperCase()
+		.replace(/^HTTPS?:\/\//, "")
+		.replace(/\/.*$/, "");
+
+	return MARKET_PORTAL_ALIASES[normalized] ?? normalized;
+};
 
 const normalizeMarketUrl = (sourceUrl?: string) => {
 	const cleanedUrl = cleanOptionalText(sourceUrl);
@@ -77,8 +97,10 @@ const normalizeIsoDate = (value: string, fieldName: string) => {
 	return new Date(timestamp).toISOString();
 };
 
-const normalizeOptionalIsoDate = (value: string | undefined, fieldName: string) =>
-	value ? normalizeIsoDate(value, fieldName) : undefined;
+const normalizeOptionalIsoDate = (
+	value: string | undefined,
+	fieldName: string,
+) => (value ? normalizeIsoDate(value, fieldName) : undefined);
 
 const normalizeOptionalMoney = (value?: number) => {
 	if (value === undefined) {

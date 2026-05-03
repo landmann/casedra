@@ -123,8 +123,11 @@ const extractPrice = (markdown?: string, html?: string) =>
 	);
 
 const extractAreaM2 = (markdown?: string) =>
-	extractNumberFromMatch(markdown, /^([\d.,]+)\s*m²$/m) ??
-	extractNumberFromMatch(markdown, /^-\s*([\d.,]+)\s*m² construidos$/m);
+	extractNumberFromMatch(
+		markdown,
+		/^[•*-]?\s*([\d.,]+)\s*m²\s+construidos\b/m,
+	) ??
+	extractNumberFromMatch(markdown, /^([\d.,]+)\s*m²$/m);
 
 const extractBedrooms = (markdown?: string) =>
 	extractNumberFromMatch(markdown, /^(\d+)\s*hab\.$/m) ??
@@ -195,6 +198,20 @@ const extractAgencyName = (markdown?: string, html?: string) => {
 		text.match(/(?:FOTOCASA|HABITACLIA|IDEALISTA):\s*([^\n]+)/i)?.[1];
 
 	return sanitizePartyName(explicitMatch);
+};
+
+const extractAddressText = (markdown?: string, html?: string) => {
+	const text = extractListingText(markdown, html);
+	const explicitAddress = text.match(
+		/\b((?:calle|c\/|avenida|avda\.?|paseo|plaza)\s+[^\n,.;]{3,120})/i,
+	)?.[1];
+	const normalizedAddress = explicitAddress?.replace(/\s+/g, " ");
+
+	if (/^plaza\s+de\s+garaje\b/i.test(normalizedAddress ?? "")) {
+		return undefined;
+	}
+
+	return safeString(normalizedAddress);
 };
 
 const extractDaysPublished = (markdown?: string, html?: string) =>
@@ -313,6 +330,7 @@ const buildDeterministicSignals = (payload: unknown) => {
 		advertiserName: extractAdvertiserName(markdown, html),
 		agencyName: extractAgencyName(markdown, html),
 		daysPublished: extractDaysPublished(markdown, html),
+		addressText: extractAddressText(markdown, html),
 		portalHint: undefined,
 		...extractedLocation,
 		postalCodeHint: undefined,
@@ -339,6 +357,7 @@ const buildMatchedSignals = (signals: IdealistaSignals) => {
 	if (signals.advertiserName) matchedSignals.push("advertiser_name");
 	if (signals.agencyName) matchedSignals.push("agency_name");
 	if (signals.daysPublished !== undefined) matchedSignals.push("days_published");
+	if (signals.addressText) matchedSignals.push("address_text");
 	if (signals.portalHint) matchedSignals.push("portal_hint");
 	if (signals.neighborhood) matchedSignals.push("neighborhood");
 	if (signals.municipality) matchedSignals.push("municipality");

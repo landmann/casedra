@@ -1,4 +1,6 @@
 import type {
+	CaptacionBoundaryPoint,
+	CaptacionRankingResult,
 	LocalizaAcquisitionStrategy,
 	LocalizaReadinessSnapshot,
 	MediaGenerationRequest,
@@ -22,6 +24,10 @@ export interface LocalizaService {
 		now?: number;
 		sinceMs?: number;
 	}) => Promise<LocalizaReadinessSnapshot>;
+	rankCaptacionBuildings: (request: {
+		boundary: CaptacionBoundaryPoint[];
+		userId?: string;
+	}) => Promise<CaptacionRankingResult>;
 }
 
 export interface CasedraContext {

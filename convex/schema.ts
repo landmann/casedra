@@ -43,6 +43,29 @@ const localizaDossierImageValidator = v.object({
 	caption: v.optional(v.string()),
 });
 
+const localizaOnlineEvidenceKindValidator = v.union(
+	v.literal("listing_archive"),
+	v.literal("building_cadastre"),
+	v.literal("building_condition"),
+	v.literal("official_cadastre"),
+	v.literal("energy_certificate"),
+	v.literal("solar_potential"),
+	v.literal("risk_overlay"),
+	v.literal("local_amenity"),
+	v.literal("planning_heritage"),
+	v.literal("market_benchmark"),
+	v.literal("licensed_feed"),
+);
+
+const localizaOnlineEvidenceItemValidator = v.object({
+	label: v.string(),
+	value: v.string(),
+	sourceLabel: v.string(),
+	sourceUrl: v.optional(v.string()),
+	observedAt: v.optional(v.string()),
+	kind: localizaOnlineEvidenceKindValidator,
+});
+
 const locationResolutionStatusValidator = v.union(
 	v.literal("exact_match"),
 	v.literal("building_match"),
@@ -107,6 +130,7 @@ const localizaPropertyDossierValidator = v.object({
 		sourceUrl: v.string(),
 	}),
 	imageGallery: v.array(localizaDossierImageValidator),
+	onlineEvidence: v.optional(v.array(localizaOnlineEvidenceItemValidator)),
 	officialIdentity: v.object({
 		proposedAddressLabel: v.optional(v.string()),
 		street: v.optional(v.string()),
@@ -175,6 +199,17 @@ const resolveLocationCandidateValidator = v.object({
 	score: v.number(),
 	reasonCodes: v.array(v.string()),
 	prefillLocation: v.optional(listingLocationValidator),
+	selectionDisabled: v.optional(v.boolean()),
+	rationale: v.optional(
+		v.object({
+			title: v.string(),
+			description: v.string(),
+			sourceLabel: v.optional(v.string()),
+			sourceUrl: v.optional(v.string()),
+			matchedSignals: v.array(v.string()),
+			discardedSignals: v.array(v.string()),
+		}),
+	),
 });
 
 const resolutionEvidenceValidator = v.object({
@@ -364,6 +399,23 @@ const localizaGoldenLiveFixtures = defineTable({
 	lastObservedStatus: v.optional(localizaLiveFixtureExpectedStatus),
 	lastObservedTerritoryAdapter: v.optional(territoryAdapterValidator),
 	lastObservedReasonCodes: v.optional(v.array(v.string())),
+	lastObservedAddressLabel: v.optional(v.string()),
+	lastObservedLocation: v.optional(
+		v.object({
+			street: v.string(),
+			city: v.string(),
+			stateOrProvince: v.string(),
+			country: v.string(),
+			postalCode: v.optional(v.string()),
+		}),
+	),
+	lastObservedParcelRef14: v.optional(v.string()),
+	lastObservedUnitRef20: v.optional(v.string()),
+	lastObservedResolverVersion: v.optional(v.string()),
+	lastObservedOnlineEvidenceKinds: v.optional(v.array(v.string())),
+	lastObservedOnlineEvidenceCount: v.optional(v.number()),
+	lastObservedPublicHistoryCount: v.optional(v.number()),
+	lastObservedImageCount: v.optional(v.number()),
 	observedAt: v.string(),
 	validationNotes: v.string(),
 	source: localizaLiveFixtureSource,
@@ -587,6 +639,238 @@ const performanceSnapshots = defineTable({
 	createdAt: v.number(),
 }).index("by_agency_and_period", ["agencyId", "periodType", "periodStart"]);
 
+const newsletterOwnerTypeValidator = v.union(
+	v.literal("casedra"),
+	v.literal("agency"),
+);
+
+const newsletterLanguageValidator = v.union(v.literal("es"), v.literal("en"));
+
+const newsletterAudienceValidator = v.union(
+	v.literal("buyers"),
+	v.literal("sellers"),
+	v.literal("investors"),
+	v.literal("landlords"),
+	v.literal("past_clients"),
+);
+
+const newsletterSubscriberStatusValidator = v.union(
+	v.literal("subscribed"),
+	v.literal("unsubscribed"),
+	v.literal("bounced"),
+	v.literal("suppressed"),
+);
+
+const newsletterSourceValidator = v.union(
+	v.literal("google_search"),
+	v.literal("seo"),
+	v.literal("linkedin"),
+	v.literal("meta"),
+	v.literal("partner"),
+	v.literal("community"),
+	v.literal("referral"),
+	v.literal("manual"),
+	v.literal("app"),
+);
+
+const newsletterSignalValidator = v.union(
+	v.literal("search_intent"),
+	v.literal("mortgage_readiness"),
+	v.literal("foreign_buyer"),
+	v.literal("rental_fatigue"),
+	v.literal("investor"),
+	v.literal("hidden_address"),
+	v.literal("area_heat"),
+	v.literal("unknown"),
+);
+
+const newsletterContactPreferenceValidator = v.union(
+	v.literal("email"),
+	v.literal("whatsapp"),
+	v.literal("phone"),
+	v.literal("none"),
+);
+
+const newsletterConsentEventValidator = v.union(
+	v.literal("subscribe"),
+	v.literal("privacy_accept"),
+	v.literal("preference_update"),
+	v.literal("unsubscribe"),
+	v.literal("suppress"),
+	v.literal("manual_import"),
+);
+
+const newsletterDraftStatusValidator = v.union(
+	v.literal("draft"),
+	v.literal("ready"),
+	v.literal("archived"),
+);
+
+const newsletterIssueStatusValidator = v.union(
+	v.literal("draft"),
+	v.literal("queued"),
+	v.literal("sending"),
+	v.literal("sent"),
+	v.literal("archived"),
+);
+
+const newsletterDeliveryStatusValidator = v.union(
+	v.literal("queued"),
+	v.literal("sending"),
+	v.literal("sent"),
+	v.literal("delivered"),
+	v.literal("bounced"),
+	v.literal("complained"),
+	v.literal("unsubscribed"),
+	v.literal("suppressed"),
+	v.literal("failed"),
+);
+
+const newsletterSuppressionEventValidator = v.union(
+	v.literal("bounce"),
+	v.literal("complaint"),
+	v.literal("unsubscribe"),
+	v.literal("manual_suppression"),
+);
+
+const newsletterSubscribers = defineTable({
+	ownerType: newsletterOwnerTypeValidator,
+	agencyId: v.optional(v.id("agencies")),
+	email: v.string(),
+	fullName: v.optional(v.string()),
+	language: newsletterLanguageValidator,
+	audience: newsletterAudienceValidator,
+	market: v.string(),
+	status: newsletterSubscriberStatusValidator,
+	source: newsletterSourceValidator,
+	campaign: v.optional(v.string()),
+	signal: newsletterSignalValidator,
+	contactPreference: newsletterContactPreferenceValidator,
+	unsubscribeTokenHash: v.optional(v.string()),
+	firstSubscribedAt: v.number(),
+	lastConsentAt: v.number(),
+	unsubscribedAt: v.optional(v.number()),
+	createdAt: v.number(),
+	updatedAt: v.number(),
+})
+	.index("by_owner_email", ["ownerType", "agencyId", "email"])
+	.index("by_owner_email_audience_market", [
+		"ownerType",
+		"agencyId",
+		"email",
+		"audience",
+		"market",
+	])
+	.index("by_owner_status_market_audience", [
+		"ownerType",
+		"agencyId",
+		"status",
+		"market",
+		"audience",
+	])
+	.index("by_owner_campaign", ["ownerType", "agencyId", "campaign"])
+	.index("by_email", ["email"])
+	.index("by_unsubscribe_token", ["unsubscribeTokenHash"]);
+
+const newsletterConsentEvents = defineTable({
+	subscriberId: v.id("newsletterSubscribers"),
+	event: newsletterConsentEventValidator,
+	source: newsletterSourceValidator,
+	campaign: v.optional(v.string()),
+	formPath: v.string(),
+	consentText: v.string(),
+	privacyVersion: v.string(),
+	ipHash: v.optional(v.string()),
+	userAgentHash: v.optional(v.string()),
+	occurredAt: v.number(),
+	rawPayload: v.optional(v.any()),
+})
+	.index("by_subscriber", ["subscriberId", "occurredAt"])
+	.index("by_event", ["event", "occurredAt"]);
+
+const newsletterDrafts = defineTable({
+	agencyId: v.id("agencies"),
+	createdByUserId: v.string(),
+	market: v.string(),
+	audience: newsletterAudienceValidator,
+	title: v.string(),
+	subject: v.string(),
+	preheader: v.string(),
+	body: v.string(),
+	sourceSnapshot: v.array(
+		v.object({
+			label: v.string(),
+			url: v.string(),
+			description: v.optional(v.string()),
+		}),
+	),
+	status: newsletterDraftStatusValidator,
+	createdAt: v.number(),
+	updatedAt: v.number(),
+})
+	.index("by_agency", ["agencyId", "updatedAt"])
+	.index("by_agency_status", ["agencyId", "status", "updatedAt"]);
+
+const newsletterIssues = defineTable({
+	agencyId: v.id("agencies"),
+	draftId: v.id("newsletterDrafts"),
+	createdByUserId: v.string(),
+	market: v.string(),
+	audience: newsletterAudienceValidator,
+	title: v.string(),
+	subject: v.string(),
+	preheader: v.string(),
+	body: v.string(),
+	sourceSnapshot: v.array(
+		v.object({
+			label: v.string(),
+			url: v.string(),
+			description: v.optional(v.string()),
+		}),
+	),
+	status: newsletterIssueStatusValidator,
+	createdAt: v.number(),
+	updatedAt: v.number(),
+})
+	.index("by_agency", ["agencyId", "createdAt"])
+	.index("by_status", ["status", "createdAt"]);
+
+const newsletterDeliveries = defineTable({
+	issueId: v.id("newsletterIssues"),
+	subscriberId: v.id("newsletterSubscribers"),
+	email: v.string(),
+	status: newsletterDeliveryStatusValidator,
+	sesMessageId: v.optional(v.string()),
+	attemptCount: v.number(),
+	lastAttemptAt: v.optional(v.number()),
+	sentAt: v.optional(v.number()),
+	deliveredAt: v.optional(v.number()),
+	failedAt: v.optional(v.number()),
+	errorMessage: v.optional(v.string()),
+	createdAt: v.number(),
+	updatedAt: v.number(),
+})
+	.index("by_issue", ["issueId", "createdAt"])
+	.index("by_status", ["status", "createdAt"])
+	.index("by_subscriber", ["subscriberId", "createdAt"]);
+
+const newsletterSuppressionEvents = defineTable({
+	subscriberId: v.optional(v.id("newsletterSubscribers")),
+	email: v.string(),
+	event: newsletterSuppressionEventValidator,
+	source: v.union(
+		v.literal("ses"),
+		v.literal("public_unsubscribe"),
+		v.literal("manual"),
+	),
+	sesMessageId: v.optional(v.string()),
+	rawPayload: v.optional(v.any()),
+	occurredAt: v.number(),
+	createdAt: v.number(),
+})
+	.index("by_email", ["email", "occurredAt"])
+	.index("by_subscriber", ["subscriberId", "occurredAt"]);
+
 export default defineSchema({
 	agencies,
 	agencyMemberships,
@@ -604,5 +888,11 @@ export default defineSchema({
 	leads,
 	mediaJobs,
 	messages,
+	newsletterConsentEvents,
+	newsletterDeliveries,
+	newsletterDrafts,
+	newsletterIssues,
+	newsletterSubscribers,
+	newsletterSuppressionEvents,
 	performanceSnapshots,
 });

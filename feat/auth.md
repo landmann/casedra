@@ -35,6 +35,11 @@ The implementation adds:
   - Unauthenticated requests are redirected to `/sign-in`
   - Authenticated requests also pass through the server-side app allowlist
 
+- `/masterplan/*`
+  - Protected by Clerk middleware so internal repo docs are not reachable signed-out
+  - Layout also enforces the server-side app allowlist
+  - SEO-relevant marketing routes (`/`, `/buyers/*`, `/book-demo`) remain public
+
 - `/app/inbox`
   - Current post-auth operating surface
   - Uses the shared app shell for navigation and account controls

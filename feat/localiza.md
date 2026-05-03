@@ -890,6 +890,20 @@ This is the working engineering checklist for Localiza. It is intentionally more
 - Localiza now carries `propertyDossier` through the shared resolver result, Convex cache, listing create input, listing persistence, onboarding draft state, and saved-listing review state. `/app/localiza` renders the screenshot-style property report with listing snapshot, lead image when available, official identity, public price history, report download, valuation handoff, and property-specific official external links when available. Additional public image galleries, generic external portals, and publication-duration claims are intentionally hidden because the current acquisition sources are not exhaustive enough to prove them. The resolver version is bumped to `localiza-bootstrap-2026-04-23.10` so cached pre-market-intake results are not reused as current report output.
 - The resolver version `localiza-bootstrap-2026-04-23.20` adds a generic confirmed-address evidence feed. The first seeded rows cover `111241731` (`Calle Ayala 152` with two possible Catastro-backed doors), `110092559` (`Calle de Jorge Juan 131` from the confirmed public duplicate), and `109617150` (`Calle General Pardiñas 103, Escalera D, Planta 05, Puerta A`). These entries are not resolver branches: they merge into `addressEvidence`, enrich the candidate rationale, and override a conflicting official candidate only when the evidence is explicitly marked human-confirmed.
 
+### Failure-hardening protocol - 2026-05-03
+
+Each new Localiza address failure must be fixed without regressing previously confirmed links.
+
+- Start by recording the expected outcome: submitted URL, correct address, whether the unit/door is proven or only candidate-level, and the evidence source that justifies it.
+- Classify the failure before editing code: acquisition blocked, weak address extraction, duplicate discovery miss, Catastro candidate conflict, overconfident wrong candidate, or rationale/presentation issue.
+- Prefer a reusable resolver improvement over a listing-specific branch. Good fixes improve parsing, evidence extraction, duplicate scoring, Catastro fact-fit gating, conflict downgrades, or candidate rationale for a whole class of listings.
+- Use the confirmed-address evidence feed only for addresses already verified by official Catastro/public evidence or human-confirmed investigation. That feed is data, not resolver control flow; it may seed `addressEvidence`, but generic resolver rules still decide status, candidates, rationale, and fallback behavior.
+- If proof is incomplete or multiple units remain plausible, return `needs_confirmation`; do not force `exact_match` or `building_match` from coordinates, postal code, price, area, or a single weak text signal.
+- Before calling a fix done, run the new failing URL plus the confirmed regression set: `111241731`, `110092559`, and `109617150`. Check both the normal acquisition path and the no-acquisition confirmed-evidence fallback when the link has confirmed evidence.
+- The acceptance bar is concrete: the expected address remains present, previously confirmed addresses remain present, false candidates are not promoted above confirmed evidence, and the rationale names the signals that made the candidate defensible.
+- Bump `LOCALIZA_RESOLVER_VERSION` for behavioral changes that affect parsing, scoring, official matching, candidate ordering, or cached payloads.
+- Update this plan with the new failure class and the durable rule that prevents recurrence.
+
 ### Screenshot-parity update - 2026-04-29
 
 - [x] Add the `LocalizaPropertyDossier` read model to the shared resolver response and persistence boundary without letting non-location fields silently autofill listing inputs.

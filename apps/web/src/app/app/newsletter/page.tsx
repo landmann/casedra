@@ -23,6 +23,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@casedra/api/convex";
 import { useMutation, useQuery } from "convex/react";
 import { capturePosthogEvent } from "@/lib/posthog";
+import type { Id } from "../../../../../../convex/_generated/dataModel";
 
 type CityKey = "madrid" | "barcelona" | "valencia" | "malaga";
 type AudienceKey =
@@ -440,7 +441,8 @@ export default function NewsletterPage() {
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">(
     "idle",
   );
-  const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
+  const [currentDraftId, setCurrentDraftId] =
+    useState<Id<"newsletterDrafts"> | null>(null);
   const [draftStatus, setDraftStatus] = useState<DraftStatus>("draft");
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "failed">(
     "idle",
@@ -511,7 +513,7 @@ export default function NewsletterPage() {
     setSaveStatus("saving");
     try {
       const draftId = await saveDraft({
-        draftId: currentDraftId ? (currentDraftId as any) : undefined,
+        draftId: currentDraftId ?? undefined,
         market: selectedCity,
         audience: toNewsletterAudience(selectedAudience),
         title: subject.trim() || `${city.label} Informe del Comprador`,
@@ -521,7 +523,7 @@ export default function NewsletterPage() {
         sourceSnapshot,
         status,
       });
-      setCurrentDraftId(String(draftId));
+      setCurrentDraftId(draftId);
       setDraftStatus(status);
       setSaveStatus("saved");
       capturePosthogEvent("buyer_brief_draft_saved", {
@@ -554,7 +556,7 @@ export default function NewsletterPage() {
     setPreheader(draft.preheader);
     setEmailBody(draft.body);
     setDraftStatus(draft.status as DraftStatus);
-    setCurrentDraftId(String(draft._id));
+    setCurrentDraftId(draft._id);
     setCopyStatus("idle");
     setSaveStatus("idle");
   };
@@ -679,7 +681,7 @@ export default function NewsletterPage() {
                     onClick={() => loadDraft(draft)}
                     className={cn(
                       "border border-border bg-background/75 px-3 py-2 text-left text-sm transition-colors hover:text-primary",
-                      currentDraftId === String(draft._id) && "border-primary text-primary",
+                      currentDraftId === draft._id && "border-primary text-primary",
                     )}
                   >
                     <span className="block max-w-[14rem] truncate">{draft.title}</span>

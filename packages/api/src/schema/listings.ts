@@ -338,6 +338,40 @@ export const resolveIdealistaLocationInputSchema = z.object({
 		.default("auto"),
 });
 
+export const submitLocalizaAddressFeedbackInputSchema = z
+	.object({
+		sourceUrl: z.string().url("Listing URL must be a valid URL"),
+		externalListingId: z.string().min(1).optional(),
+		verdict: z.enum(["correct", "incorrect"]),
+		resultStatus: z
+			.enum(["exact_match", "building_match", "needs_confirmation", "unresolved"])
+			.optional(),
+		resolverVersion: z.string().min(1).optional(),
+		territoryAdapter: z
+			.enum([
+				"state_catastro",
+				"navarra_rtn",
+				"alava_catastro",
+				"bizkaia_catastro",
+				"gipuzkoa_catastro",
+			])
+			.optional(),
+		resolvedAddressLabel: z.string().min(1).optional(),
+		selectedCandidateId: z.string().min(1).optional(),
+		selectedCandidateLabel: z.string().min(1).optional(),
+		correctedAddressLabel: z.string().min(1).optional(),
+		reasonCodes: z.array(z.string()).optional(),
+	})
+	.superRefine((input, ctx) => {
+		if (input.verdict === "incorrect" && !input.correctedAddressLabel) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["correctedAddressLabel"],
+				message: "Correct address is required when marking a result incorrect",
+			});
+		}
+	});
+
 export const captacionBoundaryPointSchema = z.object({
 	lat: z.number().min(35).max(44.5),
 	lng: z.number().min(-10).max(4.5),

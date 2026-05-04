@@ -9,6 +9,7 @@ import {
 	listingFiltersSchema,
 	rankCaptacionBuildingsInputSchema,
 	resolveIdealistaLocationInputSchema,
+	submitLocalizaAddressFeedbackInputSchema,
 } from "../schema/listings";
 import { mediaGenerationRequestSchema } from "../schema/media";
 import { protectedProcedure, publicProcedure, router } from "../trpc";
@@ -127,6 +128,11 @@ export const listingsRouter = router({
 	localizaReadiness: protectedProcedure.query(async ({ ctx }) =>
 		ctx.localiza.getReadinessSnapshot(),
 	),
+	submitLocalizaAddressFeedback: protectedProcedure
+		.input(submitLocalizaAddressFeedbackInputSchema)
+		.mutation(async ({ ctx, input }) =>
+			ctx.localiza.submitAddressFeedback(input),
+		),
 	rankCaptacionBuildings: protectedProcedure
 		.input(rankCaptacionBuildingsInputSchema)
 		.mutation(async ({ ctx, input }) =>

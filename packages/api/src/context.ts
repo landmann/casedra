@@ -1,6 +1,8 @@
 import type {
 	CaptacionBoundaryPoint,
 	CaptacionRankingResult,
+	LocalizaAddressFeedbackInput,
+	LocalizaAddressFeedbackResult,
 	LocalizaAcquisitionStrategy,
 	LocalizaReadinessSnapshot,
 	MediaGenerationRequest,
@@ -24,6 +26,9 @@ export interface LocalizaService {
 		now?: number;
 		sinceMs?: number;
 	}) => Promise<LocalizaReadinessSnapshot>;
+	submitAddressFeedback: (
+		request: LocalizaAddressFeedbackInput,
+	) => Promise<LocalizaAddressFeedbackResult>;
 	rankCaptacionBuildings: (request: {
 		boundary: CaptacionBoundaryPoint[];
 		userId?: string;

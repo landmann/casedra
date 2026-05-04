@@ -60,6 +60,28 @@ export type ResolveIdealistaLocationStatus = Exclude<
 	"manual_override"
 >;
 
+export type LocalizaAddressFeedbackVerdict = "correct" | "incorrect";
+
+export interface LocalizaAddressFeedbackInput {
+	sourceUrl: string;
+	externalListingId?: string;
+	verdict: LocalizaAddressFeedbackVerdict;
+	resultStatus?: ResolveIdealistaLocationStatus;
+	resolverVersion?: string;
+	territoryAdapter?: LocalizaTerritoryAdapter;
+	resolvedAddressLabel?: string;
+	selectedCandidateId?: string;
+	selectedCandidateLabel?: string;
+	correctedAddressLabel?: string;
+	reasonCodes?: string[];
+}
+
+export interface LocalizaAddressFeedbackResult {
+	feedbackId: string;
+	liveFixtureId: string;
+	validationStatus: "pending_official_validation" | "officially_validated";
+}
+
 export interface LocalizaDossierImage {
 	imageUrl: string;
 	thumbnailUrl?: string;

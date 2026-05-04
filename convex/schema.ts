@@ -379,6 +379,12 @@ const localizaLiveFixtureExpectedStatus = v.union(
 const localizaLiveFixtureSource = v.union(
 	v.literal("seed"),
 	v.literal("incident_auto_added"),
+	v.literal("user_feedback"),
+);
+
+const localizaAddressFeedbackVerdict = v.union(
+	v.literal("correct"),
+	v.literal("incorrect"),
 );
 
 const localizaGoldenLiveFixtures = defineTable({
@@ -394,6 +400,7 @@ const localizaGoldenLiveFixtures = defineTable({
 		country: v.string(),
 		postalCode: v.optional(v.string()),
 	}),
+	expectedAddressLabel: v.optional(v.string()),
 	validationStatus: localizaLiveFixtureValidationStatus,
 	lastValidationRunAt: v.optional(v.string()),
 	lastObservedStatus: v.optional(localizaLiveFixtureExpectedStatus),
@@ -420,12 +427,36 @@ const localizaGoldenLiveFixtures = defineTable({
 	validationNotes: v.string(),
 	source: localizaLiveFixtureSource,
 	incidentId: v.optional(v.id("localizaIncidents")),
+	lastUserFeedbackVerdict: v.optional(localizaAddressFeedbackVerdict),
+	lastUserFeedbackAt: v.optional(v.number()),
+	lastUserFeedbackByUserId: v.optional(v.string()),
+	lastUserCorrectedAddressLabel: v.optional(v.string()),
+	lastUserSelectedAddressLabel: v.optional(v.string()),
 	createdAt: v.number(),
 	updatedAt: v.number(),
 })
 	.index("by_fixture_id", ["fixtureId"])
 	.index("by_source_url", ["sourceUrl"])
 	.index("by_validation_status", ["validationStatus"]);
+
+const localizaAddressFeedback = defineTable({
+	sourceUrl: v.string(),
+	externalListingId: v.optional(v.string()),
+	verdict: localizaAddressFeedbackVerdict,
+	resultStatus: v.optional(localizaLiveFixtureExpectedStatus),
+	resolverVersion: v.optional(v.string()),
+	territoryAdapter: v.optional(territoryAdapterValidator),
+	resolvedAddressLabel: v.optional(v.string()),
+	selectedCandidateId: v.optional(v.string()),
+	selectedCandidateLabel: v.optional(v.string()),
+	correctedAddressLabel: v.optional(v.string()),
+	reasonCodes: v.array(v.string()),
+	submittedByUserId: v.string(),
+	createdAt: v.number(),
+})
+	.index("by_source_url", ["sourceUrl"])
+	.index("by_verdict", ["verdict"])
+	.index("by_created_at", ["createdAt"]);
 
 const localizaIncidents = defineTable({
 	kind: v.literal("false_positive_autofill"),
@@ -882,6 +913,7 @@ export default defineSchema({
 	listings,
 	listingCreateRequests,
 	localizaGoldenLiveFixtures,
+	localizaAddressFeedback,
 	localizaIncidents,
 	localizaMarketObservations,
 	locationResolutions,

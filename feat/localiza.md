@@ -28,6 +28,7 @@ Current live expansion:
 - National Catastro non-protected building facts, CNIG rooftop solar-potential facts, and 800 m OpenStreetMap amenity context.
 - Live regression reruns from `/app/localiza/readiness` now store the observed status, address label, prefill location, parcel/unit reference, resolver version, and reason codes for each real Idealista fixture.
 - `/app/localiza/readiness` now includes a data-coverage audit: Firecrawl listing intake, official public sources, the reserved historical archive feed, manual multiportal market import, and reserved licensed comparable feeds are shown separately with active/missing/manual/reserved status, live fixture coverage counts, and per-fixture dossier evidence/history/image counts.
+- `/app/localiza/readiness` now has a first-class correction queue for user-submitted Localiza feedback. Pending corrections rise above the full live-regression list with the user's correction, what Localiza showed, the expected address target, and the rationale for keeping the case pending until Catastro/public validation.
 - The property report includes a conservative valuation read inside the combined `Base defendible` section only when public history exists, limited to the observed public range, spread, observation count, and price-history movement so it does not repeat the property summary.
 - The property report includes a compliant lead-capture read: public advertiser or agency, prospecting score, contact angle, CRM note, and an explicit boundary that Localiza does not infer owner names or private phone numbers.
 - Manual market observations now normalize Fotocasa and Habitaclia aliases, and the property report surfaces non-Idealista duplicate records only when they are already tied to the same resolved property identity.
@@ -889,6 +890,8 @@ This is the working engineering checklist for Localiza. It is intentionally more
 - Official-source links shown to users now point to human-facing cadastre pages instead of raw WFS/OGC service endpoints that return XML errors when opened directly.
 - Localiza now carries `propertyDossier` through the shared resolver result, Convex cache, listing create input, listing persistence, onboarding draft state, and saved-listing review state. `/app/localiza` renders the screenshot-style property report with listing snapshot, lead image when available, official identity, public price history, report download, valuation handoff, and property-specific official external links when available. Additional public image galleries, generic external portals, and publication-duration claims are intentionally hidden because the current acquisition sources are not exhaustive enough to prove them. The resolver version is bumped to `localiza-bootstrap-2026-04-23.10` so cached pre-market-intake results are not reused as current report output.
 - The resolver version `localiza-bootstrap-2026-04-23.20` adds a generic confirmed-address evidence feed. The first seeded rows cover `111241731` (`Calle Ayala 152` with two possible Catastro-backed doors), `110092559` (`Calle de Jorge Juan 131` from the confirmed public duplicate), and `109617150` (`Calle General Pardiñas 103, Escalera D, Planta 05, Puerta A`). These entries are not resolver branches: they merge into `addressEvidence`, enrich the candidate rationale, and override a conflicting official candidate only when the evidence is explicitly marked human-confirmed.
+- `/app/localiza` now closes the learning loop from the result card. After a resolve, the user can mark the shown address as correct or submit the corrected address. Convex stores each submission in `localizaAddressFeedback` and updates or creates the matching `localizaGoldenLiveFixtures` row with `source: "user_feedback"`, pending official validation, observed resolver details, and the corrected/confirmed address label so future resolver work has a durable regression target.
+- `/app/localiza/readiness` now turns those feedback rows into an operator queue: pending user corrections are counted, listed before seeded fixtures, linked back to the original listing, and paired with a short rationale explaining why user feedback seeds a regression case but still needs official/public proof before it becomes trusted resolver evidence.
 
 ### Failure-hardening protocol - 2026-05-03
 
@@ -902,7 +905,7 @@ Each new Localiza address failure must be fixed without regressing previously co
 - Before calling a fix done, run the new failing URL plus the confirmed regression set: `111241731`, `110092559`, and `109617150`. Check both the normal acquisition path and the no-acquisition confirmed-evidence fallback when the link has confirmed evidence.
 - The acceptance bar is concrete: the expected address remains present, previously confirmed addresses remain present, false candidates are not promoted above confirmed evidence, and the rationale names the signals that made the candidate defensible.
 - Bump `LOCALIZA_RESOLVER_VERSION` for behavioral changes that affect parsing, scoring, official matching, candidate ordering, or cached payloads.
-- Update this plan with the new failure class and the durable rule that prevents recurrence.
+- Update this plan with the new failure class and the durable rule that prevents recurrence. If a user submits a corrected address from `/app/localiza`, keep the golden fixture pending until official/public evidence validates the correction; user feedback is a regression seed, not final truth by itself.
 
 ### Screenshot-parity update - 2026-04-29
 
@@ -1465,6 +1468,8 @@ The result card shows, top to bottom:
 - **Official source** — the named cadastre that produced the result, shown as text unless Localiza has a direct property URL for the resolved candidate.
 - **Candidates** — short official-address options when Localiza needs user confirmation.
 - **Action buttons** — `Crear inmueble` and, only when it points directly to the resolved property, `Ficha oficial`.
+- **Feedback** — `Correcta` writes a positive regression observation for the submitted Idealista URL; `Corregir` asks for the right address and writes a pending live golden fixture for official validation.
+- **Operator follow-up** — `/app/localiza/readiness` lists pending user corrections first, shows the user's address beside what Localiza showed, links to the original listing, and keeps the case blocked until an official/public source is recorded in the validation notes.
 
 If a result feels wrong, the safe action is to edit the address and save: the listing will be persisted as `manual_override` and the resolver call is preserved for audit. If the autofilled address is concretely wrong, file it through the false-positive incident path so the offending URL becomes a permanent fixture in the golden dataset.
 

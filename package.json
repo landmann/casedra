@@ -10,6 +10,7 @@
 		"format": "turbo run format",
 		"test": "turbo run test",
 		"captacion:build-index": "node scripts/build-captacion-catastro-units.mjs",
+		"captacion:sync-index": "node scripts/sync-captacion-catastro-index.mjs",
 		"clean": "turbo run clean"
 	},
 	"dependencies": {

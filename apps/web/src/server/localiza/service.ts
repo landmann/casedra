@@ -1,8 +1,19 @@
-import type { LocalizaAcquisitionStrategy } from "@casedra/types";
+import type {
+	LocalizaAcquisitionStrategy,
+	LocalizaAddressFeedbackInput,
+	LocalizaAddressFeedbackResult,
+} from "@casedra/types";
 import type { ConvexHttpClient } from "convex/browser";
+import { makeFunctionReference } from "convex/server";
 import { rankCaptacionBuildings } from "./captacion-catastro";
 import { getLocalizaReadinessSnapshot } from "./readiness";
 import { resolveIdealistaLocation } from "./resolver";
+
+const submitUserFeedbackRef = makeFunctionReference<
+	"mutation",
+	LocalizaAddressFeedbackInput & Record<string, unknown>,
+	LocalizaAddressFeedbackResult
+>("localizaGoldenLiveFixtures:submitUserFeedback");
 
 export const createLocalizaService = (deps: { convex: ConvexHttpClient }) => ({
 	async resolveIdealistaLocation(input: {
@@ -23,6 +34,9 @@ export const createLocalizaService = (deps: { convex: ConvexHttpClient }) => ({
 			now: input?.now,
 			sinceMs: input?.sinceMs,
 		});
+	},
+	async submitAddressFeedback(input: LocalizaAddressFeedbackInput) {
+		return await deps.convex.mutation(submitUserFeedbackRef, { ...input });
 	},
 	async rankCaptacionBuildings(input: {
 		boundary: Array<{ lat: number; lng: number }>;

@@ -29,7 +29,7 @@ Options:
 `.trim();
 
 const parseArgs = () => {
-	const args = process.argv.slice(2);
+	const args = process.argv.slice(2).filter((arg) => arg !== "--");
 	const parsed = {
 		output: DEFAULT_OUTPUT,
 	};
@@ -37,6 +37,11 @@ const parseArgs = () => {
 	for (let index = 0; index < args.length; index += 1) {
 		const arg = args[index];
 		const next = args[index + 1];
+
+		if (arg === "--help" || arg === "-h") {
+			console.info(usage());
+			process.exit(0);
+		}
 
 		if (!arg?.startsWith("--")) {
 			throw new Error(`Unexpected argument: ${arg ?? ""}`);

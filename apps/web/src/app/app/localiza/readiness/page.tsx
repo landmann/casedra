@@ -27,8 +27,8 @@ import { redirect } from "next/navigation";
 
 import { getOptionalConvexAuthToken as getConvexAuthToken } from "@/server/convexAuth";
 import { createConvexClient } from "@/server/convexClient";
-import { resolveIdealistaLocation } from "@/server/localiza/resolver";
 import { getLocalizaReadinessSnapshot } from "@/server/localiza/readiness";
+import { resolveIdealistaLocation } from "@/server/localiza/resolver";
 
 const percentFormatter = new Intl.NumberFormat("es-ES", {
 	style: "percent",
@@ -194,6 +194,7 @@ type LocalizaLiveFixtureRecord = {
 		country: string;
 		postalCode?: string;
 	};
+	expectedAddressLabel?: string;
 	validationStatus: "pending_official_validation" | "officially_validated";
 	lastValidationRunAt?: string;
 	lastObservedStatus?:
@@ -225,7 +226,11 @@ type LocalizaLiveFixtureRecord = {
 	lastObservedImageCount?: number;
 	observedAt: string;
 	validationNotes: string;
-	source: "seed" | "incident_auto_added";
+	source: "seed" | "incident_auto_added" | "user_feedback";
+	lastUserFeedbackVerdict?: "correct" | "incorrect";
+	lastUserFeedbackAt?: number;
+	lastUserCorrectedAddressLabel?: string;
+	lastUserSelectedAddressLabel?: string;
 	updatedAt: number;
 };
 
@@ -353,6 +358,55 @@ const incidentStatusLabel: Record<
 	needs_confirmation: "Opciones",
 	unresolved: "No encontrada",
 	manual_override: "Editada a mano",
+};
+
+const liveFixtureSourceLabel: Record<
+	LocalizaLiveFixtureRecord["source"],
+	string
+> = {
+	seed: "Inicial",
+	incident_auto_added: "Reportado",
+	user_feedback: "Usuario",
+};
+
+const formatExpectedAddressLabel = (fixture: LocalizaLiveFixtureRecord) =>
+	fixture.expectedAddressLabel ??
+	[
+		fixture.expectedLocation.street,
+		fixture.expectedLocation.city,
+		fixture.expectedLocation.stateOrProvince,
+		fixture.expectedLocation.postalCode,
+	]
+		.filter(Boolean)
+		.join(", ");
+
+const formatObservedAddressLabel = (fixture: LocalizaLiveFixtureRecord) => {
+	if (fixture.lastObservedAddressLabel) {
+		return fixture.lastObservedAddressLabel;
+	}
+
+	const observedLabel = [
+		fixture.lastObservedLocation?.street,
+		fixture.lastObservedLocation?.city,
+		fixture.lastObservedLocation?.stateOrProvince,
+		fixture.lastObservedLocation?.postalCode,
+	]
+		.filter(Boolean)
+		.join(", ");
+
+	return observedLabel || "Sin dirección observada";
+};
+
+const formatUserFeedbackLabel = (fixture: LocalizaLiveFixtureRecord) => {
+	if (fixture.lastUserFeedbackVerdict === "correct") {
+		return "El usuario confirmó la dirección mostrada.";
+	}
+
+	if (fixture.lastUserCorrectedAddressLabel) {
+		return fixture.lastUserCorrectedAddressLabel;
+	}
+
+	return "El usuario indicó que la dirección no era correcta.";
 };
 
 const dateTimeFormatter = new Intl.DateTimeFormat("es-ES", {
@@ -938,6 +992,42 @@ export default async function LocalizaReadinessPage() {
 			icon: Timer,
 		},
 	] as const;
+	const userFeedbackFixtures = liveFixtures.filter(
+		(fixture) => fixture.source === "user_feedback",
+	);
+	const pendingUserFeedbackFixtures = userFeedbackFixtures
+		.filter((fixture) => fixture.validationStatus !== "officially_validated")
+		.slice()
+		.sort(
+			(left, right) =>
+				(right.lastUserFeedbackAt ?? right.updatedAt) -
+				(left.lastUserFeedbackAt ?? left.updatedAt),
+		);
+	const validatedUserFeedbackCount = userFeedbackFixtures.filter(
+		(fixture) => fixture.validationStatus === "officially_validated",
+	).length;
+	const prioritizedLiveFixtures = liveFixtures.slice().sort((left, right) => {
+		const leftPriority =
+			left.source === "user_feedback" &&
+			left.validationStatus !== "officially_validated"
+				? 0
+				: left.validationStatus !== "officially_validated"
+					? 1
+					: 2;
+		const rightPriority =
+			right.source === "user_feedback" &&
+			right.validationStatus !== "officially_validated"
+				? 0
+				: right.validationStatus !== "officially_validated"
+					? 1
+					: 2;
+
+		if (leftPriority !== rightPriority) {
+			return leftPriority - rightPriority;
+		}
+
+		return right.updatedAt - left.updatedAt;
+	});
 
 	return (
 		<main className="min-h-screen bg-background text-foreground">
@@ -1079,6 +1169,154 @@ export default async function LocalizaReadinessPage() {
 							</Card>
 						);
 					})}
+				</section>
+
+				<section>
+					<Card className="border-primary/30 bg-background">
+						<CardHeader>
+							<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+								<div>
+									<CardTitle className="flex items-center gap-2 text-lg">
+										<CheckCircle2
+											className="h-5 w-5 text-primary"
+											aria-hidden="true"
+										/>
+										Correcciones de usuarios
+									</CardTitle>
+									<p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+										Cada corrección entra como señal de regresión. La dirección
+										no se da por buena hasta validarla con Catastro o una fuente
+										pública equivalente.
+									</p>
+								</div>
+								<dl className="grid grid-cols-3 gap-4 text-sm">
+									<div>
+										<dt className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+											Pendientes
+										</dt>
+										<dd className="mt-1 text-xl font-semibold text-foreground">
+											{compactNumberFormatter.format(
+												pendingUserFeedbackFixtures.length,
+											)}
+										</dd>
+									</div>
+									<div>
+										<dt className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+											Validadas
+										</dt>
+										<dd className="mt-1 text-xl font-semibold text-foreground">
+											{compactNumberFormatter.format(
+												validatedUserFeedbackCount,
+											)}
+										</dd>
+									</div>
+									<div>
+										<dt className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+											Total
+										</dt>
+										<dd className="mt-1 text-xl font-semibold text-foreground">
+											{compactNumberFormatter.format(
+												userFeedbackFixtures.length,
+											)}
+										</dd>
+									</div>
+								</dl>
+							</div>
+						</CardHeader>
+						<CardContent>
+							{pendingUserFeedbackFixtures.length === 0 ? (
+								<p className="rounded-md border border-border/70 p-3 text-sm text-muted-foreground">
+									No hay correcciones pendientes de validar.
+								</p>
+							) : (
+								<div className="divide-y divide-border/70">
+									{pendingUserFeedbackFixtures.map((fixture) => (
+										<div key={fixture.fixtureId} className="py-4 first:pt-0">
+											<div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+												<div className="space-y-2">
+													<div className="flex flex-wrap items-center gap-2">
+														<span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
+															Pendiente de fuente oficial
+														</span>
+														{fixture.lastUserFeedbackAt ? (
+															<span className="text-xs text-muted-foreground">
+																{dateTimeFormatter.format(
+																	new Date(fixture.lastUserFeedbackAt),
+																)}
+															</span>
+														) : null}
+													</div>
+													<p className="break-all text-sm font-medium text-foreground">
+														{fixture.sourceUrl}
+													</p>
+												</div>
+												<Button asChild variant="outline" size="sm">
+													<a
+														href={fixture.sourceUrl}
+														target="_blank"
+														rel="noreferrer"
+													>
+														Abrir anuncio
+													</a>
+												</Button>
+											</div>
+											<dl className="mt-4 grid gap-3 text-sm lg:grid-cols-3">
+												<div>
+													<dt className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+														Usuario
+													</dt>
+													<dd className="mt-1 font-medium text-foreground">
+														{formatUserFeedbackLabel(fixture)}
+													</dd>
+												</div>
+												<div>
+													<dt className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+														Localiza mostró
+													</dt>
+													<dd className="mt-1 text-muted-foreground">
+														{fixture.lastUserSelectedAddressLabel ??
+															formatObservedAddressLabel(fixture)}
+													</dd>
+												</div>
+												<div>
+													<dt className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+														Objetivo
+													</dt>
+													<dd className="mt-1 text-muted-foreground">
+														{formatExpectedAddressLabel(fixture)}
+													</dd>
+												</div>
+											</dl>
+											<p className="mt-3 text-sm leading-6 text-muted-foreground">
+												Racional: esta señal contradice o confirma lo que vio el
+												usuario, pero solo bloquea el caso como regresión. La
+												validación final exige una dirección oficial o pública
+												para evitar aprender de una corrección equivocada.
+											</p>
+											<form
+												action={markLiveFixtureValidatedAction}
+												className="mt-3 flex flex-wrap items-center gap-2"
+											>
+												<input
+													type="hidden"
+													name="fixtureId"
+													value={fixture.fixtureId}
+												/>
+												<Input
+													name="validationNotes"
+													placeholder="Fuente oficial usada para validar"
+													className="h-9 flex-1 text-sm"
+												/>
+												<Button type="submit" size="sm">
+													Marcar verificada
+												</Button>
+											</form>
+										</div>
+									))}
+								</div>
+							)}
+						</CardContent>
+					</Card>
 				</section>
 
 				<section>
@@ -1777,7 +2015,7 @@ export default async function LocalizaReadinessPage() {
 								</p>
 							) : (
 								<div className="space-y-3">
-									{liveFixtures.map((fixture) => (
+									{prioritizedLiveFixtures.map((fixture) => (
 										<div
 											key={fixture.fixtureId}
 											className="rounded-md border border-border/70 p-3 text-sm"
@@ -1821,11 +2059,7 @@ export default async function LocalizaReadinessPage() {
 													<dt className="font-medium text-foreground">
 														Origen
 													</dt>
-													<dd>
-														{fixture.source === "incident_auto_added"
-															? "Reportado"
-															: "Inicial"}
-													</dd>
+													<dd>{liveFixtureSourceLabel[fixture.source]}</dd>
 												</div>
 											</dl>
 											<div className="mt-3 grid gap-2 text-xs text-muted-foreground lg:grid-cols-2">
@@ -1834,14 +2068,7 @@ export default async function LocalizaReadinessPage() {
 														Dirección esperada
 													</p>
 													<p className="mt-1">
-														{[
-															fixture.expectedLocation.street,
-															fixture.expectedLocation.city,
-															fixture.expectedLocation.stateOrProvince,
-															fixture.expectedLocation.postalCode,
-														]
-															.filter(Boolean)
-															.join(", ")}
+														{formatExpectedAddressLabel(fixture)}
 													</p>
 												</div>
 												<div className="rounded-md bg-muted/35 p-2">
@@ -1849,16 +2076,7 @@ export default async function LocalizaReadinessPage() {
 														Última dirección observada
 													</p>
 													<p className="mt-1">
-														{fixture.lastObservedAddressLabel ??
-															[
-																fixture.lastObservedLocation?.street,
-																fixture.lastObservedLocation?.city,
-																fixture.lastObservedLocation?.stateOrProvince,
-																fixture.lastObservedLocation?.postalCode,
-															]
-																.filter(Boolean)
-																.join(", ") ??
-															"Sin dirección observada"}
+														{formatObservedAddressLabel(fixture)}
 													</p>
 													{fixture.lastObservedUnitRef20 ||
 													fixture.lastObservedParcelRef14 ? (
@@ -1908,6 +2126,17 @@ export default async function LocalizaReadinessPage() {
 											fixture.lastObservedReasonCodes.length > 0 ? (
 												<p className="mt-2 break-all text-xs text-muted-foreground">
 													{fixture.lastObservedReasonCodes.join(", ")}
+												</p>
+											) : null}
+											{fixture.lastUserFeedbackVerdict ? (
+												<p className="mt-2 text-xs text-muted-foreground">
+													Usuario:{" "}
+													{fixture.lastUserFeedbackVerdict === "correct"
+														? "marcó correcta"
+														: "corrigió la dirección"}
+													{fixture.lastUserCorrectedAddressLabel
+														? ` · ${fixture.lastUserCorrectedAddressLabel}`
+														: ""}
 												</p>
 											) : null}
 											{fixture.validationStatus !== "officially_validated" ? (

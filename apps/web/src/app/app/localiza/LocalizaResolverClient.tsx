@@ -15,6 +15,7 @@ import {
 	CardHeader,
 	CardTitle,
 	Input,
+	Textarea,
 } from "@casedra/ui";
 import {
 	AlertCircle,
@@ -59,6 +60,7 @@ type LocalizaSearchHistoryEntry = {
 
 type LocalizaCandidate = ResolveIdealistaLocationResult["candidates"][number];
 type LocalizaWorkspaceTab = "resolver" | "prospecting";
+type LocalizaAddressFeedbackVerdict = "correct" | "incorrect";
 
 const LOCALIZA_SEARCH_HISTORY_STORAGE_KEY = "casedra.localiza.searchHistory.v1";
 const MAX_LOCALIZA_SEARCH_HISTORY_ITEMS = 10;
@@ -1106,9 +1108,20 @@ export default function LocalizaResolverClient({
 	const historyListRef = useRef<HTMLUListElement>(null);
 	const resolveIdealistaLocation =
 		trpc.listings.resolveIdealistaLocation.useMutation();
+	const submitAddressFeedback =
+		trpc.listings.submitLocalizaAddressFeedback.useMutation();
 	const [searchHistory, setSearchHistory] = useState<
 		LocalizaSearchHistoryEntry[]
 	>([]);
+	const [addressFeedbackVerdict, setAddressFeedbackVerdict] =
+		useState<LocalizaAddressFeedbackVerdict | null>(null);
+	const [correctedAddressLabel, setCorrectedAddressLabel] = useState("");
+	const [addressFeedbackMessage, setAddressFeedbackMessage] = useState<
+		string | null
+	>(null);
+	const [addressFeedbackError, setAddressFeedbackError] = useState<string | null>(
+		null,
+	);
 	const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 	const [historyScrollEdges, setHistoryScrollEdges] = useState({
 		canScrollUp: false,
@@ -1134,12 +1147,21 @@ export default function LocalizaResolverClient({
 					(candidate) => candidate.id === selectedCandidateId,
 				) ?? null)
 			: null;
+	const feedbackSelectedAddressLabel =
+		selectedCandidate?.label ?? resolvedAddress ?? result?.resolvedAddressLabel;
 	const createHref = result
 		? buildOnboardingHref(currentSourceUrl, selectedCandidate?.id)
 		: null;
 	const [activeLoadingMessageIndex, setActiveLoadingMessageIndex] = useState(0);
 	const effectiveStrategy =
 		getPreferredLocalizaStrategy("auto", availableLocalizaStrategies) ?? "auto";
+
+	const resetAddressFeedback = () => {
+		setAddressFeedbackVerdict(null);
+		setCorrectedAddressLabel("");
+		setAddressFeedbackMessage(null);
+		setAddressFeedbackError(null);
+	};
 
 	useEffect(() => {
 		if (!resolveIdealistaLocation.isPending) {
@@ -1251,6 +1273,7 @@ export default function LocalizaResolverClient({
 		setSelectedCandidateId(null);
 		setError(null);
 		setIsHistoryOpen(false);
+		resetAddressFeedback();
 
 		const trimmedValue = value.trim();
 
@@ -1297,6 +1320,7 @@ export default function LocalizaResolverClient({
 			setError(null);
 			setResult(null);
 			setSelectedCandidateId(null);
+			resetAddressFeedback();
 			rememberSearchHistoryEntry(buildPendingHistoryEntry(trimmedSourceUrl));
 			const resolved = await resolveIdealistaLocation.mutateAsync({
 				url: trimmedSourceUrl,
@@ -1382,6 +1406,61 @@ export default function LocalizaResolverClient({
 
 			return nextEntries;
 		});
+	};
+
+	const submitLocalizaAddressFeedback = async (
+		verdict: LocalizaAddressFeedbackVerdict,
+	) => {
+		if (!result) {
+			return;
+		}
+
+		const normalizedCorrection = correctedAddressLabel.trim();
+
+		if (verdict === "incorrect" && !normalizedCorrection) {
+			setAddressFeedbackVerdict("incorrect");
+			setAddressFeedbackError("Escribe la dirección correcta.");
+			setAddressFeedbackMessage(null);
+			return;
+		}
+
+		try {
+			setAddressFeedbackError(null);
+			await submitAddressFeedback.mutateAsync({
+				sourceUrl: result.sourceMetadata.sourceUrl,
+				externalListingId: result.sourceMetadata.externalListingId,
+				verdict,
+				resultStatus: result.status,
+				resolverVersion: result.resolverVersion,
+				territoryAdapter: result.territoryAdapter,
+				resolvedAddressLabel: result.resolvedAddressLabel,
+				selectedCandidateId: selectedCandidate?.id,
+				selectedCandidateLabel: feedbackSelectedAddressLabel,
+				correctedAddressLabel:
+					verdict === "incorrect" ? normalizedCorrection : undefined,
+				reasonCodes: result.evidence.reasonCodes,
+			});
+			setAddressFeedbackVerdict(verdict);
+			setAddressFeedbackMessage(
+				verdict === "correct"
+					? "Guardado. Esta lectura entra en la regresión de Localiza."
+					: "Corrección guardada. La revisaremos antes de validarla.",
+			);
+			capturePosthogEvent("localiza_address_feedback_submitted", {
+				surface: "localiza_resolver_page",
+				verdict,
+				status: result.status,
+				candidateCount: result.candidates.length,
+				hasCorrectedAddress: verdict === "incorrect",
+			});
+		} catch (unknownError) {
+			setAddressFeedbackError(
+				unknownError instanceof Error
+					? unknownError.message
+					: "No se pudo guardar la corrección.",
+			);
+			setAddressFeedbackMessage(null);
+		}
 	};
 
 	return (
@@ -1791,6 +1870,101 @@ export default function LocalizaResolverClient({
 									completa la dirección manualmente.
 								</div>
 							) : null}
+
+							<div className="border-t border-[#E8DFCC] pt-4">
+								<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+									<div>
+										<p className="text-sm font-medium text-foreground">
+											¿Esta lectura es correcta?
+										</p>
+										<p className="mt-1 text-xs leading-5 text-muted-foreground">
+											Tu respuesta alimenta el conjunto de regresión de
+											Localiza.
+										</p>
+									</div>
+									<div className="flex flex-wrap gap-2">
+										<Button
+											type="button"
+											variant={
+												addressFeedbackVerdict === "correct"
+													? "default"
+													: "outline"
+											}
+											disabled={
+												!feedbackSelectedAddressLabel ||
+												submitAddressFeedback.isPending
+											}
+											onClick={() => {
+												void submitLocalizaAddressFeedback("correct");
+											}}
+										>
+											Correcta
+										</Button>
+										<Button
+											type="button"
+											variant={
+												addressFeedbackVerdict === "incorrect"
+													? "default"
+													: "outline"
+											}
+											disabled={submitAddressFeedback.isPending}
+											onClick={() => {
+												setAddressFeedbackVerdict("incorrect");
+												setAddressFeedbackMessage(null);
+												setAddressFeedbackError(null);
+											}}
+										>
+											Corregir
+										</Button>
+									</div>
+								</div>
+
+								{addressFeedbackVerdict === "incorrect" ? (
+									<form
+										className="mt-3 grid gap-2"
+										onSubmit={(event) => {
+											event.preventDefault();
+											void submitLocalizaAddressFeedback("incorrect");
+										}}
+									>
+										<label
+											className="text-xs font-medium text-foreground"
+											htmlFor={`${candidateFieldId}-corrected-address`}
+										>
+											Dirección correcta
+										</label>
+										<Textarea
+											id={`${candidateFieldId}-corrected-address`}
+											value={correctedAddressLabel}
+											onChange={(event) =>
+												setCorrectedAddressLabel(event.target.value)
+											}
+											placeholder="Calle, número, planta, puerta, código postal y municipio."
+											className="min-h-20"
+										/>
+										<div>
+											<Button
+												type="submit"
+												variant="outline"
+												disabled={submitAddressFeedback.isPending}
+											>
+												Guardar corrección
+											</Button>
+										</div>
+									</form>
+								) : null}
+
+								{addressFeedbackMessage ? (
+									<p className="mt-3 text-xs font-medium text-primary">
+										{addressFeedbackMessage}
+									</p>
+								) : null}
+								{addressFeedbackError ? (
+									<p className="mt-3 text-xs font-medium text-destructive">
+										{addressFeedbackError}
+									</p>
+								) : null}
+							</div>
 
 							<div className="flex flex-wrap gap-3">
 								{createHref ? (

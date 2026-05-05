@@ -27,8 +27,11 @@ import { redirect } from "next/navigation";
 
 import { getOptionalConvexAuthToken as getConvexAuthToken } from "@/server/convexAuth";
 import { createConvexClient } from "@/server/convexClient";
+import { getCaptacionIndexStatus } from "@/server/localiza/captacion-storage";
 import { getLocalizaReadinessSnapshot } from "@/server/localiza/readiness";
 import { resolveIdealistaLocation } from "@/server/localiza/resolver";
+
+import { CaptacionIndexUploadForm } from "./CaptacionIndexUploadForm";
 
 const percentFormatter = new Intl.NumberFormat("es-ES", {
 	style: "percent",
@@ -413,6 +416,35 @@ const dateTimeFormatter = new Intl.DateTimeFormat("es-ES", {
 	dateStyle: "medium",
 	timeStyle: "short",
 });
+
+const getManifestString = (
+	manifest: Record<string, unknown> | null,
+	key: string,
+) => {
+	const value = manifest?.[key];
+	return typeof value === "string" ? value : undefined;
+};
+
+const getManifestNumber = (
+	manifest: Record<string, unknown> | null,
+	key: string,
+) => {
+	const value = manifest?.[key];
+	return typeof value === "number" && Number.isFinite(value)
+		? value
+		: undefined;
+};
+
+const formatOptionalDateTime = (value?: string) => {
+	if (!value) {
+		return "Sin publicar";
+	}
+
+	const date = new Date(value);
+	return Number.isFinite(date.getTime())
+		? dateTimeFormatter.format(date)
+		: "Sin publicar";
+};
 
 const normalizeOptionalText = (value: FormDataEntryValue | null) => {
 	const normalized = typeof value === "string" ? value.trim() : "";
@@ -943,6 +975,7 @@ export default async function LocalizaReadinessPage() {
 	const snapshot = await getLocalizaReadinessSnapshot({
 		convex,
 	});
+	const captacionIndexStatus = await getCaptacionIndexStatus("madrid");
 	const openIncidents = convexAuthToken
 		? await convex.query(listFalsePositiveIncidentsRef, { status: "open" })
 		: [];
@@ -1028,6 +1061,19 @@ export default async function LocalizaReadinessPage() {
 
 		return right.updatedAt - left.updatedAt;
 	});
+	const captacionIndexManifest = captacionIndexStatus.latestManifest;
+	const captacionIndexRowCount = getManifestNumber(
+		captacionIndexManifest,
+		"rowCount",
+	);
+	const captacionIndexGeneratedAt = getManifestString(
+		captacionIndexManifest,
+		"generatedAt",
+	);
+	const captacionIndexSourceHash = getManifestString(
+		captacionIndexManifest,
+		"sourceHash",
+	);
 
 	return (
 		<main className="min-h-screen bg-background text-foreground">
@@ -1169,6 +1215,78 @@ export default async function LocalizaReadinessPage() {
 							</Card>
 						);
 					})}
+				</section>
+
+				<section>
+					<Card className="border-border/80 bg-background">
+						<CardHeader>
+							<CardTitle className="flex items-center gap-2 text-lg">
+								<DatabaseZap
+									className="h-5 w-5 text-primary"
+									aria-hidden="true"
+								/>
+								Índice CAT de Captación
+							</CardTitle>
+							<p className="text-sm text-muted-foreground">
+								Archivo oficial para el ranking exacto de viviendas grandes.
+							</p>
+						</CardHeader>
+						<CardContent className="grid gap-5 lg:grid-cols-[1fr_0.9fr]">
+							<dl className="grid gap-4 text-sm sm:grid-cols-2">
+								<div>
+									<dt className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+										Almacenamiento
+									</dt>
+									<dd className="mt-1 font-medium text-foreground">
+										{captacionIndexStatus.storageMode === "s3" ? "S3" : "Local"}
+									</dd>
+								</div>
+								<div>
+									<dt className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+										Filas publicadas
+									</dt>
+									<dd className="mt-1 font-medium text-foreground">
+										{captacionIndexRowCount === undefined
+											? "Sin índice"
+											: compactNumberFormatter.format(captacionIndexRowCount)}
+									</dd>
+								</div>
+								<div>
+									<dt className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+										Última publicación
+									</dt>
+									<dd className="mt-1 font-medium text-foreground">
+										{formatOptionalDateTime(captacionIndexGeneratedAt)}
+									</dd>
+								</div>
+								<div>
+									<dt className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+										Fuente
+									</dt>
+									<dd className="mt-1 font-mono text-xs text-foreground">
+										{captacionIndexSourceHash
+											? captacionIndexSourceHash.slice(0, 12)
+											: "Sin fuente"}
+									</dd>
+								</div>
+							</dl>
+
+							<div className="grid gap-3">
+								<CaptacionIndexUploadForm
+									storageMode={captacionIndexStatus.storageMode}
+									territory="madrid"
+								/>
+								<p className="break-all text-xs leading-5 text-muted-foreground">
+									{captacionIndexStatus.rawLocation}
+								</p>
+								{captacionIndexStatus.statusError ? (
+									<p className="text-xs leading-5 text-destructive">
+										{captacionIndexStatus.statusError}
+									</p>
+								) : null}
+							</div>
+						</CardContent>
+					</Card>
 				</section>
 
 				<section>

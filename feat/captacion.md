@@ -151,17 +151,21 @@ Current verified scaffolding:
 - `apps/web/src/server/localiza/captacion-catastro.ts` routes through a territory adapter selector so common-territory Catastro is one adapter and regional unsupported areas fail clearly.
 - `packages/types/src/index.ts` defines the shared Captación result types, including exact coverage, ranking confidence, adapter, and export-enabled state.
 - `scripts/build-captacion-catastro-units.mjs` converts official fixed-width CAT files, including `.gz` downloads, into the JSONL residential-unit index using type `15` residential records.
-- `scripts/sync-captacion-catastro-index.mjs` scans `data/captacion/raw/<territory>`, hashes raw CAT files, skips unchanged sources, publishes a versioned index plus `latest.json`, and atomically refreshes the runtime index file.
+- `scripts/sync-captacion-catastro-index.mjs` scans S3 raw archives when `CAPTACION_S3_BUCKET` is configured, otherwise scans `data/captacion/raw/<territory>`, hashes raw CAT files, skips unchanged sources, publishes a versioned index plus `latest.json`, and atomically refreshes the local runtime index file.
+- `apps/web/src/server/localiza/captacion-storage.ts` centralizes Captación storage: S3 raw archive upload URLs, S3/local index status, S3 `latest.json` reads, and local fallback reads.
+- `/app/localiza/readiness` shows the active CAT index status and provides authenticated direct-to-S3 raw archive upload when S3 is configured.
+- `.github/workflows/captacion-index.yml` runs the S3 index sync daily and can be triggered manually after an operator upload.
 - `.gitignore` excludes raw CAT archives and generated Captación indexes so official data is handled as an operator artifact, not source code.
 
 Daily/operator workflow:
 
-1. Operator drops the latest official Madrid CAT `.CAT`, `.txt`, or `.gz` archive into `data/captacion/raw/madrid` or the mounted equivalent on the production index worker.
-2. Daily cron runs `pnpm captacion:sync-index -- --territory madrid`.
+1. Operator uploads the latest official Madrid CAT `.CAT`, `.txt`, or `.gz` archive from `/app/localiza/readiness`; production stores it under `s3://$CAPTACION_S3_BUCKET/$CAPTACION_S3_PREFIX/raw/madrid/`.
+2. Daily GitHub Actions cron runs `pnpm captacion:sync-index -- --territory madrid --require-input` with `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `CAPTACION_S3_BUCKET`, and optional `CAPTACION_S3_PREFIX`.
 3. If the raw source hash is unchanged, the job exits without touching production.
-4. If the raw source changed, the job builds a versioned JSONL index, writes `latest.json`, and atomically updates `data/captacion/catastro-residential-units.jsonl`.
+4. If the raw source changed, the job builds a versioned JSONL index, writes `indexes/<territory>/<hash>.jsonl`, writes `indexes/<territory>/latest.json`, and refreshes the local runtime cache.
 5. If parsing or validation fails, the job exits non-zero and leaves the previous runtime index in place.
 6. Broker-facing export stays disabled until exact coverage is complete for the active Madrid boundary set.
+7. The S3 bucket CORS policy must allow authenticated app origins to `PUT` raw archive objects with the `content-type` header.
 
 ## Ownership And Dependencies
 

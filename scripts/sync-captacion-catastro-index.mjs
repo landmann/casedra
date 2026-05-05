@@ -11,8 +11,15 @@ import {
 	stat,
 	writeFile,
 } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
+import {
+	GetObjectCommand,
+	ListObjectsV2Command,
+	PutObjectCommand,
+	S3Client,
+} from "@aws-sdk/client-s3";
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_TERRITORY = "madrid";
@@ -32,9 +39,20 @@ Options:
   --index-root <path>       Defaults to data/captacion/indexes.
   --active-output <path>    Defaults to ${DEFAULT_ACTIVE_OUTPUT}.
   --source-version <id>     Defaults to the source hash.
+  --s3-bucket <bucket>      Defaults to CAPTACION_S3_BUCKET.
+  --s3-prefix <prefix>      Defaults to CAPTACION_S3_PREFIX or captacion.
   --force                   Rebuild even when the raw source hash is unchanged.
   --require-input           Fail instead of no-op when no raw CAT files exist.
 `.trim();
+
+const normalizePrefix = (value) =>
+	value?.replace(/^\/+|\/+$/g, "") || "captacion";
+
+const getS3Key = (s3Prefix, ...parts) =>
+	[normalizePrefix(s3Prefix), ...parts]
+		.map((part) => part.replace(/^\/+|\/+$/g, ""))
+		.filter(Boolean)
+		.join("/");
 
 const parseArgs = () => {
 	const args = process.argv.slice(2).filter((arg) => arg !== "--");
@@ -43,6 +61,8 @@ const parseArgs = () => {
 		force: false,
 		indexRoot: DEFAULT_INDEX_ROOT,
 		requireInput: false,
+		s3Bucket: process.env.CAPTACION_S3_BUCKET,
+		s3Prefix: process.env.CAPTACION_S3_PREFIX ?? "captacion",
 		territory: DEFAULT_TERRITORY,
 	};
 
@@ -79,6 +99,8 @@ const parseArgs = () => {
 				"active-output",
 				"index-root",
 				"raw-dir",
+				"s3-bucket",
+				"s3-prefix",
 				"source-version",
 				"territory",
 			].includes(key)
@@ -93,17 +115,34 @@ const parseArgs = () => {
 					? "indexRoot"
 					: key === "raw-dir"
 						? "rawDir"
-						: key === "source-version"
-							? "sourceVersion"
-							: key;
+						: key === "s3-bucket"
+							? "s3Bucket"
+							: key === "s3-prefix"
+								? "s3Prefix"
+								: key === "source-version"
+									? "sourceVersion"
+									: key;
 		parsed[normalizedKey] = next;
 		index += 1;
 	}
 
 	parsed.rawDir ??= path.join(DEFAULT_RAW_ROOT, parsed.territory);
+	parsed.s3Prefix = normalizePrefix(parsed.s3Prefix);
 
 	return parsed;
 };
+
+const createS3Client = () =>
+	new S3Client({
+		region: process.env.AWS_REGION,
+		credentials:
+			process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
+				? {
+						accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+						secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+					}
+				: undefined,
+	});
 
 const listInputFiles = async (inputPath) => {
 	let inputStat;
@@ -169,6 +208,24 @@ const readJsonIfExists = async (filePath) => {
 	}
 };
 
+const readS3JsonIfExists = async (input) => {
+	try {
+		const result = await createS3Client().send(
+			new GetObjectCommand({
+				Bucket: input.bucket,
+				Key: input.key,
+			}),
+		);
+		const body = await result.Body?.transformToString("utf8");
+		return body ? JSON.parse(body) : null;
+	} catch (error) {
+		if (["NoSuchKey", "NotFound"].includes(error?.name)) {
+			return null;
+		}
+		throw error;
+	}
+};
+
 const writeJsonAtomic = async (filePath, value) => {
 	const tempPath = `${filePath}.${process.pid}.tmp`;
 
@@ -183,6 +240,88 @@ const copyFileAtomic = async (fromPath, toPath) => {
 	await mkdir(path.dirname(toPath), { recursive: true });
 	await copyFile(fromPath, tempPath);
 	await rename(tempPath, toPath);
+};
+
+const putS3Object = async (input) => {
+	await createS3Client().send(
+		new PutObjectCommand({
+			Bucket: input.bucket,
+			Key: input.key,
+			Body: input.body,
+			ContentType: input.contentType,
+		}),
+	);
+};
+
+const listS3RawObjects = async (input) => {
+	const client = createS3Client();
+	const objects = [];
+	let continuationToken;
+
+	do {
+		const result = await client.send(
+			new ListObjectsV2Command({
+				Bucket: input.bucket,
+				ContinuationToken: continuationToken,
+				Prefix: input.prefix,
+			}),
+		);
+
+		for (const object of result.Contents ?? []) {
+			if (object.Key && /\.(cat|txt|gz)$/i.test(object.Key)) {
+				objects.push(object);
+			}
+		}
+		continuationToken = result.NextContinuationToken;
+	} while (continuationToken);
+
+	return objects.sort((left, right) => left.Key.localeCompare(right.Key));
+};
+
+const downloadS3RawObjects = async (input) => {
+	const client = createS3Client();
+	const rawDir = path.join(
+		os.tmpdir(),
+		`captacion-${input.territory}-${process.pid}-${Date.now()}`,
+	);
+
+	await mkdir(rawDir, { recursive: true });
+
+	for (const object of input.objects) {
+		const result = await client.send(
+			new GetObjectCommand({
+				Bucket: input.bucket,
+				Key: object.Key,
+			}),
+		);
+		const byteArray = await result.Body?.transformToByteArray();
+		const fileName = path.basename(object.Key);
+
+		if (!byteArray) {
+			throw new Error(`S3 object ${object.Key} did not return a body.`);
+		}
+
+		await writeFile(path.join(rawDir, fileName), Buffer.from(byteArray));
+	}
+
+	return rawDir;
+};
+
+const hashS3RawObjects = (objects) => {
+	const hash = createHash("sha256");
+
+	for (const object of objects) {
+		hash.update(object.Key);
+		hash.update("\0");
+		hash.update(object.ETag ?? "");
+		hash.update("\0");
+		hash.update(String(object.Size ?? ""));
+		hash.update("\0");
+		hash.update(object.LastModified?.toISOString() ?? "");
+		hash.update("\0");
+	}
+
+	return hash.digest("hex");
 };
 
 const countRows = async (filePath) => {
@@ -219,9 +358,17 @@ const runBuildIndex = async (input) => {
 
 const main = async () => {
 	const args = parseArgs();
-	const inputFiles = await listInputFiles(args.rawDir);
+	const s3Mode = Boolean(args.s3Bucket);
+	const s3RawPrefix = getS3Key(args.s3Prefix, "raw", args.territory);
+	const s3RawObjects = s3Mode
+		? await listS3RawObjects({
+				bucket: args.s3Bucket,
+				prefix: s3RawPrefix,
+			})
+		: [];
+	const inputFiles = s3Mode ? [] : await listInputFiles(args.rawDir);
 
-	if (inputFiles.length === 0) {
+	if (!s3Mode && inputFiles.length === 0) {
 		const message = `No raw CAT files found in ${args.rawDir}`;
 		if (args.requireInput) {
 			throw new Error(message);
@@ -238,10 +385,40 @@ const main = async () => {
 		return;
 	}
 
-	const sourceHash = await hashInputFiles(inputFiles, args.rawDir);
+	if (s3Mode && s3RawObjects.length === 0) {
+		const message = `No raw CAT files found in s3://${args.s3Bucket}/${s3RawPrefix}`;
+		if (args.requireInput) {
+			throw new Error(message);
+		}
+
+		console.info(
+			JSON.stringify({
+				event: "captacion_index_sync_noop",
+				reason: "no_raw_files",
+				rawDir: `s3://${args.s3Bucket}/${s3RawPrefix}`,
+				territory: args.territory,
+			}),
+		);
+		return;
+	}
+
+	const sourceHash = s3Mode
+		? hashS3RawObjects(s3RawObjects)
+		: await hashInputFiles(inputFiles, args.rawDir);
 	const territoryIndexRoot = path.join(args.indexRoot, args.territory);
 	const latestManifestPath = path.join(territoryIndexRoot, "latest.json");
-	const latestManifest = await readJsonIfExists(latestManifestPath);
+	const s3LatestManifestKey = getS3Key(
+		args.s3Prefix,
+		"indexes",
+		args.territory,
+		"latest.json",
+	);
+	const latestManifest = s3Mode
+		? await readS3JsonIfExists({
+				bucket: args.s3Bucket,
+				key: s3LatestManifestKey,
+			})
+		: await readJsonIfExists(latestManifestPath);
 	const activeOutputExists = await stat(args.activeOutput)
 		.then(() => true)
 		.catch((error) => {
@@ -254,7 +431,7 @@ const main = async () => {
 	if (
 		!args.force &&
 		latestManifest?.sourceHash === sourceHash &&
-		activeOutputExists
+		(s3Mode || activeOutputExists)
 	) {
 		console.info(
 			JSON.stringify({
@@ -268,33 +445,64 @@ const main = async () => {
 	}
 
 	const shortHash = sourceHash.slice(0, 16);
-	const versionedOutputPath = path.join(
-		territoryIndexRoot,
-		`${shortHash}.jsonl`,
-	);
+	const localBuildRoot = s3Mode
+		? path.join(os.tmpdir(), `captacion-index-${process.pid}-${Date.now()}`)
+		: territoryIndexRoot;
+	const versionedOutputPath = path.join(localBuildRoot, `${shortHash}.jsonl`);
 	const sourceVersion = args.sourceVersion ?? sourceHash;
+	const rawDir = s3Mode
+		? await downloadS3RawObjects({
+				bucket: args.s3Bucket,
+				objects: s3RawObjects,
+				territory: args.territory,
+			})
+		: args.rawDir;
 
 	await runBuildIndex({
 		outputPath: versionedOutputPath,
-		rawDir: args.rawDir,
+		rawDir,
 		sourceVersion,
 		territory: args.territory,
 	});
 
 	const rowCount = await countRows(versionedOutputPath);
 	const generatedAt = new Date().toISOString();
+	const indexKey = getS3Key(
+		args.s3Prefix,
+		"indexes",
+		args.territory,
+		`${shortHash}.jsonl`,
+	);
 	const manifest = {
 		activeOutput: args.activeOutput,
 		generatedAt,
-		inputFileCount: inputFiles.length,
-		indexPath: versionedOutputPath,
+		indexKey: s3Mode ? indexKey : undefined,
+		indexPath: s3Mode ? undefined : versionedOutputPath,
+		inputFileCount: s3Mode ? s3RawObjects.length : inputFiles.length,
 		rowCount,
 		sourceHash,
 		sourceVersion,
+		storageMode: s3Mode ? "s3" : "local",
 		territory: args.territory,
 	};
 
-	await writeJsonAtomic(latestManifestPath, manifest);
+	if (s3Mode) {
+		await putS3Object({
+			bucket: args.s3Bucket,
+			key: indexKey,
+			body: await readFile(versionedOutputPath),
+			contentType: "application/x-ndjson; charset=utf-8",
+		});
+		await putS3Object({
+			bucket: args.s3Bucket,
+			key: s3LatestManifestKey,
+			body: `${JSON.stringify(manifest, null, 2)}\n`,
+			contentType: "application/json; charset=utf-8",
+		});
+	} else {
+		await writeJsonAtomic(latestManifestPath, manifest);
+	}
+
 	await copyFileAtomic(versionedOutputPath, args.activeOutput);
 
 	console.info(

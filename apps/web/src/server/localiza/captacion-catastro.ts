@@ -1,6 +1,3 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-
 import type {
 	CaptacionBoundaryPoint,
 	CaptacionRankedBuilding,
@@ -8,7 +5,7 @@ import type {
 	CaptacionRankingResult,
 	CaptacionRankingSource,
 } from "@casedra/types";
-
+import { readCaptacionUnitIndexText } from "./captacion-storage";
 import {
 	detectRegionalTerritory,
 	formatPostalCode,
@@ -26,10 +23,6 @@ const CATASTRO_OFFICIAL_SOURCE = "Dirección General del Catastro";
 const CATASTRO_WFS_TIMEOUT_MS = 12_000;
 const MAX_FEATURES_PER_REQUEST = 1200;
 const MAX_BOUNDARY_AREA_KM2 = 12;
-const RESIDENTIAL_UNIT_INDEX_PATH = path.join(
-	process.cwd(),
-	"data/captacion/catastro-residential-units.jsonl",
-);
 
 type WebMercatorPoint = {
 	x: number;
@@ -479,11 +472,9 @@ const isResidentialUnitIndexRow = (
 };
 
 const readResidentialUnitIndex = async () => {
-	let contents: string;
+	const contents = await readCaptacionUnitIndexText();
 
-	try {
-		contents = await readFile(RESIDENTIAL_UNIT_INDEX_PATH, "utf8");
-	} catch {
+	if (!contents) {
 		return new Map<string, ResidentialUnitAggregate>();
 	}
 

@@ -13,6 +13,13 @@ import { redirect } from "next/navigation";
 
 import { isAllowedAppUser } from "@/lib/app-access";
 
+type SignInPageProps = {
+	searchParams?: Promise<{
+		redirect_url?: string | string[];
+		redirectUrl?: string | string[];
+	}>;
+};
+
 export const metadata: Metadata = {
 	title: "Iniciar sesión | Casedra",
 	description:
@@ -44,11 +51,49 @@ const accessSignals = [
 	"Pruebas para vendedores",
 ] as const;
 
-export default async function SignInPage() {
+const getFirstSearchParam = (value?: string | string[]) =>
+	Array.isArray(value) ? value[0] : value;
+
+const getSafePostAuthRedirect = (value?: string | string[]) => {
+	const rawValue = getFirstSearchParam(value)?.trim();
+
+	if (!rawValue) {
+		return null;
+	}
+
+	const path = rawValue.startsWith("/")
+		? rawValue
+		: (() => {
+				try {
+					const url = new URL(rawValue);
+					return `${url.pathname}${url.search}${url.hash}`;
+				} catch {
+					return null;
+				}
+			})();
+
+	if (!path || path.startsWith("//")) {
+		return null;
+	}
+
+	return path === "/app" ||
+		path.startsWith("/app/") ||
+		path === "/masterplan" ||
+		path.startsWith("/masterplan/")
+		? path
+		: null;
+};
+
+export default async function SignInPage({ searchParams }: SignInPageProps) {
+	const resolvedSearchParams = searchParams ? await searchParams : undefined;
+	const postAuthRedirect =
+		getSafePostAuthRedirect(
+			resolvedSearchParams?.redirect_url ?? resolvedSearchParams?.redirectUrl,
+		) ?? "/app";
 	const user = await currentUser();
 
 	if (user) {
-		redirect(isAllowedAppUser(user) ? "/app" : "/access-restricted");
+		redirect(isAllowedAppUser(user) ? postAuthRedirect : "/access-restricted");
 	}
 
 	return (
@@ -145,8 +190,10 @@ export default async function SignInPage() {
 									path="/sign-in"
 									routing="path"
 									withSignUp
-									fallbackRedirectUrl="/app"
-									signUpFallbackRedirectUrl="/app"
+									forceRedirectUrl={postAuthRedirect}
+									fallbackRedirectUrl={postAuthRedirect}
+									signUpForceRedirectUrl={postAuthRedirect}
+									signUpFallbackRedirectUrl={postAuthRedirect}
 								/>
 							</div>
 						</div>

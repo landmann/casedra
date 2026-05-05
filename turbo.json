@@ -16,13 +16,16 @@
         "NEXT_PUBLIC_CONVEX_SITE_URL",
         "FAL_KEY",
         "FIRECRAWL_API_KEY",
+        "FIRECRAWL_API_API_KEY",
+        "FIRECRAWL_PLAN_API_KEY",
         "STRIPE_SECRET_KEY",
         "STRIPE_WEBHOOK_SECRET",
         "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
         "POSTHOG_API_KEY",
         "POSTHOG_HOST",
         "NEXT_PUBLIC_POSTHOG_KEY",
-        "NEXT_PUBLIC_POSTHOG_HOST"
+        "NEXT_PUBLIC_POSTHOG_HOST",
+        "APP_ALLOWED_EMAILS"
       ]
     },
     "dev": {

@@ -1,0 +1,42 @@
+name: Captacion CAT index
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "21 4 * * *"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      CAPTACION_S3_BUCKET: ${{ secrets.CAPTACION_S3_BUCKET }}
+      CAPTACION_S3_PREFIX: ${{ vars.CAPTACION_S3_PREFIX || 'captacion' }}
+    steps:
+      - name: Skip until S3 is configured
+        if: ${{ env.CAPTACION_S3_BUCKET == '' }}
+        run: echo "CAPTACION_S3_BUCKET is not configured; skipping."
+
+      - uses: actions/checkout@v4
+        if: ${{ env.CAPTACION_S3_BUCKET != '' }}
+
+      - uses: pnpm/action-setup@v4
+        if: ${{ env.CAPTACION_S3_BUCKET != '' }}
+        with:
+          version: 9.0.0
+
+      - uses: actions/setup-node@v4
+        if: ${{ env.CAPTACION_S3_BUCKET != '' }}
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        if: ${{ env.CAPTACION_S3_BUCKET != '' }}
+        run: pnpm install --frozen-lockfile
+
+      - name: Publish Captacion index
+        if: ${{ env.CAPTACION_S3_BUCKET != '' }}
+        run: pnpm captacion:sync-index -- --territory madrid --require-input

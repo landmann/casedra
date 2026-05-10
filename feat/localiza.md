@@ -959,7 +959,7 @@ Each new Localiza address failure must be fixed without regressing previously co
 - [x] Confirm where the golden dataset fixtures will live in-repo.
       Current state: deterministic frozen fixtures live in `packages/api/src/workflow.test.ts` because repo policy forbids new test files.
 - [x] Decide the first `resolverVersion` format and bump policy.
-      Current state: `apps/web/src/server/localiza/version.ts` exports `localiza-bootstrap-2026-04-23.10` and the `stable-bootstrap-date-plus-patch` policy.
+      Current state: `apps/web/src/server/localiza/version.ts` exports `localiza-bootstrap-2026-04-23.20` and the `stable-bootstrap-date-plus-patch` policy.
 - [x] Confirm whether the first rollout is gated by env only or by a user allowlist.
       Current state: Localiza access is currently gated by app-level allowlisting in `apps/web/src/lib/app-access.ts`.
 - [x] Document the exact unsupported and blocked cases to surface during beta.

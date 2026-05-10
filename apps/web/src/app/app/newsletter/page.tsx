@@ -1,6 +1,8 @@
 "use client";
 
+import { api } from "@casedra/api/convex";
 import { Button, cn, Input, Textarea } from "@casedra/ui";
+import { useMutation, useQuery } from "convex/react";
 import {
   BarChart3,
   CheckCircle2,
@@ -19,9 +21,7 @@ import {
   TrendingUp,
   UsersRound,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { api } from "@casedra/api/convex";
-import { useMutation, useQuery } from "convex/react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { capturePosthogEvent } from "@/lib/posthog";
 import type { Id } from "../../../../../../convex/_generated/dataModel";
 
@@ -434,6 +434,9 @@ const getCopyButtonLabel = (status: "idle" | "copied" | "failed") => {
 };
 
 export default function NewsletterPage() {
+  const subjectInputId = useId();
+  const preheaderInputId = useId();
+  const bodyInputId = useId();
   const [selectedCity, setSelectedCity] = useState<CityKey>("madrid");
   const [selectedAudience, setSelectedAudience] =
     useState<AudienceKey>("buyers");
@@ -611,11 +614,10 @@ export default function NewsletterPage() {
 
         <section className="rounded-[28px] border border-border/80 bg-background/95 p-3 shadow-[0_18px_60px_rgba(31,26,20,0.06)]">
           <div className="grid gap-4 lg:grid-cols-[0.85fr_1.15fr_auto] lg:items-center">
-            <div
+            <fieldset
               className="flex flex-wrap gap-2 rounded-full bg-secondary/70 p-1"
-              role="group"
-              aria-label="Ciudad del informe"
             >
+              <legend className="sr-only">Ciudad del informe</legend>
               {cities.map((item) => (
                 <SelectionButton
                   key={item.key}
@@ -625,13 +627,12 @@ export default function NewsletterPage() {
                   {item.label}
                 </SelectionButton>
               ))}
-            </div>
+            </fieldset>
 
-            <div
+            <fieldset
               className="flex flex-wrap gap-2 rounded-full bg-secondary/70 p-1"
-              role="group"
-              aria-label="Audiencia objetivo"
             >
+              <legend className="sr-only">Audiencia objetivo</legend>
               {audiences.map((item) => {
                 const Icon = item.icon;
 
@@ -646,7 +647,7 @@ export default function NewsletterPage() {
                   </SelectionButton>
                 );
               })}
-            </div>
+            </fieldset>
 
             <Button
               type="button"
@@ -903,11 +904,12 @@ export default function NewsletterPage() {
             </div>
 
             <div className="space-y-5 p-6 sm:p-7">
-              <label className="block">
+              <label className="block" htmlFor={subjectInputId}>
                 <span className="text-[11px] font-medium uppercase text-muted-foreground">
                   Asunto
                 </span>
                 <Input
+                  id={subjectInputId}
                   value={subject}
                   onChange={(event) => {
                     setSubject(event.target.value);
@@ -917,11 +919,12 @@ export default function NewsletterPage() {
                 />
               </label>
 
-              <label className="block">
+              <label className="block" htmlFor={preheaderInputId}>
                 <span className="text-[11px] font-medium uppercase text-muted-foreground">
                   Entradilla
                 </span>
                 <Input
+                  id={preheaderInputId}
                   value={preheader}
                   onChange={(event) => {
                     setPreheader(event.target.value);
@@ -931,11 +934,12 @@ export default function NewsletterPage() {
                 />
               </label>
 
-              <label className="block">
+              <label className="block" htmlFor={bodyInputId}>
                 <span className="text-[11px] font-medium uppercase text-muted-foreground">
                   Cuerpo
                 </span>
                 <Textarea
+                  id={bodyInputId}
                   value={emailBody}
                   onChange={(event) => {
                     setEmailBody(event.target.value);

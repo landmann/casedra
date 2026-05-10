@@ -1,6 +1,6 @@
-import type { Doc, Id } from "./_generated/dataModel";
-import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
+import type { Doc, Id } from "./_generated/dataModel";
+import { type MutationCtx, mutation, type QueryCtx, query } from "./_generated/server";
 import { requireCurrentMembership } from "./auth";
 
 const ownerTypeValidator = v.union(v.literal("casedra"), v.literal("agency"));
@@ -107,7 +107,7 @@ const resolveAgencyId = async (
 		raiseNewsletterError("NOT_FOUND", "Agency not found");
 	}
 
-	return agency!._id;
+	return agency._id;
 };
 
 const getSubscriberByAudience = async (
@@ -524,7 +524,7 @@ export const createIssueFromDraft = mutation({
 		if (!draft) {
 			raiseNewsletterError("NOT_FOUND", "Newsletter draft not found");
 		}
-		const draftDoc = draft!;
+		const draftDoc = draft;
 		if (draftDoc.agencyId !== membership.agencyId) {
 			raiseNewsletterError("NOT_FOUND", "Newsletter draft not found");
 		}
@@ -560,7 +560,7 @@ export const queueIssueDeliveries = mutation({
 		if (!issue) {
 			raiseNewsletterError("NOT_FOUND", "Newsletter issue not found");
 		}
-		const issueDoc = issue!;
+		const issueDoc = issue;
 		if (issueDoc.agencyId !== membership.agencyId) {
 			raiseNewsletterError("NOT_FOUND", "Newsletter issue not found");
 		}
@@ -634,58 +634,77 @@ export const queueIssueDeliveries = mutation({
 	},
 });
 
-export const listQueuedDeliveries = query({
+export const claimQueuedDeliveries = mutation({
 	args: {
 		dispatchSecret: v.string(),
-		limit: v.optional(v.number()),
+		claims: v.array(
+			v.object({
+				unsubscribeToken: v.string(),
+				unsubscribeTokenHash: v.string(),
+			}),
+		),
 	},
 	handler: async (ctx, args) => {
 		requireDispatchSecret(args.dispatchSecret);
-		const limit = Math.min(Math.max(args.limit ?? 25, 1), 100);
+		const limit = Math.min(Math.max(args.claims.length, 0), 100);
+		if (limit === 0) {
+			return [];
+		}
+
 		const deliveries = await ctx.db
 			.query("newsletterDeliveries")
 			.withIndex("by_status", (q) => q.eq("status", "queued"))
 			.take(limit);
-
-		return Promise.all(
-			deliveries.map(async (delivery) => {
-				const [issue, subscriber] = await Promise.all([
-					ctx.db.get(delivery.issueId),
-					ctx.db.get(delivery.subscriberId),
-				]);
-				return { delivery, issue, subscriber };
-			}),
-		);
-	},
-});
-
-export const markDeliverySending = mutation({
-	args: {
-		dispatchSecret: v.string(),
-		deliveryId: v.id("newsletterDeliveries"),
-		unsubscribeTokenHash: v.string(),
-	},
-	handler: async (ctx, args) => {
-		requireDispatchSecret(args.dispatchSecret);
-		const delivery = await ctx.db.get(args.deliveryId);
-		if (!delivery) {
-			raiseNewsletterError("NOT_FOUND", "Newsletter delivery not found");
-		}
-		const deliveryDoc = delivery!;
 		const timestamp = now();
-		await Promise.all([
-			ctx.db.patch(deliveryDoc._id, {
-				status: "sending",
-				attemptCount: deliveryDoc.attemptCount + 1,
-				lastAttemptAt: timestamp,
-				updatedAt: timestamp,
-			}),
-			ctx.db.patch(deliveryDoc.subscriberId, {
-				unsubscribeTokenHash: args.unsubscribeTokenHash,
-				updatedAt: timestamp,
-			}),
-		]);
-		return { ok: true };
+		const claimed: Array<{
+			delivery: Doc<"newsletterDeliveries">;
+			issue: Doc<"newsletterIssues">;
+			subscriber: Doc<"newsletterSubscribers">;
+			unsubscribeToken: string;
+		}> = [];
+
+		for (const [index, delivery] of deliveries.entries()) {
+			const claim = args.claims[index];
+			if (!claim) {
+				break;
+			}
+
+			const [issue, subscriber] = await Promise.all([
+				ctx.db.get(delivery.issueId),
+				ctx.db.get(delivery.subscriberId),
+			]);
+			if (!issue || !subscriber) {
+				await ctx.db.patch(delivery._id, {
+					status: "failed",
+					errorMessage: "Newsletter delivery is missing its issue or subscriber.",
+					failedAt: timestamp,
+					updatedAt: timestamp,
+				});
+				continue;
+			}
+
+			await Promise.all([
+				ctx.db.patch(delivery._id, {
+					status: "sending",
+					attemptCount: delivery.attemptCount + 1,
+					lastAttemptAt: timestamp,
+					updatedAt: timestamp,
+				}),
+				ctx.db.patch(delivery.subscriberId, {
+					unsubscribeTokenHash: claim.unsubscribeTokenHash,
+					updatedAt: timestamp,
+				}),
+			]);
+
+			claimed.push({
+				delivery,
+				issue,
+				subscriber,
+				unsubscribeToken: claim.unsubscribeToken,
+			});
+		}
+
+		return claimed;
 	},
 });
 
@@ -701,7 +720,7 @@ export const markDeliverySent = mutation({
 		if (!delivery) {
 			raiseNewsletterError("NOT_FOUND", "Newsletter delivery not found");
 		}
-		const deliveryDoc = delivery!;
+		const deliveryDoc = delivery;
 		const timestamp = now();
 		await ctx.db.patch(deliveryDoc._id, {
 			status: "sent",
@@ -725,7 +744,7 @@ export const markDeliveryFailed = mutation({
 		if (!delivery) {
 			raiseNewsletterError("NOT_FOUND", "Newsletter delivery not found");
 		}
-		const deliveryDoc = delivery!;
+		const deliveryDoc = delivery;
 		const timestamp = now();
 		await ctx.db.patch(deliveryDoc._id, {
 			status: "failed",

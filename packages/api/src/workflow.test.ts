@@ -19,8 +19,8 @@ import {
 } from "../../../apps/web/src/server/localiza/golden-dataset.ts";
 import { fetchMadridPlanningHeritageEvidence } from "../../../apps/web/src/server/localiza/madrid-planning-heritage.ts";
 import {
-	classifyLocalizaCandidateOutcome,
 	buildListingSignalCorpus,
+	classifyLocalizaCandidateOutcome,
 	corpusIncludesDesignator,
 	corpusIncludesPhrase,
 	normalizeLocalizaText,
@@ -624,7 +624,7 @@ test("canCompleteLocationResolutionLease rejects stale resolver completions", ()
 });
 
 test("Localiza golden fixture registry covers all supported cadastral territories", () => {
-	assert.equal(LOCALIZA_RESOLVER_VERSION, "localiza-bootstrap-2026-04-23.11");
+	assert.equal(LOCALIZA_RESOLVER_VERSION, "localiza-bootstrap-2026-04-23.20");
 	assert.equal(
 		LOCALIZA_RESOLVER_VERSION_POLICY,
 		"stable-bootstrap-date-plus-patch",

@@ -1,5 +1,5 @@
 import { api } from "@casedra/api";
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
 import { env } from "@/env";
 import { hashValue } from "@/server/buyers/forms";
@@ -9,6 +9,16 @@ import { createUnsubscribeToken, sendNewsletterEmail } from "@/server/newsletter
 const getDispatchSecret = (request: NextRequest) =>
 	request.headers.get("x-casedra-newsletter-secret") ??
 	request.nextUrl.searchParams.get("secret");
+
+const buildDeliveryClaim = () => {
+	const unsubscribeToken = createUnsubscribeToken();
+	const unsubscribeTokenHash = hashValue(unsubscribeToken);
+	if (!unsubscribeTokenHash) {
+		throw new Error("No se pudo preparar el token de baja.");
+	}
+
+	return { unsubscribeToken, unsubscribeTokenHash };
+};
 
 export async function POST(request: NextRequest) {
 	if (!env.NEWSLETTER_DISPATCH_SECRET) {
@@ -22,36 +32,21 @@ export async function POST(request: NextRequest) {
 	}
 
 	const convex = createConvexClient();
-	const queued = await convex.query(api.newsletter.listQueuedDeliveries, {
+	const claimed = await convex.mutation(api.newsletter.claimQueuedDeliveries, {
 		dispatchSecret: env.NEWSLETTER_DISPATCH_SECRET,
-		limit: 25,
+		claims: Array.from({ length: 25 }, buildDeliveryClaim),
 	});
 	const results: Array<{ deliveryId: string; status: "sent" | "failed"; error?: string }> =
 		[];
 
-	for (const item of queued) {
-		if (!item.issue || !item.subscriber) {
-			continue;
-		}
-		const unsubscribeToken = createUnsubscribeToken();
-		const unsubscribeTokenHash = hashValue(unsubscribeToken);
-		if (!unsubscribeTokenHash) {
-			continue;
-		}
-
-		await convex.mutation(api.newsletter.markDeliverySending, {
-			dispatchSecret: env.NEWSLETTER_DISPATCH_SECRET,
-			deliveryId: item.delivery._id,
-			unsubscribeTokenHash,
-		});
-
+	for (const item of claimed) {
 		try {
 			const sendResult = await sendNewsletterEmail({
 				to: item.delivery.email,
 				subject: item.issue.subject,
 				preheader: item.issue.preheader,
 				body: item.issue.body,
-				unsubscribeToken,
+				unsubscribeToken: item.unsubscribeToken,
 			});
 			if (!sendResult.messageId) {
 				throw new Error("SES no devolvió identificador de mensaje.");

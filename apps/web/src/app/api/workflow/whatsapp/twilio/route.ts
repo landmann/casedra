@@ -1,5 +1,5 @@
 import { api } from "@casedra/api";
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
 import { createConvexClient } from "@/server/convexClient";
 import {
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
 		);
 	}
 
-	let normalizedEvent;
+	let normalizedEvent: ReturnType<typeof normalizeTwilioWhatsAppInboundMessage>;
 	try {
 		normalizedEvent = normalizeTwilioWhatsAppInboundMessage(fields);
 	} catch (error) {

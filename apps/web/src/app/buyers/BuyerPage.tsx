@@ -16,10 +16,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
-
+import { capturePosthogEvent } from "@/lib/posthog";
 import type { BuyerPageContent } from "./buyer-content";
 import { intentClusters } from "./buyer-content";
-import { capturePosthogEvent } from "@/lib/posthog";
 
 type SubmitStatus = "idle" | "loading" | "success" | "error";
 
@@ -139,6 +138,18 @@ const contactOptions = [
 	["none", "noneChoice"],
 ] as const;
 
+const submitJson = async (url: string, payload: unknown) => {
+	const response = await fetch(url, {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify(payload),
+	});
+
+	if (!response.ok) {
+		throw new Error("buyer_form_request_failed");
+	}
+};
+
 export function BuyerPage({ page }: { page: BuyerPageContent }) {
 	const language = "es";
 	const [utmPayload, setUtmPayload] = useState(getUtmPayload);
@@ -171,7 +182,7 @@ export function BuyerPage({ page }: { page: BuyerPageContent }) {
 			consentAccepted: true,
 			privacyAccepted: true,
 		}),
-		[language, page.key, page.signal, utmPayload],
+		[page.key, page.signal, utmPayload],
 	);
 
 	const handleSignup = async (event: FormEvent<HTMLFormElement>) => {
@@ -185,13 +196,9 @@ export function BuyerPage({ page }: { page: BuyerPageContent }) {
 			contactPreference: "email",
 			honeypot: String(form.get("company") ?? ""),
 		};
-		const response = await fetch("/api/buyers/subscribe", {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify(payload),
-		});
 
-		if (response.ok) {
+		try {
+			await submitJson("/api/buyers/subscribe", payload);
 			setSignupStatus("success");
 			capturePosthogEvent("buyer_brief_signup", {
 				path: page.path,
@@ -201,8 +208,9 @@ export function BuyerPage({ page }: { page: BuyerPageContent }) {
 			});
 			event.currentTarget.reset();
 			return;
+		} catch {
+			setSignupStatus("error");
 		}
-		setSignupStatus("error");
 	};
 
 	const handleQuestion = async (event: FormEvent<HTMLFormElement>) => {
@@ -222,13 +230,9 @@ export function BuyerPage({ page }: { page: BuyerPageContent }) {
 			subscribeToBrief,
 			honeypot: String(form.get("company") ?? ""),
 		};
-		const response = await fetch("/api/buyers/question", {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify(payload),
-		});
 
-		if (response.ok) {
+		try {
+			await submitJson("/api/buyers/question", payload);
 			setQuestionStatus("success");
 			capturePosthogEvent("buyer_property_question", {
 				path: page.path,
@@ -240,8 +244,9 @@ export function BuyerPage({ page }: { page: BuyerPageContent }) {
 			});
 			event.currentTarget.reset();
 			return;
+		} catch {
+			setQuestionStatus("error");
 		}
-		setQuestionStatus("error");
 	};
 
 	return (

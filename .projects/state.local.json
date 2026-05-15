@@ -9,12 +9,12 @@
   },
   "providers": {
     "clerk": {
-      "accountRequestId": "facctrq_61UWY5Ndp1iA43MZo16UWII2PVFIRKdrcCTDbnJA0S7E",
-      "linkedAt": "2026-04-17T11:00:07.363Z",
+      "accountRequestId": "facctrq_61UgRkaB6sdRksumb16UWII2PVFIRKdrcCTDbnJA0JHE",
+      "linkedAt": "2026-05-14T18:15:34.694Z",
       "providerId": "prvdr_61UGOeSW4e0T9Etwn537w",
       "providerName": "Clerk",
       "redirectUrl": null,
-      "requestedAt": "2026-04-17T11:00:07.362Z",
+      "requestedAt": "2026-05-14T18:15:34.693Z",
       "status": "complete"
     },
     "firecrawl": {
@@ -49,15 +49,15 @@
       "serviceId": "auth"
     },
     "clerk-plan": {
+      "configuration": {},
+      "createdAt": "2026-04-17T11:00:10.422Z",
+      "lastRevealedAt": null,
+      "lastStatus": "complete",
       "name": "clerk-plan",
       "providerId": "prvdr_61UGOeSW4e0T9Etwn537w",
       "providerName": "Clerk",
-      "serviceId": "hobby",
       "resourceId": "fres_61UWY5S5N33k8IfFa16UWII2PVFIRKdrcCTDbnJA0NOq",
-      "createdAt": "2026-04-17T11:00:10.422Z",
-      "lastStatus": "complete",
-      "lastRevealedAt": null,
-      "configuration": {}
+      "serviceId": "hobby"
     },
     "firecrawl-api": {
       "configuration": {},

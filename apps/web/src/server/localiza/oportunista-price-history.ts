@@ -5,8 +5,7 @@ import { LocalizaServiceError } from "./errors";
 const OPORTUNISTA_RAPIDAPI_DEFAULT_HOST = "idealista-historico.p.rapidapi.com";
 const OPORTUNISTA_PRICE_HISTORY_TIMEOUT_MS = 6_000;
 
-export const OPORTUNISTA_PRICE_HISTORY_REFRESH_MS =
-	6 * 24 * 60 * 60 * 1000;
+export const OPORTUNISTA_PRICE_HISTORY_REFRESH_MS = 6 * 24 * 60 * 60 * 1000;
 export const OPORTUNISTA_PRICE_HISTORY_PROVENANCE_URL = "https://rapidapi.com/";
 export const OPORTUNISTA_PRICE_HISTORY_PROVENANCE_LABEL =
 	"Oportunista / Idealista histórico";
@@ -152,7 +151,9 @@ const pickFirstString = (
 const parseIsoDate = (value: unknown) => {
 	const text = safeString(value);
 	const timestamp = Date.parse(text ?? "");
-	return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : undefined;
+	return Number.isFinite(timestamp)
+		? new Date(timestamp).toISOString()
+		: undefined;
 };
 
 const getInclusiveDays = (start?: string, end?: string) => {
@@ -173,6 +174,50 @@ const getRecord = (value: unknown): Record<string, unknown> | undefined =>
 	value && typeof value === "object"
 		? (value as Record<string, unknown>)
 		: undefined;
+
+const extractListingId = (value: unknown) => {
+	if (typeof value === "number" && Number.isFinite(value)) {
+		return String(Math.trunc(value));
+	}
+
+	return safeString(value)?.match(/\d{5,}/)?.[0];
+};
+
+const extractListingIdFromUrl = (value: unknown) => {
+	const sourceUrl = safeString(value);
+
+	if (!sourceUrl) {
+		return undefined;
+	}
+
+	try {
+		return new URL(sourceUrl).pathname.match(/\/inmueble\/(\d+)/i)?.[1];
+	} catch {
+		return sourceUrl.match(/idealista\.com\/inmueble\/(\d+)/i)?.[1];
+	}
+};
+
+const responseMatchesRequestedListing = (
+	data: Record<string, unknown>,
+	listingId: string,
+) => {
+	const responseListingId =
+		extractListingId(data.propertyCode) ??
+		extractListingId(data.property_code) ??
+		extractListingId(data.listingId) ??
+		extractListingId(data.id);
+	const responseUrlListingId = extractListingIdFromUrl(data.url);
+
+	if (responseListingId && responseListingId !== listingId) {
+		return false;
+	}
+
+	if (responseUrlListingId && responseUrlListingId !== listingId) {
+		return false;
+	}
+
+	return true;
+};
 
 const extractResponseData = (payload: unknown) => {
 	const record = getRecord(payload);
@@ -365,6 +410,10 @@ export const fetchOportunistaMarketIntel = async (input: {
 		const data = extractResponseData(payload);
 
 		if (!data) {
+			return { observations: [] };
+		}
+
+		if (!responseMatchesRequestedListing(data, input.listingId)) {
 			return { observations: [] };
 		}
 

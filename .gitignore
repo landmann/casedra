@@ -13,10 +13,6 @@ ios
 
 .vercel
 
-.projects/cache
-.projects/vault
-.env
-.env.local
 .env*.local
 
 data/captacion/raw/**
@@ -24,3 +20,8 @@ data/captacion/raw/**
 !data/captacion/raw/**/.gitkeep
 data/captacion/indexes/
 data/captacion/catastro-residential-units.jsonl
+
+.projects/cache
+.projects/vault
+.env
+.env.local

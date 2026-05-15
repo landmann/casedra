@@ -2,6 +2,7 @@ import type {
 	LocalizaAcquisitionStrategy,
 	LocalizaAddressFeedbackInput,
 	LocalizaAddressFeedbackResult,
+	ResolveIdealistaLocationResult,
 } from "@casedra/types";
 import type { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
@@ -15,18 +16,39 @@ const submitUserFeedbackRef = makeFunctionReference<
 	LocalizaAddressFeedbackResult
 >("localizaGoldenLiveFixtures:submitUserFeedback");
 
+const recordUserPropertyHistoryRef = makeFunctionReference<
+	"mutation",
+	{
+		result: ResolveIdealistaLocationResult;
+		propertyHistoryKey?: string;
+		now?: number;
+	},
+	{ id: string; created: boolean }
+>("locationResolutions:recordUserPropertyHistory");
+
 export const createLocalizaService = (deps: { convex: ConvexHttpClient }) => ({
 	async resolveIdealistaLocation(input: {
 		url: string;
 		strategy: LocalizaAcquisitionStrategy;
 		userId?: string;
 	}) {
-		return await resolveIdealistaLocation({
+		const result = await resolveIdealistaLocation({
 			convex: deps.convex,
 			url: input.url,
 			strategy: input.strategy,
 			userId: input.userId,
 		});
+
+		try {
+			await deps.convex.mutation(recordUserPropertyHistoryRef, {
+				result,
+				now: Date.now(),
+			});
+		} catch (error) {
+			console.warn("Localiza table history write failed", error);
+		}
+
+		return result;
 	},
 	async getReadinessSnapshot(input?: { now?: number; sinceMs?: number }) {
 		return await getLocalizaReadinessSnapshot({

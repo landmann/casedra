@@ -364,6 +364,49 @@ const localizaMarketObservations = defineTable({
 	.index("by_observation_key", ["observationKey"])
 	.index("by_property_history_key", ["propertyHistoryKey"]);
 
+const localizaUserPropertyHistory = defineTable({
+	userId: v.string(),
+	sourceUrl: v.string(),
+	sourceUrlKey: v.string(),
+	externalListingId: v.string(),
+	resultStatus: v.union(
+		v.literal("exact_match"),
+		v.literal("building_match"),
+		v.literal("needs_confirmation"),
+		v.literal("unresolved"),
+	),
+	requestedStrategy: requestedStrategyValidator,
+	resolverVersion: v.string(),
+	resolvedAt: v.string(),
+	resolvedAddressLabel: v.optional(v.string()),
+	officialSource: v.string(),
+	officialSourceUrl: v.optional(v.string()),
+	territoryAdapter: v.optional(territoryAdapterValidator),
+	confidenceScore: v.number(),
+	parcelRef14: v.optional(v.string()),
+	unitRef20: v.optional(v.string()),
+	propertyHistoryKey: v.optional(v.string()),
+	title: v.optional(v.string()),
+	thumbnailUrl: v.optional(v.string()),
+	askingPrice: v.optional(v.number()),
+	currencyCode: v.optional(v.literal("EUR")),
+	areaM2: v.optional(v.number()),
+	bedrooms: v.optional(v.number()),
+	bathrooms: v.optional(v.number()),
+	floorText: v.optional(v.string()),
+	isExterior: v.optional(v.boolean()),
+	hasElevator: v.optional(v.boolean()),
+	officialAddress: v.optional(v.string()),
+	municipality: v.optional(v.string()),
+	province: v.optional(v.string()),
+	postalCode: v.optional(v.string()),
+	createdAt: v.number(),
+	updatedAt: v.number(),
+	hiddenAt: v.optional(v.number()),
+})
+	.index("by_user_updated", ["userId", "updatedAt"])
+	.index("by_user_source_key", ["userId", "sourceUrlKey"]);
+
 const localizaLiveFixtureValidationStatus = v.union(
 	v.literal("pending_official_validation"),
 	v.literal("officially_validated"),
@@ -486,6 +529,30 @@ const localizaIncidents = defineTable({
 	.index("by_status_and_kind", ["status", "kind"])
 	.index("by_source_url", ["sourceUrl"])
 	.index("by_created_at", ["createdAt"]);
+
+const copySuggestionStatusValidator = v.union(
+	v.literal("open"),
+	v.literal("applied"),
+	v.literal("dismissed"),
+);
+
+const copySuggestions = defineTable({
+	selectedText: v.string(),
+	suggestedText: v.string(),
+	note: v.optional(v.string()),
+	pagePath: v.string(),
+	pageUrl: v.string(),
+	pageTitle: v.optional(v.string()),
+	contextBefore: v.optional(v.string()),
+	contextAfter: v.optional(v.string()),
+	submittedByUserId: v.string(),
+	submittedByEmail: v.optional(v.string()),
+	status: copySuggestionStatusValidator,
+	createdAt: v.number(),
+	updatedAt: v.number(),
+})
+	.index("by_created_at", ["createdAt"])
+	.index("by_status_created_at", ["status", "createdAt"]);
 
 const listingCreateRequests = defineTable({
 	agentId: v.string(),
@@ -909,6 +976,7 @@ export default defineSchema({
 	channels,
 	contacts,
 	conversations,
+	copySuggestions,
 	handoffEvents,
 	listings,
 	listingCreateRequests,
@@ -916,6 +984,7 @@ export default defineSchema({
 	localizaAddressFeedback,
 	localizaIncidents,
 	localizaMarketObservations,
+	localizaUserPropertyHistory,
 	locationResolutions,
 	leads,
 	mediaJobs,

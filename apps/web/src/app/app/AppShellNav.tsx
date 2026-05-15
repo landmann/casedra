@@ -1,12 +1,19 @@
 "use client";
 
 import { cn } from "@casedra/ui";
-import { UserButton } from "@clerk/nextjs";
-import { MapPinned, MessageSquareText, Newspaper } from "lucide-react";
+import { UserButton, useUser } from "@clerk/nextjs";
+import {
+	FilePenLine,
+	MapPinned,
+	MessageSquareText,
+	Newspaper,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const navItems = [
+import { canUseCopyReview } from "@/lib/copy-review";
+
+const primaryNavItems = [
 	{
 		href: "/app/inbox",
 		label: "Bandeja",
@@ -24,8 +31,18 @@ const navItems = [
 	},
 ] as const;
 
+const copyReviewNavItem = {
+	href: "/app/copy-review",
+	label: "Textos",
+	icon: FilePenLine,
+} as const;
+
 export function AppShellNav() {
 	const pathname = usePathname();
+	const { user } = useUser();
+	const navItems = canUseCopyReview(user?.primaryEmailAddress?.emailAddress)
+		? [...primaryNavItems, copyReviewNavItem]
+		: primaryNavItems;
 
 	return (
 		<header className="sticky top-0 z-30 border-b border-border/80 bg-background/92 backdrop-blur">

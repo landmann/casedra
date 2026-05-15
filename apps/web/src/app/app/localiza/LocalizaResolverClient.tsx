@@ -5,6 +5,7 @@ import type {
 	CaptacionRankedBuilding,
 	CaptacionRankingResult,
 	ListingLocation,
+	LocalizaTableHistoryRow,
 	ResolveIdealistaLocationResult,
 } from "@casedra/types";
 import {
@@ -19,6 +20,7 @@ import {
 } from "@casedra/ui";
 import {
 	AlertCircle,
+	ArrowUpDown,
 	ArrowRight,
 	Building2,
 	CheckCircle2,
@@ -27,9 +29,11 @@ import {
 	History,
 	LoaderCircle,
 	MapPin,
+	Rows3,
 	Search,
 	Target,
 	Trash2,
+	Upload,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
@@ -59,8 +63,18 @@ type LocalizaSearchHistoryEntry = {
 };
 
 type LocalizaCandidate = ResolveIdealistaLocationResult["candidates"][number];
-type LocalizaWorkspaceTab = "resolver" | "prospecting";
+type LocalizaWorkspaceTab = "resolver" | "table" | "prospecting";
 type LocalizaAddressFeedbackVerdict = "correct" | "incorrect";
+type LocalizaTableSortKey =
+	| "updatedAt"
+	| "askingPrice"
+	| "areaM2"
+	| "pricePerM2"
+	| "bedrooms"
+	| "bathrooms"
+	| "confidenceScore"
+	| "resultStatus";
+type LocalizaTableSortDirection = "asc" | "desc";
 
 const LOCALIZA_SEARCH_HISTORY_STORAGE_KEY = "casedra.localiza.searchHistory.v1";
 const MAX_LOCALIZA_SEARCH_HISTORY_ITEMS = 10;
@@ -88,6 +102,26 @@ const resultCopy: Record<
 		description:
 			"No hay suficiente señal oficial para rellenar la dirección con seguridad.",
 	},
+};
+
+const tableStatusLabel: Record<
+	ResolveIdealistaLocationResult["status"],
+	string
+> = {
+	exact_match: "Exacta",
+	building_match: "Edificio",
+	needs_confirmation: "Confirmar",
+	unresolved: "Sin resolver",
+};
+
+const tableStatusRank: Record<
+	ResolveIdealistaLocationResult["status"],
+	number
+> = {
+	exact_match: 4,
+	building_match: 3,
+	needs_confirmation: 2,
+	unresolved: 1,
 };
 
 const temporaryReadFailureReasonCodes = new Set([
@@ -500,6 +534,186 @@ const csvEscape = (value: unknown) => {
 	return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 };
 
+const formatInteger = (value?: number) =>
+	value === undefined
+		? "No disponible"
+		: new Intl.NumberFormat("es-ES", {
+				maximumFractionDigits: 0,
+			}).format(value);
+
+const formatEuro = (value?: number) =>
+	value === undefined
+		? "No disponible"
+		: new Intl.NumberFormat("es-ES", {
+				currency: "EUR",
+				maximumFractionDigits: 0,
+				style: "currency",
+			}).format(value);
+
+const formatArea = (value?: number) =>
+	value === undefined ? "No disponible" : `${formatInteger(value)} m²`;
+
+const getPricePerM2 = (row: LocalizaTableHistoryRow) =>
+	row.askingPrice !== undefined && row.areaM2 && row.areaM2 > 0
+		? Math.round(row.askingPrice / row.areaM2)
+		: undefined;
+
+const formatPricePerM2 = (row: LocalizaTableHistoryRow) =>
+	getPricePerM2(row) === undefined
+		? "No disponible"
+		: `${formatEuro(getPricePerM2(row))}/m²`;
+
+const formatOptionalDateTime = (value: number | string | undefined) => {
+	const timestamp =
+		typeof value === "number" ? value : value ? Date.parse(value) : Number.NaN;
+
+	if (!Number.isFinite(timestamp)) {
+		return "No disponible";
+	}
+
+	return new Intl.DateTimeFormat("es-ES", {
+		day: "2-digit",
+		hour: "2-digit",
+		minute: "2-digit",
+		month: "short",
+	}).format(new Date(timestamp));
+};
+
+const formatBoolean = (value?: boolean) =>
+	value === undefined ? "No disponible" : value ? "Sí" : "No";
+
+const compareText = (left?: string, right?: string) =>
+	(left ?? "").localeCompare(right ?? "", "es", { sensitivity: "base" });
+
+const compareNumbers = (left?: number, right?: number) => {
+	const leftValue = left ?? Number.NEGATIVE_INFINITY;
+	const rightValue = right ?? Number.NEGATIVE_INFINITY;
+
+	return leftValue - rightValue;
+};
+
+const compareTableRows = (
+	left: LocalizaTableHistoryRow,
+	right: LocalizaTableHistoryRow,
+	sortKey: LocalizaTableSortKey,
+) => {
+	switch (sortKey) {
+		case "askingPrice":
+			return compareNumbers(left.askingPrice, right.askingPrice);
+		case "areaM2":
+			return compareNumbers(left.areaM2, right.areaM2);
+		case "pricePerM2":
+			return compareNumbers(getPricePerM2(left), getPricePerM2(right));
+		case "bedrooms":
+			return compareNumbers(left.bedrooms, right.bedrooms);
+		case "bathrooms":
+			return compareNumbers(left.bathrooms, right.bathrooms);
+		case "confidenceScore":
+			return compareNumbers(left.confidenceScore, right.confidenceScore);
+		case "resultStatus":
+			return tableStatusRank[left.resultStatus] - tableStatusRank[right.resultStatus];
+		case "updatedAt":
+			return compareNumbers(left.updatedAt, right.updatedAt);
+		default:
+			return compareText(left.officialAddress, right.officialAddress);
+	}
+};
+
+const buildLocalizaTableCsv = (rows: LocalizaTableHistoryRow[]) => {
+	const headers = [
+		"direccion",
+		"titulo",
+		"precio_eur",
+		"superficie_m2",
+		"precio_por_m2",
+		"dormitorios",
+		"banos",
+		"planta",
+		"exterior",
+		"ascensor",
+		"estado_localiza",
+		"confianza",
+		"referencia_parcela",
+		"referencia_unidad",
+		"municipio",
+		"provincia",
+		"fuente_oficial",
+		"url_oficial",
+		"url_anuncio",
+		"actualizado",
+	];
+	const body = rows.map((row) =>
+		[
+			row.officialAddress ?? row.resolvedAddressLabel,
+			row.title,
+			row.askingPrice,
+			row.areaM2,
+			getPricePerM2(row),
+			row.bedrooms,
+			row.bathrooms,
+			row.floorText,
+			formatBoolean(row.isExterior),
+			formatBoolean(row.hasElevator),
+			tableStatusLabel[row.resultStatus],
+			row.confidenceScore,
+			row.parcelRef14,
+			row.unitRef20,
+			row.municipality,
+			row.province,
+			row.officialSource,
+			row.officialSourceUrl,
+			row.sourceUrl,
+			new Date(row.updatedAt).toISOString(),
+		]
+			.map(csvEscape)
+			.join(","),
+	);
+
+	return [headers.join(","), ...body].join("\n");
+};
+
+const downloadCsv = (csv: string, filename: string) => {
+	const blob = new Blob([csv], {
+		type: "text/csv;charset=utf-8",
+	});
+	const url = URL.createObjectURL(blob);
+	const anchor = document.createElement("a");
+
+	anchor.href = url;
+	anchor.download = filename;
+	document.body.appendChild(anchor);
+	anchor.click();
+	anchor.remove();
+	URL.revokeObjectURL(url);
+};
+
+const downloadLocalizaTableCsv = (rows: LocalizaTableHistoryRow[]) => {
+	downloadCsv(
+		buildLocalizaTableCsv(rows),
+		`localiza-tabla-${new Date().toISOString().slice(0, 10)}.csv`,
+	);
+};
+
+const extractImportUrls = (value: string) => {
+	const matches = value.match(/https?:\/\/[^\s,;]+/gi) ?? [];
+	const urls: string[] = [];
+	const seenKeys = new Set<string>();
+
+	for (const match of matches) {
+		const sourceUrl = match.replace(/[)\].,;]+$/g, "");
+		const key = getHistoryUrlKey(sourceUrl);
+
+		if (!key || seenKeys.has(key)) {
+			continue;
+		}
+
+		seenKeys.add(key);
+		urls.push(sourceUrl);
+	}
+
+	return urls.slice(0, 50);
+};
+
 const buildCaptacionCsv = (rows: CaptacionRankedBuilding[]) => {
 	const headers = [
 		"rank",
@@ -548,18 +762,10 @@ const buildCaptacionCsv = (rows: CaptacionRankedBuilding[]) => {
 };
 
 const downloadCaptacionCsv = (rows: CaptacionRankedBuilding[]) => {
-	const blob = new Blob([buildCaptacionCsv(rows)], {
-		type: "text/csv;charset=utf-8",
-	});
-	const url = URL.createObjectURL(blob);
-	const anchor = document.createElement("a");
-
-	anchor.href = url;
-	anchor.download = `captacion-catastro-${new Date().toISOString().slice(0, 10)}.csv`;
-	document.body.appendChild(anchor);
-	anchor.click();
-	anchor.remove();
-	URL.revokeObjectURL(url);
+	downloadCsv(
+		buildCaptacionCsv(rows),
+		`captacion-catastro-${new Date().toISOString().slice(0, 10)}.csv`,
+	);
 };
 
 const formatCaptacionArea = (value?: number) =>
@@ -574,6 +780,421 @@ const formatCaptacionPercent = (value: number) =>
 		maximumFractionDigits: 0,
 		style: "percent",
 	}).format(value);
+
+type LocalizaTableWorkspaceProps = {
+	rows: LocalizaTableHistoryRow[];
+	isLoading: boolean;
+	isRefreshing: boolean;
+	errorMessage?: string;
+	importText: string;
+	importError: string | null;
+	importProgress: { completed: number; total: number } | null;
+	isImporting: boolean;
+	removingRowId: string | null;
+	sortKey: LocalizaTableSortKey;
+	sortDirection: LocalizaTableSortDirection;
+	hasConfiguredStrategy: boolean;
+	onImportTextChange: (value: string) => void;
+	onImport: () => void;
+	onExport: () => void;
+	onRemoveRow: (row: LocalizaTableHistoryRow) => void;
+	onSort: (key: LocalizaTableSortKey) => void;
+};
+
+function LocalizaTableSortButton({
+	active,
+	direction,
+	label,
+	onClick,
+}: {
+	active: boolean;
+	direction: LocalizaTableSortDirection;
+	label: string;
+	onClick: () => void;
+}) {
+	return (
+		<button
+			type="button"
+			className={`inline-flex items-center gap-1.5 text-left font-semibold transition-colors ${
+				active ? "text-[#9C6137]" : "text-[#6F5E4A] hover:text-[#1F1A14]"
+			}`}
+			onClick={onClick}
+		>
+			{label}
+			<ArrowUpDown
+				className={`h-3.5 w-3.5 transition-transform ${
+					active && direction === "asc" ? "rotate-180" : ""
+				}`}
+				aria-hidden="true"
+			/>
+		</button>
+	);
+}
+
+function LocalizaTableWorkspace({
+	rows,
+	isLoading,
+	isRefreshing,
+	errorMessage,
+	importText,
+	importError,
+	importProgress,
+	isImporting,
+	removingRowId,
+	sortKey,
+	sortDirection,
+	hasConfiguredStrategy,
+	onImportTextChange,
+	onImport,
+	onExport,
+	onRemoveRow,
+	onSort,
+}: LocalizaTableWorkspaceProps) {
+	const importFieldId = useId();
+	const hasRows = rows.length > 0;
+
+	return (
+		<Card className="border-border/80 bg-background">
+			<CardHeader className="gap-4 sm:flex-row sm:items-start sm:justify-between">
+				<div>
+					<CardTitle className="flex items-center gap-2 text-lg">
+						<Rows3 className="h-5 w-5 text-primary" aria-hidden="true" />
+						Tabla de inmuebles
+					</CardTitle>
+					<CardDescription>
+						Historial propio e importaciones por enlace.
+					</CardDescription>
+				</div>
+				<Button
+					type="button"
+					variant="outline"
+					className="min-h-11 transition-[background-color,border-color,color,transform] active:scale-[0.96]"
+					disabled={!hasRows}
+					onClick={onExport}
+				>
+					<Download className="mr-2 h-4 w-4" aria-hidden="true" />
+					Exportar CSV
+				</Button>
+			</CardHeader>
+			<CardContent className="space-y-5">
+				<form
+					className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]"
+					onSubmit={(event) => {
+						event.preventDefault();
+						onImport();
+					}}
+				>
+					<label className="sr-only" htmlFor={importFieldId}>
+						Enlaces para importar a la tabla
+					</label>
+					<Textarea
+						id={importFieldId}
+						value={importText}
+						onChange={(event) => onImportTextChange(event.target.value)}
+						placeholder="Pega enlaces de Idealista, uno por línea."
+						className="min-h-24 resize-y"
+					/>
+					<Button
+						type="submit"
+						className="min-h-11 transition-[background-color,color,transform] active:scale-[0.96] lg:self-start"
+						disabled={
+							isImporting || !importText.trim() || !hasConfiguredStrategy
+						}
+					>
+						{isImporting ? (
+							<LoaderCircle
+								className="mr-2 h-4 w-4 animate-spin"
+								aria-hidden="true"
+							/>
+						) : (
+							<Upload className="mr-2 h-4 w-4" aria-hidden="true" />
+						)}
+						Importar
+					</Button>
+				</form>
+
+				<div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
+					<span>{rows.length} inmuebles visibles</span>
+					{isRefreshing ? <span>Actualizando...</span> : null}
+					{importProgress ? (
+						<span>
+							{importProgress.completed}/{importProgress.total} enlaces leídos
+						</span>
+					) : null}
+				</div>
+
+				{!hasConfiguredStrategy ? (
+					<p className="rounded-md border border-border/70 p-3 text-sm text-muted-foreground">
+						Localiza no está disponible ahora.
+					</p>
+				) : null}
+
+				{importError ? (
+					<div className="flex items-start gap-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+						<AlertCircle className="mt-0.5 h-4 w-4" aria-hidden="true" />
+						<p>{importError}</p>
+					</div>
+				) : null}
+
+				{errorMessage ? (
+					<div className="flex items-start gap-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+						<AlertCircle className="mt-0.5 h-4 w-4" aria-hidden="true" />
+						<p>{errorMessage}</p>
+					</div>
+				) : null}
+
+				{isLoading ? (
+					<div className="animate-pulse rounded-[1rem] bg-[#FFF8EA] p-5 shadow-[inset_0_0_0_1px_rgba(232,223,204,0.95)]">
+						<div className="h-4 w-40 rounded-full bg-[#E8DFCC]" />
+						<div className="mt-4 h-3 w-full rounded-full bg-[#E8DFCC]/75" />
+						<div className="mt-2 h-3 w-5/6 rounded-full bg-[#E8DFCC]/65" />
+					</div>
+				) : hasRows ? (
+					<div className="overflow-hidden rounded-[1rem] shadow-[inset_0_0_0_1px_rgba(232,223,204,0.95)]">
+						<div className="max-h-[38rem] overflow-auto">
+							<table className="w-full min-w-[86rem] border-collapse text-left text-sm">
+								<thead className="sticky top-0 z-10 bg-[#FFF8EA] text-[11px] uppercase tracking-[0.14em]">
+									<tr>
+										<th className="w-12 px-3 py-3">
+											<span className="sr-only">Acciones</span>
+										</th>
+										<th className="px-4 py-3 font-semibold text-[#6F5E4A]">
+											Inmueble
+										</th>
+										<th className="px-4 py-3">
+											<LocalizaTableSortButton
+												active={sortKey === "askingPrice"}
+												direction={sortDirection}
+												label="Precio"
+												onClick={() => onSort("askingPrice")}
+											/>
+										</th>
+										<th className="px-4 py-3">
+											<LocalizaTableSortButton
+												active={sortKey === "areaM2"}
+												direction={sortDirection}
+												label="m²"
+												onClick={() => onSort("areaM2")}
+											/>
+										</th>
+										<th className="px-4 py-3">
+											<LocalizaTableSortButton
+												active={sortKey === "pricePerM2"}
+												direction={sortDirection}
+												label="€/m²"
+												onClick={() => onSort("pricePerM2")}
+											/>
+										</th>
+										<th className="px-4 py-3">
+											<LocalizaTableSortButton
+												active={sortKey === "bedrooms"}
+												direction={sortDirection}
+												label="Dorm."
+												onClick={() => onSort("bedrooms")}
+											/>
+										</th>
+										<th className="px-4 py-3">
+											<LocalizaTableSortButton
+												active={sortKey === "bathrooms"}
+												direction={sortDirection}
+												label="Baños"
+												onClick={() => onSort("bathrooms")}
+											/>
+										</th>
+										<th className="px-4 py-3 font-semibold text-[#6F5E4A]">
+											Planta
+										</th>
+										<th className="px-4 py-3 font-semibold text-[#6F5E4A]">
+											Ext.
+										</th>
+										<th className="px-4 py-3 font-semibold text-[#6F5E4A]">
+											Asc.
+										</th>
+										<th className="px-4 py-3">
+											<LocalizaTableSortButton
+												active={sortKey === "resultStatus"}
+												direction={sortDirection}
+												label="Estado"
+												onClick={() => onSort("resultStatus")}
+											/>
+										</th>
+										<th className="px-4 py-3">
+											<LocalizaTableSortButton
+												active={sortKey === "confidenceScore"}
+												direction={sortDirection}
+												label="Conf."
+												onClick={() => onSort("confidenceScore")}
+											/>
+										</th>
+										<th className="px-4 py-3 font-semibold text-[#6F5E4A]">
+											Referencia
+										</th>
+										<th className="px-4 py-3 font-semibold text-[#6F5E4A]">
+											Fuente
+										</th>
+										<th className="px-4 py-3">
+											<LocalizaTableSortButton
+												active={sortKey === "updatedAt"}
+												direction={sortDirection}
+												label="Actualizado"
+												onClick={() => onSort("updatedAt")}
+											/>
+										</th>
+									</tr>
+								</thead>
+								<tbody>
+									{rows.map((row) => {
+										const address =
+											row.officialAddress ??
+											row.resolvedAddressLabel ??
+											"Dirección no disponible";
+										const sourceHost =
+											formatSourceHost(row.sourceUrl) ?? "idealista.com";
+										const reference =
+											row.unitRef20 ?? row.parcelRef14 ?? row.externalListingId;
+
+										return (
+											<tr
+												key={row.id}
+												className="border-t border-border/70 bg-background"
+											>
+												<td className="px-3 py-3 align-top">
+													<button
+														type="button"
+														aria-label={`Eliminar ${address} de la tabla`}
+														className="flex h-9 w-9 items-center justify-center rounded-[0.7rem] text-[#9C6137] transition-[background-color,color,transform] hover:bg-[#FFF8EA] hover:text-[#7A4524] active:scale-[0.92] disabled:pointer-events-none disabled:opacity-50"
+														disabled={removingRowId === row.id}
+														onClick={() => onRemoveRow(row)}
+													>
+														{removingRowId === row.id ? (
+															<LoaderCircle
+																className="h-4 w-4 animate-spin"
+																aria-hidden="true"
+															/>
+														) : (
+															<Trash2
+																className="h-4 w-4"
+																aria-hidden="true"
+															/>
+														)}
+													</button>
+												</td>
+												<td className="px-4 py-3 align-top">
+													<div className="flex min-w-[18rem] items-start gap-3">
+														<span
+															className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[0.85rem] bg-[#F4E4CB] text-[#9C6137]"
+															aria-hidden="true"
+														>
+															{row.thumbnailUrl ? (
+																// biome-ignore lint/performance/noImgElement: Localiza thumbnails can come from arbitrary listing hosts.
+																<img
+																	src={row.thumbnailUrl}
+																	alt=""
+																	loading="lazy"
+																	className="h-full w-full object-cover"
+																/>
+															) : (
+																<Building2 className="h-5 w-5" />
+															)}
+														</span>
+														<div className="min-w-0">
+															<p className="max-w-[22rem] truncate font-medium text-[#1F1A14]">
+																{address}
+															</p>
+															<p className="mt-1 max-w-[22rem] truncate text-xs leading-5 text-muted-foreground">
+																{row.title ?? sourceHost}
+															</p>
+															<a
+																href={row.sourceUrl}
+																target="_blank"
+																rel="noreferrer"
+																className="mt-1 inline-flex items-center gap-1 text-xs text-primary"
+															>
+																{sourceHost}
+																<ExternalLink
+																	className="h-3 w-3"
+																	aria-hidden="true"
+																/>
+															</a>
+														</div>
+													</div>
+												</td>
+												<td className="px-4 py-3 align-top font-medium text-[#1F1A14]">
+													{formatEuro(row.askingPrice)}
+												</td>
+												<td className="px-4 py-3 align-top text-[#1F1A14]">
+													{formatArea(row.areaM2)}
+												</td>
+												<td className="px-4 py-3 align-top text-muted-foreground">
+													{formatPricePerM2(row)}
+												</td>
+												<td className="px-4 py-3 align-top text-muted-foreground">
+													{formatInteger(row.bedrooms)}
+												</td>
+												<td className="px-4 py-3 align-top text-muted-foreground">
+													{formatInteger(row.bathrooms)}
+												</td>
+												<td className="px-4 py-3 align-top text-muted-foreground">
+													{row.floorText ?? "No disponible"}
+												</td>
+												<td className="px-4 py-3 align-top text-muted-foreground">
+													{formatBoolean(row.isExterior)}
+												</td>
+												<td className="px-4 py-3 align-top text-muted-foreground">
+													{formatBoolean(row.hasElevator)}
+												</td>
+												<td className="px-4 py-3 align-top">
+													<span className="inline-flex rounded-full border border-[#E8DFCC] bg-[#FFF8EA] px-2.5 py-1 text-xs font-medium text-[#1F1A14]">
+														{tableStatusLabel[row.resultStatus]}
+													</span>
+												</td>
+												<td className="px-4 py-3 align-top text-muted-foreground">
+													{Math.round(row.confidenceScore * 100)}%
+												</td>
+												<td className="px-4 py-3 align-top">
+													<p className="font-mono text-xs text-muted-foreground">
+														{reference}
+													</p>
+												</td>
+												<td className="px-4 py-3 align-top">
+													{row.officialSourceUrl ? (
+														<a
+															href={row.officialSourceUrl}
+															target="_blank"
+															rel="noreferrer"
+															className="inline-flex items-center gap-1 text-primary"
+														>
+															{row.officialSource}
+															<ExternalLink
+																className="h-3.5 w-3.5"
+																aria-hidden="true"
+															/>
+														</a>
+													) : (
+														<span className="text-muted-foreground">
+															{row.officialSource}
+														</span>
+													)}
+												</td>
+												<td className="px-4 py-3 align-top text-muted-foreground">
+													{formatOptionalDateTime(row.updatedAt)}
+												</td>
+											</tr>
+										);
+									})}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				) : (
+					<div className="rounded-[1rem] bg-[#FFF8EA] p-5 text-sm leading-6 text-muted-foreground shadow-[inset_0_0_0_1px_rgba(232,223,204,0.95)]">
+						No hay inmuebles en la tabla.
+					</div>
+				)}
+			</CardContent>
+		</Card>
+	);
+}
 
 function LocalizaProspectingScaffold() {
 	const titleId = useId();
@@ -1092,6 +1713,7 @@ export default function LocalizaResolverClient({
 	availableLocalizaStrategies,
 	initialSourceUrl = "",
 }: LocalizaResolverClientProps) {
+	const utils = trpc.useUtils();
 	const candidateFieldId = useId();
 	const sourceUrlInputId = `${candidateFieldId}-source-url`;
 	const [sourceUrl, setSourceUrl] = useState(initialSourceUrl);
@@ -1108,8 +1730,12 @@ export default function LocalizaResolverClient({
 	const historyListRef = useRef<HTMLUListElement>(null);
 	const resolveIdealistaLocation =
 		trpc.listings.resolveIdealistaLocation.useMutation();
+	const importIdealistaLocation =
+		trpc.listings.resolveIdealistaLocation.useMutation();
 	const submitAddressFeedback =
 		trpc.listings.submitLocalizaAddressFeedback.useMutation();
+	const hideTableHistoryRow =
+		trpc.listings.hideLocalizaTableHistoryRow.useMutation();
 	const [searchHistory, setSearchHistory] = useState<
 		LocalizaSearchHistoryEntry[]
 	>([]);
@@ -1128,6 +1754,23 @@ export default function LocalizaResolverClient({
 		canScrollDown: false,
 	});
 	const [activeTab, setActiveTab] = useState<LocalizaWorkspaceTab>("resolver");
+	const tableHistoryQuery = trpc.listings.localizaTableHistory.useQuery(
+		{ limit: 150 },
+		{ enabled: activeTab === "table" },
+	);
+	const [tableImportText, setTableImportText] = useState("");
+	const [tableImportError, setTableImportError] = useState<string | null>(null);
+	const [tableImportProgress, setTableImportProgress] = useState<{
+		completed: number;
+		total: number;
+	} | null>(null);
+	const [removingTableRowId, setRemovingTableRowId] = useState<string | null>(
+		null,
+	);
+	const [tableSortKey, setTableSortKey] =
+		useState<LocalizaTableSortKey>("updatedAt");
+	const [tableSortDirection, setTableSortDirection] =
+		useState<LocalizaTableSortDirection>("desc");
 	const strategyOptions = useMemo(
 		() => buildLocalizaStrategyOptions(availableLocalizaStrategies),
 		[availableLocalizaStrategies],
@@ -1155,6 +1798,14 @@ export default function LocalizaResolverClient({
 	const [activeLoadingMessageIndex, setActiveLoadingMessageIndex] = useState(0);
 	const effectiveStrategy =
 		getPreferredLocalizaStrategy("auto", availableLocalizaStrategies) ?? "auto";
+	const sortedTableRows = useMemo(() => {
+		const directionFactor = tableSortDirection === "asc" ? 1 : -1;
+
+		return [...(tableHistoryQuery.data ?? [])].sort(
+			(left, right) =>
+				compareTableRows(left, right, tableSortKey) * directionFactor,
+		);
+	}, [tableHistoryQuery.data, tableSortDirection, tableSortKey]);
 
 	const resetAddressFeedback = () => {
 		setAddressFeedbackVerdict(null);
@@ -1219,6 +1870,7 @@ export default function LocalizaResolverClient({
 		};
 	}, [isHistoryOpen]);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Recalculate scroll fades when history rows change while the popover is open.
 	useEffect(() => {
 		if (!isHistoryOpen) {
 			setHistoryScrollEdges({ canScrollUp: false, canScrollDown: false });
@@ -1341,6 +1993,7 @@ export default function LocalizaResolverClient({
 			rememberSearchHistoryEntry(
 				buildResolvedHistoryEntry(resolved, trimmedSourceUrl),
 			);
+			void utils.listings.localizaTableHistory.invalidate();
 			capturePosthogEvent(
 				resolved.status === "unresolved"
 					? "localiza_resolve_unresolved"
@@ -1406,6 +2059,114 @@ export default function LocalizaResolverClient({
 
 			return nextEntries;
 		});
+	};
+
+	const handleTableSort = (nextSortKey: LocalizaTableSortKey) => {
+		setTableSortKey((currentSortKey) => {
+			if (currentSortKey === nextSortKey) {
+				setTableSortDirection((currentDirection) =>
+					currentDirection === "asc" ? "desc" : "asc",
+				);
+				return currentSortKey;
+			}
+
+			setTableSortDirection("desc");
+			return nextSortKey;
+		});
+	};
+
+	const importTableLinks = async () => {
+		const urls = extractImportUrls(tableImportText);
+
+		if (!hasConfiguredStrategy) {
+			setTableImportError("La lectura de anuncios no está configurada.");
+			return;
+		}
+
+		if (urls.length === 0) {
+			setTableImportError("Pega al menos un enlace válido.");
+			return;
+		}
+
+		capturePosthogEvent("localiza_table_import_started", {
+			url_count: urls.length,
+			requestedStrategy: effectiveStrategy,
+		});
+		setTableImportError(null);
+		setTableImportProgress({ completed: 0, total: urls.length });
+		const failures: string[] = [];
+
+		for (const [index, url] of urls.entries()) {
+			try {
+				await importIdealistaLocation.mutateAsync({
+					url,
+					strategy: effectiveStrategy,
+				});
+			} catch (unknownError) {
+				failures.push(
+					`${formatSourceHost(url) ?? url}: ${
+						unknownError instanceof Error
+							? unknownError.message
+							: "no se pudo leer"
+					}`,
+				);
+			} finally {
+				setTableImportProgress({
+					completed: index + 1,
+					total: urls.length,
+				});
+			}
+		}
+
+		await utils.listings.localizaTableHistory.invalidate();
+		setTableImportProgress(null);
+		capturePosthogEvent("localiza_table_import_completed", {
+			url_count: urls.length,
+			failure_count: failures.length,
+			requestedStrategy: effectiveStrategy,
+		});
+
+		if (failures.length === 0) {
+			setTableImportText("");
+			return;
+		}
+
+		setTableImportError(
+			`${failures.length} enlace${failures.length === 1 ? "" : "s"} no se importaron: ${failures.slice(0, 3).join(" · ")}`,
+		);
+	};
+
+	const removeTableRow = async (row: LocalizaTableHistoryRow) => {
+		try {
+			setRemovingTableRowId(row.id);
+			setTableImportError(null);
+			await hideTableHistoryRow.mutateAsync({ id: row.id });
+			await utils.listings.localizaTableHistory.invalidate();
+			capturePosthogEvent("localiza_table_row_removed", {
+				status: row.resultStatus,
+			});
+		} catch (unknownError) {
+			setTableImportError(
+				unknownError instanceof Error
+					? unknownError.message
+					: "No se pudo eliminar la fila.",
+			);
+		} finally {
+			setRemovingTableRowId(null);
+		}
+	};
+
+	const exportTableCsv = () => {
+		if (sortedTableRows.length === 0) {
+			return;
+		}
+
+		capturePosthogEvent("localiza_table_csv_exported", {
+			row_count: sortedTableRows.length,
+			sort_key: tableSortKey,
+			sort_direction: tableSortDirection,
+		});
+		downloadLocalizaTableCsv(sortedTableRows);
 	};
 
 	const submitLocalizaAddressFeedback = async (
@@ -1497,6 +2258,20 @@ export default function LocalizaResolverClient({
 					>
 						<MapPin className="h-4 w-4" aria-hidden="true" />
 						Dirección
+					</button>
+					<button
+						type="button"
+						role="tab"
+						aria-selected={activeTab === "table"}
+						className={`inline-flex min-h-10 items-center gap-2 rounded-[0.75rem] px-4 text-sm font-medium transition-[background-color,color,box-shadow,transform] active:scale-[0.97] ${
+							activeTab === "table"
+								? "bg-[#FFFBF2] text-[#1F1A14] shadow-[0_8px_22px_rgba(31,26,20,0.07)]"
+								: "text-[#6F5E4A] hover:text-[#1F1A14]"
+						}`}
+						onClick={() => setActiveTab("table")}
+					>
+						<Rows3 className="h-4 w-4" aria-hidden="true" />
+						Tabla
 					</button>
 					<button
 						type="button"
@@ -1599,7 +2374,7 @@ export default function LocalizaResolverClient({
 																				aria-hidden="true"
 																			>
 																				{entry.thumbnailUrl ? (
-																					// eslint-disable-next-line @next/next/no-img-element
+																					// biome-ignore lint/performance/noImgElement: Localiza thumbnails can come from arbitrary listing hosts.
 																					<img
 																						src={entry.thumbnailUrl}
 																						alt=""
@@ -1716,6 +2491,35 @@ export default function LocalizaResolverClient({
 							/>
 						) : null}
 					</>
+				) : activeTab === "table" ? (
+					<LocalizaTableWorkspace
+						rows={sortedTableRows}
+						isLoading={tableHistoryQuery.isLoading}
+						isRefreshing={tableHistoryQuery.isFetching && !tableHistoryQuery.isLoading}
+						errorMessage={tableHistoryQuery.error?.message}
+						importText={tableImportText}
+						importError={tableImportError}
+						importProgress={tableImportProgress}
+						isImporting={importIdealistaLocation.isPending}
+						removingRowId={removingTableRowId}
+						sortKey={tableSortKey}
+						sortDirection={tableSortDirection}
+						hasConfiguredStrategy={hasConfiguredStrategy}
+						onImportTextChange={(value) => {
+							setTableImportText(value);
+							if (tableImportError) {
+								setTableImportError(null);
+							}
+						}}
+						onImport={() => {
+							void importTableLinks();
+						}}
+						onExport={exportTableCsv}
+						onRemoveRow={(row) => {
+							void removeTableRow(row);
+						}}
+						onSort={handleTableSort}
+					/>
 				) : (
 					<LocalizaProspectingScaffold />
 				)}

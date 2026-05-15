@@ -2,17 +2,27 @@ import type { IdealistaSignals, LocalizaAddressEvidence } from "@casedra/types";
 
 import { env } from "@/env";
 
-import {
-	dedupeStrings,
-	normalizeLocalizaText,
-} from "./score";
+import { dedupeStrings, normalizeLocalizaText } from "./score";
 
 const FIRECRAWL_SEARCH_URL = "https://api.firecrawl.dev/v2/search";
 const INDEXED_DUPLICATE_SEARCH_TIMEOUT_MS = 7_000;
 const INDEXED_DUPLICATE_MIN_SCORE = 0.72;
+const INDEXED_DUPLICATE_MIN_DISCRIMINATING_MATCHES = 3;
 const MAX_SEARCH_RESULTS = 5;
 const MAX_QUERIES = 4;
 const MAX_RESULT_TEXT_LENGTH = 3_000;
+const DISCRIMINATING_DUPLICATE_SIGNALS = new Set([
+	"duplicate_area_match",
+	"duplicate_body_area_match",
+	"duplicate_usable_area_match",
+	"duplicate_price_match",
+	"duplicate_bedrooms_match",
+	"duplicate_bathrooms_match",
+	"duplicate_floor_match",
+	"duplicate_year_built_match",
+	"duplicate_parking_match",
+	"duplicate_terrace_match",
+]);
 
 type IndexedDuplicateAddressSignal = {
 	addressText: string;
@@ -95,11 +105,9 @@ const stripStreetPrefix = (value?: string) =>
 		.trim();
 
 const extractStreetHint = (signals: IdealistaSignals) => {
-	const corpus = [
-		signals.addressText,
-		signals.title,
-		signals.listingText,
-	].filter(Boolean).join("\n");
+	const corpus = [signals.addressText, signals.title, signals.listingText]
+		.filter(Boolean)
+		.join("\n");
 	const match = corpus.match(
 		new RegExp(`\\b(${streetPrefixPattern}\\s+[^\\n,.;]{3,90})`, "i"),
 	);
@@ -222,7 +230,9 @@ const extractAddressCandidates = (text: string, streetHint: string) => {
 
 	for (const match of text.matchAll(matcher)) {
 		const candidate = safeString(match[1]);
-		const candidateCore = stripStreetPrefix(candidate?.replace(/,?\s+\d+[A-Z]?$/i, ""));
+		const candidateCore = stripStreetPrefix(
+			candidate?.replace(/,?\s+\d+[A-Z]?$/i, ""),
+		);
 
 		if (
 			candidate &&
@@ -241,13 +251,22 @@ const includesNormalized = (text: string, value?: string | number) => {
 		return false;
 	}
 
-	return normalizeLocalizaText(text).includes(normalizeLocalizaText(String(value)));
+	return normalizeLocalizaText(text).includes(
+		normalizeLocalizaText(String(value)),
+	);
 };
 
 const textHasAny = (text: string, values: string[]) => {
 	const normalized = normalizeLocalizaText(text);
-	return values.some((value) => normalized.includes(normalizeLocalizaText(value)));
+	return values.some((value) =>
+		normalized.includes(normalizeLocalizaText(value)),
+	);
 };
+
+const hasEnoughDuplicateProof = (matchedSignals: string[]) =>
+	matchedSignals.filter((signal) =>
+		DISCRIMINATING_DUPLICATE_SIGNALS.has(signal),
+	).length >= INDEXED_DUPLICATE_MIN_DISCRIMINATING_MATCHES;
 
 const scoreDuplicateResult = (input: {
 	resultText: string;
@@ -260,7 +279,10 @@ const scoreDuplicateResult = (input: {
 	const usableArea = extractUsableArea(input.signals);
 	const builtAreaCandidates = extractBuiltAreaCandidates(input.signals);
 
-	if (input.signals.areaM2 && includesNormalized(input.resultText, input.signals.areaM2)) {
+	if (
+		input.signals.areaM2 &&
+		includesNormalized(input.resultText, input.signals.areaM2)
+	) {
 		score += 0.16;
 		matchedSignals.push("duplicate_area_match");
 	}
@@ -268,7 +290,8 @@ const scoreDuplicateResult = (input: {
 	if (
 		builtAreaCandidates.some(
 			(area) =>
-				area !== input.signals.areaM2 && includesNormalized(input.resultText, area),
+				area !== input.signals.areaM2 &&
+				includesNormalized(input.resultText, area),
 		)
 	) {
 		score += 0.16;
@@ -296,13 +319,21 @@ const scoreDuplicateResult = (input: {
 
 	if (input.signals.bathrooms !== undefined) {
 		const bathroomsText = `${input.signals.bathrooms} baño`;
-		if (textHasAny(input.resultText, [bathroomsText, `${input.signals.bathrooms} cuartos de baño`])) {
+		if (
+			textHasAny(input.resultText, [
+				bathroomsText,
+				`${input.signals.bathrooms} cuartos de baño`,
+			])
+		) {
 			score += 0.08;
 			matchedSignals.push("duplicate_bathrooms_match");
 		}
 	}
 
-	if (input.signals.floorText && textHasAny(input.resultText, [input.signals.floorText])) {
+	if (
+		input.signals.floorText &&
+		textHasAny(input.resultText, [input.signals.floorText])
+	) {
 		score += 0.1;
 		matchedSignals.push("duplicate_floor_match");
 	}
@@ -312,12 +343,29 @@ const scoreDuplicateResult = (input: {
 		matchedSignals.push("duplicate_year_built_match");
 	}
 
-	if (input.signals.priceIncludesParking && /\bgaraje\b/i.test(input.resultText)) {
+	if (
+		input.signals.price !== undefined &&
+		textHasAny(input.resultText, [
+			formatSearchPrice(input.signals.price) ?? "",
+			String(Math.round(input.signals.price)),
+		])
+	) {
+		score += 0.12;
+		matchedSignals.push("duplicate_price_match");
+	}
+
+	if (
+		input.signals.priceIncludesParking &&
+		/\bgaraje\b/i.test(input.resultText)
+	) {
 		score += 0.04;
 		matchedSignals.push("duplicate_parking_match");
 	}
 
-	if (/\bterraza\b/i.test(input.signals.listingText ?? "") && /\bterraza\b/i.test(input.resultText)) {
+	if (
+		/\bterraza\b/i.test(input.signals.listingText ?? "") &&
+		/\bterraza\b/i.test(input.resultText)
+	) {
 		score += 0.04;
 		matchedSignals.push("duplicate_terrace_match");
 	}
@@ -342,12 +390,11 @@ const formatMatchedSignals = (matchedSignals: string[]) => {
 		matchedSignals.includes("duplicate_usable_area_match")
 			? "superficie útil"
 			: undefined,
+		matchedSignals.includes("duplicate_price_match") ? "precio" : undefined,
 		matchedSignals.includes("duplicate_bedrooms_match")
 			? "dormitorios"
 			: undefined,
-		matchedSignals.includes("duplicate_bathrooms_match")
-			? "baños"
-			: undefined,
+		matchedSignals.includes("duplicate_bathrooms_match") ? "baños" : undefined,
 		matchedSignals.includes("duplicate_floor_match") ? "planta" : undefined,
 		matchedSignals.includes("duplicate_year_built_match")
 			? "año de construcción"
@@ -451,7 +498,10 @@ export const findIndexedDuplicateAddressSignal = async (input: {
 				.filter(Boolean)
 				.join("\n")
 				.slice(0, MAX_RESULT_TEXT_LENGTH);
-			const addressCandidates = extractAddressCandidates(resultText, streetHint);
+			const addressCandidates = extractAddressCandidates(
+				resultText,
+				streetHint,
+			);
 
 			for (const addressText of addressCandidates) {
 				const scored = scoreDuplicateResult({
@@ -461,6 +511,10 @@ export const findIndexedDuplicateAddressSignal = async (input: {
 				});
 
 				if (scored.score < INDEXED_DUPLICATE_MIN_SCORE) {
+					continue;
+				}
+
+				if (!hasEnoughDuplicateProof(scored.matchedSignals)) {
 					continue;
 				}
 
@@ -485,7 +539,5 @@ export const findIndexedDuplicateAddressSignal = async (input: {
 		}
 	}
 
-	return (
-		found.sort((left, right) => right.score - left.score)[0] ?? null
-	);
+	return found.sort((left, right) => right.score - left.score)[0] ?? null;
 };

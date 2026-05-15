@@ -1,4 +1,6 @@
-import { v } from "convex/values";
+import type { LocalizaTableHistoryRow } from "@casedra/types";
+import { type Infer, v } from "convex/values";
+import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { requireAuthenticatedUserId } from "./auth";
 import {
@@ -215,6 +217,10 @@ const resolveIdealistaLocationResultValidator = v.object({
 	propertyDossier: v.optional(localizaPropertyDossierValidator),
 	cacheExpiresAt: v.optional(v.string()),
 });
+
+type ResolveIdealistaLocationResultValue = Infer<
+	typeof resolveIdealistaLocationResultValidator
+>;
 
 const lookupArgsValidator = {
 	provider: v.literal("idealista"),
@@ -544,6 +550,228 @@ export const upsertMarketObservations = mutation({
 			updated,
 			total: created + updated,
 		};
+	},
+});
+
+const normalizeUserHistoryUrlKey = (sourceUrl: string) => {
+	try {
+		const parsedUrl = new URL(sourceUrl.trim());
+		parsedUrl.hash = "";
+		parsedUrl.hostname = parsedUrl.hostname.toLowerCase();
+		parsedUrl.pathname = parsedUrl.pathname.replace(/\/+$/, "") || "/";
+
+		return parsedUrl.toString().replace(/\/$/, "").toLowerCase();
+	} catch {
+		return sourceUrl.trim().replace(/\/+$/, "").toLowerCase();
+	}
+};
+
+const normalizePropertyHistoryKeyPart = (value?: string) =>
+	value
+		?.trim()
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/(^-|-$)/g, "");
+
+const getUserHistoryPropertyKey = (
+	result: ResolveIdealistaLocationResultValue,
+) => {
+	const identity = result.propertyDossier?.officialIdentity;
+
+	if (!identity) {
+		return undefined;
+	}
+
+	if (identity.unitRef20) {
+		return `unit:${identity.unitRef20.toUpperCase()}`;
+	}
+
+	if (identity.parcelRef14) {
+		return `parcel:${identity.parcelRef14.toUpperCase()}`;
+	}
+
+	if (result.status === "needs_confirmation") {
+		return undefined;
+	}
+
+	const addressKey = [
+		identity.street,
+		identity.number,
+		identity.postalCode,
+		identity.municipality,
+		identity.province,
+	]
+		.map(normalizePropertyHistoryKeyPart)
+		.filter(Boolean)
+		.join("|");
+
+	return addressKey ? `address:${addressKey}` : undefined;
+};
+
+const buildUserPropertyHistorySnapshot = (input: {
+	result: ResolveIdealistaLocationResultValue;
+	propertyHistoryKey?: string;
+}) => {
+	const { result } = input;
+	const dossier = result.propertyDossier;
+	const listingSnapshot = dossier?.listingSnapshot;
+	const officialIdentity = dossier?.officialIdentity;
+	const image = dossier?.imageGallery[0];
+
+	return {
+		sourceUrl: result.sourceMetadata.sourceUrl,
+		sourceUrlKey: normalizeUserHistoryUrlKey(result.sourceMetadata.sourceUrl),
+		externalListingId: result.sourceMetadata.externalListingId,
+		resultStatus: result.status,
+		requestedStrategy: result.requestedStrategy,
+		resolverVersion: result.resolverVersion,
+		resolvedAt: result.resolvedAt,
+		resolvedAddressLabel: result.resolvedAddressLabel,
+		officialSource: result.officialSource,
+		officialSourceUrl: result.officialSourceUrl,
+		territoryAdapter: result.territoryAdapter,
+		confidenceScore: result.confidenceScore,
+		parcelRef14: result.parcelRef14 ?? officialIdentity?.parcelRef14,
+		unitRef20: result.unitRef20 ?? officialIdentity?.unitRef20,
+		propertyHistoryKey:
+			input.propertyHistoryKey ?? getUserHistoryPropertyKey(result),
+		title: listingSnapshot?.title,
+		thumbnailUrl:
+			listingSnapshot?.leadImageUrl ?? image?.thumbnailUrl ?? image?.imageUrl,
+		askingPrice: listingSnapshot?.askingPrice,
+		currencyCode: listingSnapshot?.currencyCode,
+		areaM2: listingSnapshot?.areaM2,
+		bedrooms: listingSnapshot?.bedrooms,
+		bathrooms: listingSnapshot?.bathrooms,
+		floorText: listingSnapshot?.floorText,
+		isExterior: listingSnapshot?.isExterior,
+		hasElevator: listingSnapshot?.hasElevator,
+		officialAddress:
+			officialIdentity?.proposedAddressLabel ?? result.resolvedAddressLabel,
+		municipality: officialIdentity?.municipality,
+		province: officialIdentity?.province,
+		postalCode: officialIdentity?.postalCode,
+	};
+};
+
+const toLocalizaTableHistoryRow = (
+	record: Doc<"localizaUserPropertyHistory">,
+): LocalizaTableHistoryRow => ({
+	id: record._id,
+	sourceUrl: record.sourceUrl,
+	externalListingId: record.externalListingId,
+	resultStatus: record.resultStatus,
+	requestedStrategy: record.requestedStrategy,
+	resolverVersion: record.resolverVersion,
+	resolvedAt: record.resolvedAt,
+	resolvedAddressLabel: record.resolvedAddressLabel,
+	officialSource: record.officialSource,
+	officialSourceUrl: record.officialSourceUrl,
+	territoryAdapter: record.territoryAdapter,
+	confidenceScore: record.confidenceScore,
+	parcelRef14: record.parcelRef14,
+	unitRef20: record.unitRef20,
+	propertyHistoryKey: record.propertyHistoryKey,
+	title: record.title,
+	thumbnailUrl: record.thumbnailUrl,
+	askingPrice: record.askingPrice,
+	currencyCode: record.currencyCode,
+	areaM2: record.areaM2,
+	bedrooms: record.bedrooms,
+	bathrooms: record.bathrooms,
+	floorText: record.floorText,
+	isExterior: record.isExterior,
+	hasElevator: record.hasElevator,
+	officialAddress: record.officialAddress,
+	municipality: record.municipality,
+	province: record.province,
+	postalCode: record.postalCode,
+	createdAt: record.createdAt,
+	updatedAt: record.updatedAt,
+});
+
+export const recordUserPropertyHistory = mutation({
+	args: {
+		result: resolveIdealistaLocationResultValidator,
+		propertyHistoryKey: v.optional(v.string()),
+		now: v.optional(v.number()),
+	},
+	handler: async (ctx, args) => {
+		const userId = await requireAuthenticatedUserId(ctx);
+		const now = args.now ?? Date.now();
+		const snapshot = buildUserPropertyHistorySnapshot({
+			result: args.result,
+			propertyHistoryKey: args.propertyHistoryKey,
+		});
+		const existing = await ctx.db
+			.query("localizaUserPropertyHistory")
+			.withIndex("by_user_source_key", (q) =>
+				q.eq("userId", userId).eq("sourceUrlKey", snapshot.sourceUrlKey),
+			)
+			.first();
+
+		if (existing) {
+			await ctx.db.patch(existing._id, {
+				...snapshot,
+				hiddenAt: undefined,
+				updatedAt: now,
+			});
+			return { id: existing._id, created: false };
+		}
+
+		const id = await ctx.db.insert("localizaUserPropertyHistory", {
+			...snapshot,
+			userId,
+			createdAt: now,
+			updatedAt: now,
+		});
+
+		return { id, created: true };
+	},
+});
+
+export const listUserPropertyHistory = query({
+	args: {
+		limit: v.optional(v.number()),
+	},
+	handler: async (ctx, args) => {
+		const userId = await requireAuthenticatedUserId(ctx);
+		const limit = Math.min(Math.max(args.limit ?? 100, 1), 250);
+		const records = await ctx.db
+			.query("localizaUserPropertyHistory")
+			.withIndex("by_user_updated", (q) => q.eq("userId", userId))
+			.order("desc")
+			.take(Math.min(limit * 2, 500));
+
+		return records
+			.filter((record) => !record.hiddenAt)
+			.slice(0, limit)
+			.map(toLocalizaTableHistoryRow);
+	},
+});
+
+export const hideUserPropertyHistoryRow = mutation({
+	args: {
+		id: v.id("localizaUserPropertyHistory"),
+		now: v.optional(v.number()),
+	},
+	handler: async (ctx, args) => {
+		const userId = await requireAuthenticatedUserId(ctx);
+		const record = await ctx.db.get(args.id);
+
+		if (!record || record.userId !== userId) {
+			throw new Error("NOT_FOUND:Localiza table row not found");
+		}
+
+		const now = args.now ?? Date.now();
+		await ctx.db.patch(args.id, {
+			hiddenAt: now,
+			updatedAt: now,
+		});
+
+		return { id: args.id };
 	},
 });
 

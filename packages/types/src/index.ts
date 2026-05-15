@@ -278,6 +278,40 @@ export interface ResolveIdealistaLocationResult {
 	cacheExpiresAt?: string;
 }
 
+export interface LocalizaTableHistoryRow {
+	id: string;
+	sourceUrl: string;
+	externalListingId: string;
+	resultStatus: ResolveIdealistaLocationStatus;
+	requestedStrategy: LocalizaAcquisitionStrategy;
+	resolverVersion: string;
+	resolvedAt: string;
+	resolvedAddressLabel?: string;
+	officialSource: string;
+	officialSourceUrl?: string;
+	territoryAdapter?: LocalizaTerritoryAdapter;
+	confidenceScore: number;
+	parcelRef14?: string;
+	unitRef20?: string;
+	propertyHistoryKey?: string;
+	title?: string;
+	thumbnailUrl?: string;
+	askingPrice?: number;
+	currencyCode?: "EUR";
+	areaM2?: number;
+	bedrooms?: number;
+	bathrooms?: number;
+	floorText?: string;
+	isExterior?: boolean;
+	hasElevator?: boolean;
+	officialAddress?: string;
+	municipality?: string;
+	province?: string;
+	postalCode?: string;
+	createdAt: number;
+	updatedAt: number;
+}
+
 export type ListingCurrencyCode = "EUR" | "USD";
 
 export interface ListingLocation {

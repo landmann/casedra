@@ -15,6 +15,7 @@ import type {
 } from "convex/server";
 import type * as agencies from "../agencies.js";
 import type * as auth from "../auth.js";
+import type * as copySuggestions from "../copySuggestions.js";
 import type * as listings from "../listings.js";
 import type * as localizaGoldenLiveFixtures from "../localizaGoldenLiveFixtures.js";
 import type * as localizaMarketObservations from "../localizaMarketObservations.js";
@@ -37,6 +38,7 @@ import type * as workflowValidators from "../workflowValidators.js";
 declare const fullApi: ApiFromModules<{
   agencies: typeof agencies;
   auth: typeof auth;
+  copySuggestions: typeof copySuggestions;
   listings: typeof listings;
   localizaGoldenLiveFixtures: typeof localizaGoldenLiveFixtures;
   localizaMarketObservations: typeof localizaMarketObservations;

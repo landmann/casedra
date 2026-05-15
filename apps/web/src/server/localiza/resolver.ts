@@ -1,8 +1,8 @@
 import type {
 	IdealistaSignals,
+	LocalizaAcquisitionStrategy,
 	LocalizaAddressEvidence,
 	LocalizaPropertyDossier,
-	LocalizaAcquisitionStrategy,
 	ResolveIdealistaLocationResult,
 } from "@casedra/types";
 import type { ConvexHttpClient } from "convex/browser";
@@ -19,14 +19,15 @@ import { fetchFloodRiskEvidence } from "./flood-risk";
 import { idealistaApiAdapter } from "./idealista-adapter";
 import { findIndexedDuplicateAddressSignal } from "./indexed-duplicate-address";
 import { fetchLocationAmenityEvidence } from "./location-amenities";
-import { verifyIdealistaMaps } from "./maps-verifier";
 import { fetchMadridPlanningHeritageEvidence } from "./madrid-planning-heritage";
+import { verifyIdealistaMaps } from "./maps-verifier";
 import {
-	type OportunistaListingArchiveImport,
 	fetchOportunistaMarketIntel,
 	isOportunistaPriceHistoryConfigured,
 	OPORTUNISTA_PRICE_HISTORY_REFRESH_MS,
+	type OportunistaListingArchiveImport,
 } from "./oportunista-price-history";
+import { fetchSolarPotentialEvidence } from "./solar-potential";
 import type {
 	LocalizaAdapter,
 	LocalizaAdapterMethod,
@@ -43,7 +44,6 @@ import {
 } from "./types";
 import { parseIdealistaListingUrl } from "./url";
 import { LOCALIZA_RESOLVER_VERSION } from "./version";
-import { fetchSolarPotentialEvidence } from "./solar-potential";
 
 const OVERALL_DEADLINE_MS = 35_000;
 const IN_FLIGHT_POLL_INTERVAL_MS = 300;
@@ -70,13 +70,14 @@ const getLocationResolutionByLookupRef = makeFunctionReference<
 	LocalizaCachedResolutionRecord | null
 >("locationResolutions:getByLookup");
 
-const getLatestSuccessfulLocationResolutionBySourceUrlRef = makeFunctionReference<
-	"query",
-	{
-		sourceUrl: string;
-	},
-	LocalizaCachedResolutionRecord | null
->("locationResolutions:getLatestSuccessfulBySourceUrl");
+const getLatestSuccessfulLocationResolutionBySourceUrlRef =
+	makeFunctionReference<
+		"query",
+		{
+			sourceUrl: string;
+		},
+		LocalizaCachedResolutionRecord | null
+	>("locationResolutions:getLatestSuccessfulBySourceUrl");
 
 const claimLocationResolutionLeaseRef = makeFunctionReference<
 	"mutation",
@@ -306,6 +307,95 @@ const normalizeEvidenceAddressLabel = (value?: string) =>
 		.replace(/\s+\./g, ".")
 		.replace(/[.;]\s*$/, "");
 
+const OFFICIAL_EVIDENCE_HOST_SUFFIXES = [
+	"sedecatastro.gob.es",
+	"catastro.meh.es",
+	"navarra.es",
+	"inspire.navarra.es",
+	"araba.eus",
+	"bizkaia.eus",
+	"gipuzkoa.eus",
+	"euskadi.eus",
+	"madrid.es",
+	"datos.madrid.es",
+	"comunidad.madrid",
+	"miteco.gob.es",
+	"openstreetmap.org",
+	"gva.es",
+	"transparenciacatalunya.cat",
+	"idee.es",
+	"ign.es",
+];
+
+const getUrlHostname = (sourceUrl?: string) => {
+	if (!sourceUrl) {
+		return undefined;
+	}
+
+	try {
+		return new URL(sourceUrl).hostname.toLowerCase().replace(/^www\./, "");
+	} catch {
+		return undefined;
+	}
+};
+
+const isOfficialEvidenceUrl = (sourceUrl?: string) => {
+	const hostname = getUrlHostname(sourceUrl);
+
+	return Boolean(
+		hostname &&
+			OFFICIAL_EVIDENCE_HOST_SUFFIXES.some(
+				(suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`),
+			),
+	);
+};
+
+const getIdealistaListingIdFromUrl = (sourceUrl?: string) => {
+	if (!sourceUrl) {
+		return undefined;
+	}
+
+	try {
+		return new URL(sourceUrl).pathname.match(/\/inmueble\/(\d+)/i)?.[1];
+	} catch {
+		return sourceUrl.match(/idealista\.com\/inmueble\/(\d+)/i)?.[1];
+	}
+};
+
+const isSameIdealistaListingUrl = (input: {
+	sourceUrl?: string;
+	submittedSourceUrl: string;
+	externalListingId: string;
+}) => {
+	const sourceKey = normalizeHistoryUrlKey(input.sourceUrl);
+	const submittedKey = normalizeHistoryUrlKey(input.submittedSourceUrl);
+
+	if (sourceKey && submittedKey && sourceKey === submittedKey) {
+		return true;
+	}
+
+	return (
+		getIdealistaListingIdFromUrl(input.sourceUrl) === input.externalListingId
+	);
+};
+
+const getTrustedAddressEvidenceUrl = (
+	sourceUrl: string | undefined,
+	signals: IdealistaSignals,
+) => {
+	if (isOfficialEvidenceUrl(sourceUrl)) {
+		return sourceUrl;
+	}
+
+	return isSameIdealistaListingUrl({
+		sourceUrl,
+		submittedSourceUrl: signals.sourceUrl,
+		externalListingId: signals.listingId,
+	})
+		? sourceUrl
+		: undefined;
+};
+
 const extractAddressLabelFromEvidence = (value?: string) =>
 	normalizeEvidenceAddressLabel(
 		value?.match(FULL_ADDRESS_EVIDENCE_PATTERN)?.[1] ??
@@ -360,6 +450,13 @@ const buildAddressEvidenceResolution = (input: {
 				"address_evidence_candidate",
 				...evidence.matchedSignals,
 			]);
+			const trustedSourceUrl = getTrustedAddressEvidenceUrl(
+				evidence.sourceUrl,
+				input.signals,
+			);
+			const officialEvidenceUrl = isOfficialEvidenceUrl(trustedSourceUrl)
+				? trustedSourceUrl
+				: undefined;
 			const isConfirmedEvidence = isConfirmedAddressEvidence(evidence);
 			const score = isConfirmedEvidence
 				? Math.min(
@@ -380,7 +477,7 @@ const buildAddressEvidenceResolution = (input: {
 					evidence.sourceUrl ?? addressLabel,
 				)}`,
 				label: addressLabel,
-				officialUrl: evidence.sourceUrl,
+				officialUrl: officialEvidenceUrl,
 				score,
 				reasonCodes: [
 					"address_evidence_candidate",
@@ -399,7 +496,7 @@ const buildAddressEvidenceResolution = (input: {
 						? `${evidence.label}: ${evidence.value}. Localiza la muestra como candidato confirmado para revisión humana porque la llamada oficial en vivo puede fallar o dejar más de una puerta defendible.`
 						: `${evidence.label}: ${evidence.value}. Catastro no pudo confirmar esta dirección en esta ejecución, así que Localiza la muestra como candidato para confirmar, no como autofill definitivo.`,
 					sourceLabel: evidence.sourceLabel,
-					sourceUrl: evidence.sourceUrl,
+					sourceUrl: trustedSourceUrl,
 					matchedSignals,
 					discardedSignals: ["official_cadastre_temporarily_unavailable"],
 				},
@@ -415,9 +512,11 @@ const buildAddressEvidenceResolution = (input: {
 	}
 
 	const topCandidate = candidates[0];
-	const matchedSignals = dedupe(candidates.flatMap((candidate) =>
-		candidate.rationale?.matchedSignals ?? [],
-	));
+	const matchedSignals = dedupe(
+		candidates.flatMap(
+			(candidate) => candidate.rationale?.matchedSignals ?? [],
+		),
+	);
 
 	return {
 		status: "needs_confirmation",
@@ -435,7 +534,8 @@ const buildAddressEvidenceResolution = (input: {
 		]),
 		matchedSignals,
 		discardedSignals: ["official_cadastre_temporarily_unavailable"],
-		territoryAdapter: input.cadastreFailure?.territoryAdapter ?? "state_catastro",
+		territoryAdapter:
+			input.cadastreFailure?.territoryAdapter ?? "state_catastro",
 	};
 };
 
@@ -1460,6 +1560,106 @@ const mergeOnlineEvidence = (
 	return Array.from(evidenceByKey.values()).slice(0, 80);
 };
 
+const shouldKeepDossierSourceUrl = (
+	sourceUrl: string | undefined,
+	context: LocalizaResolutionContext,
+) =>
+	Boolean(
+		sourceUrl &&
+			(isOfficialEvidenceUrl(sourceUrl) ||
+				isSameIdealistaListingUrl({
+					sourceUrl,
+					submittedSourceUrl: context.sourceMetadata.sourceUrl,
+					externalListingId: context.sourceMetadata.externalListingId,
+				})),
+	);
+
+const sanitizeCandidateLinks = (
+	candidate: ResolveIdealistaLocationResult["candidates"][number],
+	context: LocalizaResolutionContext,
+): ResolveIdealistaLocationResult["candidates"][number] => ({
+	...candidate,
+	officialUrl: isOfficialEvidenceUrl(candidate.officialUrl)
+		? candidate.officialUrl
+		: undefined,
+	rationale: candidate.rationale
+		? {
+				...candidate.rationale,
+				sourceUrl: shouldKeepDossierSourceUrl(
+					candidate.rationale.sourceUrl,
+					context,
+				)
+					? candidate.rationale.sourceUrl
+					: undefined,
+			}
+		: undefined,
+});
+
+const sanitizeDossierLinks = (
+	dossier: LocalizaPropertyDossier,
+	context: LocalizaResolutionContext,
+): LocalizaPropertyDossier => {
+	const imageGallery = dossier.imageGallery
+		.filter((image) =>
+			isSameIdealistaListingUrl({
+				sourceUrl: image.sourceUrl,
+				submittedSourceUrl: context.sourceMetadata.sourceUrl,
+				externalListingId: context.sourceMetadata.externalListingId,
+			}),
+		)
+		.map((image) => ({
+			...image,
+			sourceUrl: context.sourceMetadata.sourceUrl,
+		}));
+	const onlineEvidence =
+		dossier.onlineEvidence?.map((item) => ({
+			...item,
+			sourceUrl: shouldKeepDossierSourceUrl(item.sourceUrl, context)
+				? item.sourceUrl
+				: undefined,
+		})) ?? [];
+	const publicHistory = dossier.publicHistory.map((row) => ({
+		...row,
+		sourceUrl: shouldKeepDossierSourceUrl(row.sourceUrl, context)
+			? row.sourceUrl
+			: undefined,
+	}));
+	const duplicateRecords = dossier.duplicateGroup.records.map((record) => ({
+		...record,
+		sourceUrl: shouldKeepDossierSourceUrl(record.sourceUrl, context)
+			? record.sourceUrl
+			: undefined,
+	}));
+
+	return {
+		...dossier,
+		listingSnapshot: {
+			...dossier.listingSnapshot,
+			sourceUrl: context.sourceMetadata.sourceUrl,
+		},
+		imageGallery,
+		onlineEvidence,
+		publicHistory,
+		duplicateGroup: {
+			count: duplicateRecords.length,
+			records: duplicateRecords,
+		},
+	};
+};
+
+const sanitizeLocalizaResultLinks = (
+	result: ResolveIdealistaLocationResult,
+	context: LocalizaResolutionContext,
+): ResolveIdealistaLocationResult => ({
+	...result,
+	candidates: result.candidates.map((candidate) =>
+		sanitizeCandidateLinks(candidate, context),
+	),
+	propertyDossier: result.propertyDossier
+		? sanitizeDossierLinks(result.propertyDossier, context)
+		: undefined,
+});
+
 const mergeDossierWithOportunistaArchive = (
 	dossier: LocalizaPropertyDossier,
 	archive?: OportunistaListingArchiveImport,
@@ -1691,7 +1891,7 @@ const attachPropertyHistoryToResult = async (input: {
 
 	if (!input.result.propertyDossier) {
 		return {
-			result: input.result,
+			result: sanitizeLocalizaResultLinks(input.result, input.context),
 			propertyHistoryKey,
 		};
 	}
@@ -1746,25 +1946,27 @@ const attachPropertyHistoryToResult = async (input: {
 			}),
 		]);
 
+		const resultWithHistory = {
+			...input.result,
+			propertyDossier: mergeDossierWithPropertyHistory(
+				enrichedDossier,
+				historyDossiers,
+				oportunistaIntel.observations,
+				[
+					...buildOportunistaOnlineEvidence(oportunistaIntel.archive),
+					...energyCertificateEvidence,
+					...buildingConditionEvidence,
+					...floodRiskEvidence,
+					...catastroFactsEvidence,
+					...solarPotentialEvidence,
+					...locationAmenityEvidence,
+					...planningHeritageEvidence,
+				],
+			),
+		};
+
 		return {
-			result: {
-				...input.result,
-				propertyDossier: mergeDossierWithPropertyHistory(
-					enrichedDossier,
-					historyDossiers,
-					oportunistaIntel.observations,
-					[
-						...buildOportunistaOnlineEvidence(oportunistaIntel.archive),
-						...energyCertificateEvidence,
-						...buildingConditionEvidence,
-						...floodRiskEvidence,
-						...catastroFactsEvidence,
-						...solarPotentialEvidence,
-						...locationAmenityEvidence,
-						...planningHeritageEvidence,
-					],
-				),
-			},
+			result: sanitizeLocalizaResultLinks(resultWithHistory, input.context),
 			propertyHistoryKey,
 		};
 	} catch (error) {
@@ -1776,7 +1978,7 @@ const attachPropertyHistoryToResult = async (input: {
 		});
 
 		return {
-			result: input.result,
+			result: sanitizeLocalizaResultLinks(input.result, input.context),
 			propertyHistoryKey,
 		};
 	}
@@ -2058,7 +2260,8 @@ const resolveAdapterOutputAgainstCatastro = async (input: {
 					context: input.context,
 					signals: input.adapterOutput.signals,
 					officialResolution: addressEvidenceResolution,
-					actualAcquisitionMethod: input.adapterOutput.signals.acquisitionMethod,
+					actualAcquisitionMethod:
+						input.adapterOutput.signals.acquisitionMethod,
 					adapterReasonCodes: input.adapterOutput.reasonCodes,
 					adapterMatchedSignals: input.adapterOutput.matchedSignals,
 					adapterDiscardedSignals: input.adapterOutput.discardedSignals,

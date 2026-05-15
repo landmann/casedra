@@ -99,13 +99,11 @@ const resolveAgencyId = async (
 	}
 	const resolvedAgencySlug = agencySlug as string;
 
-	const agency = await ctx.db
-		.query("agencies")
-		.withIndex("by_slug", (q) => q.eq("slug", resolvedAgencySlug))
-		.unique();
-	if (!agency) {
-		raiseNewsletterError("NOT_FOUND", "Agency not found");
-	}
+	const agency =
+		(await ctx.db
+			.query("agencies")
+			.withIndex("by_slug", (q) => q.eq("slug", resolvedAgencySlug))
+			.unique()) ?? raiseNewsletterError("NOT_FOUND", "Agency not found");
 
 	return agency._id;
 };
@@ -520,11 +518,9 @@ export const createIssueFromDraft = mutation({
 	},
 	handler: async (ctx, args) => {
 		const { membership, userId } = await requireCurrentMembership(ctx);
-		const draft = await ctx.db.get(args.draftId);
-		if (!draft) {
+		const draftDoc =
+			(await ctx.db.get(args.draftId)) ??
 			raiseNewsletterError("NOT_FOUND", "Newsletter draft not found");
-		}
-		const draftDoc = draft;
 		if (draftDoc.agencyId !== membership.agencyId) {
 			raiseNewsletterError("NOT_FOUND", "Newsletter draft not found");
 		}
@@ -556,11 +552,9 @@ export const queueIssueDeliveries = mutation({
 	},
 	handler: async (ctx, args) => {
 		const { membership } = await requireCurrentMembership(ctx);
-		const issue = await ctx.db.get(args.issueId);
-		if (!issue) {
+		const issueDoc =
+			(await ctx.db.get(args.issueId)) ??
 			raiseNewsletterError("NOT_FOUND", "Newsletter issue not found");
-		}
-		const issueDoc = issue;
 		if (issueDoc.agencyId !== membership.agencyId) {
 			raiseNewsletterError("NOT_FOUND", "Newsletter issue not found");
 		}
@@ -716,11 +710,9 @@ export const markDeliverySent = mutation({
 	},
 	handler: async (ctx, args) => {
 		requireDispatchSecret(args.dispatchSecret);
-		const delivery = await ctx.db.get(args.deliveryId);
-		if (!delivery) {
+		const deliveryDoc =
+			(await ctx.db.get(args.deliveryId)) ??
 			raiseNewsletterError("NOT_FOUND", "Newsletter delivery not found");
-		}
-		const deliveryDoc = delivery;
 		const timestamp = now();
 		await ctx.db.patch(deliveryDoc._id, {
 			status: "sent",
@@ -740,11 +732,9 @@ export const markDeliveryFailed = mutation({
 	},
 	handler: async (ctx, args) => {
 		requireDispatchSecret(args.dispatchSecret);
-		const delivery = await ctx.db.get(args.deliveryId);
-		if (!delivery) {
+		const deliveryDoc =
+			(await ctx.db.get(args.deliveryId)) ??
 			raiseNewsletterError("NOT_FOUND", "Newsletter delivery not found");
-		}
-		const deliveryDoc = delivery;
 		const timestamp = now();
 		await ctx.db.patch(deliveryDoc._id, {
 			status: "failed",

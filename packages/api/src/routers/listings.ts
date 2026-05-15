@@ -1,5 +1,6 @@
 import type { LocalizaErrorCode } from "@casedra/types";
 import { TRPCError } from "@trpc/server";
+import type { Id } from "../../../../convex/_generated/dataModel";
 import { z } from "zod";
 import { api } from "../convex";
 import { logLocalizaListingTransitions } from "../localiza-observability";
@@ -128,10 +129,34 @@ export const listingsRouter = router({
 	localizaReadiness: protectedProcedure.query(async ({ ctx }) =>
 		ctx.localiza.getReadinessSnapshot(),
 	),
+	localizaTableHistory: protectedProcedure
+		.input(
+			z
+				.object({
+					limit: z.number().int().min(1).max(250).default(100),
+				})
+				.optional(),
+		)
+		.query(async ({ ctx, input }) =>
+			ctx.convex.query(api.locationResolutions.listUserPropertyHistory, {
+				limit: input?.limit ?? 100,
+			}),
+		),
 	submitLocalizaAddressFeedback: protectedProcedure
 		.input(submitLocalizaAddressFeedbackInputSchema)
 		.mutation(async ({ ctx, input }) =>
 			ctx.localiza.submitAddressFeedback(input),
+		),
+	hideLocalizaTableHistoryRow: protectedProcedure
+		.input(
+			z.object({
+				id: z.string().min(1, "History row id is required"),
+			}),
+		)
+		.mutation(async ({ ctx, input }) =>
+			ctx.convex.mutation(api.locationResolutions.hideUserPropertyHistoryRow, {
+				id: input.id as Id<"localizaUserPropertyHistory">,
+			}),
 		),
 	rankCaptacionBuildings: protectedProcedure
 		.input(rankCaptacionBuildingsInputSchema)

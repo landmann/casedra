@@ -3,6 +3,7 @@ import { env } from "@/env";
 const DEFAULT_ALLOWED_APP_EMAILS = [
 	"nlandmanc@gmail.com",
 	"debbielandman77@gmail.com",
+	"debbielandman88@gmail.com",
 ] as const;
 
 type ClerkUserLike = {
